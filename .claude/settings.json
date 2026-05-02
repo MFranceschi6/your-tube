@@ -14,7 +14,6 @@
     "guide-swiftui-animations": "off",
     "tipkit": "off",
     "ios-liquid-glass": "off",
-    "android-development": "off",
     "mapkit": "off",
     "guide-swiftui-charts": "off",
     "guide-swiftui-performance-audit": "off",
@@ -44,6 +43,8 @@
       "Edit(ios/**)",
       "Edit(docs/**)",
       "Edit(.claude/**)",
+      "Edit(.agents/**)",
+      "Edit(obsidian-vault/**)",
       "Bash(cd android && ./gradlew :app:assembleDebug)",
       "Bash(cd android && ./gradlew testDebugUnitTest)",
       "Bash(cd android && ./gradlew lintDebug)",
@@ -54,6 +55,7 @@
     "ask": [
       "Bash(cd android && ./gradlew connectedDebugAndroidTest)",
       "Bash(cd ios && xcodebuild*)",
+      "Bash(obsidian *)",
       "Bash(git *)"
     ],
     "deny": [

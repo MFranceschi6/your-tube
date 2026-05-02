@@ -22,6 +22,21 @@ Before changing code:
 - Network/API contracts should be treated as shared product contracts.
 - Never hardcode secrets, tokens, API keys, bundle identifiers, signing credentials, or provisioning data.
 
+## Planning vault
+
+- Local Obsidian vault: `obsidian-vault/`.
+- The vault is intentionally gitignored and must not be committed.
+- Tracked planning conventions live in `docs/obsidian-planning.md`.
+- Use the `obsidian-project-management` skill when creating, triaging, reviewing, or maintaining Obsidian tasks, Bases, dashboards, or task templates.
+- Do not create or update task notes unless the user explicitly asks for task preparation, triage, review, or maintenance.
+- Shared product behavior discovered during planning still belongs in tracked `docs/`, not only in the local vault.
+- When a request names an Obsidian task ID or clearly asks an agent to work from the vault, open that task note first and route the working personality from `platform`, `area`, `agent_profile`, and `review_profile` as defined in `docs/obsidian-planning.md`.
+- When an agent starts work on a task note, confirm every `depends_on` task is `done`, update the note to `status: in-progress`, set or confirm `agent_profile` and `review_profile`, and refresh `updated`. When implementation is ready, move it to `status: review`; reviewers move it to `done`, `in-progress`, or `blocked` based on the outcome.
+- Use `depends_on` for hard task prerequisites. A task with incomplete dependencies should normally be `status: blocked`; `links` are only contextual.
+- Current task notes should carry MVP roadmap metadata: `milestone: MVP`, `epic`, `phase`, `blocked_reason`, `validation_command`, and minimal tags `task` and `mvp`.
+- If a task is too large for one focused implementation and review, split it before implementation using `parent_id`, `child_tasks`, and `split_reason`; keep each child independently validatable.
+- Default implementation profiles are `android-engineer` for `platform: android`, `ios-engineer` for `platform: ios`, `shared-contract-engineer` for `platform: shared`, `docs-maintainer` for `platform: docs`, and `build-ops-engineer` for `platform: ops`. Default code review uses `mobile-reviewer`; planning review uses `obsidian-task-reviewer`.
+
 ## Android commands
 
 From `android/`:

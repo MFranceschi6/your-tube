@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 999,
+  "id": "00000000-0000-4000-8000-000000000002",
+  "name": "Future Schema Fixture",
+  "createdAt": "2026-05-02T09:00:00Z",
+  "updatedAt": "2026-05-02T09:30:00Z",
+  "tracks": [
+    {
+      "videoId": "dQw4w9WgXcQ",
+      "title": "Future Fixture Track",
+      "channel": "Fixture Channel",
+      "durationSec": 213,
+      "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg"
+    }
+  ]
+}

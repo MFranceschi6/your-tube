@@ -17,6 +17,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // JitPack is required for NewPipeExtractor (com.github.TeamNewPipe:NewPipeExtractor).
+        maven { url = uri("https://jitpack.io") }
     }
 }
 
@@ -34,3 +36,5 @@ include(":feature:home")
 include(":feature:search")
 include(":feature:player")
 include(":feature:library")
+include(":feature:history")
+include(":feature:settings")

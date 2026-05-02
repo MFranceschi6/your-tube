@@ -57,6 +57,13 @@ File extension `.ytplaylist.json`, MIME `application/json`. Produced by export, 
 - Importers MUST reject files with `schemaVersion` higher than they support and surface a "please update the app" error.
 - Importers SHOULD accept files with lower `schemaVersion` and migrate up.
 
+## Canonical fixtures
+
+- Valid v1 fixture: `docs/fixtures/playlist-valid-v1.ytplaylist.json`
+- Future-schema rejection fixture: `docs/fixtures/playlist-future-schema.ytplaylist.json`
+
+Platform tests may copy these files into local test resources if required by the build system, but copied fixtures must stay byte-for-byte equivalent to the canonical files.
+
 ## Conflict resolution on import
 
 - Match incoming playlist by `id`.

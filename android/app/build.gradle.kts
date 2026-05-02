@@ -51,10 +51,14 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:network"))
     implementation(project(":core:player"))
+    // TODO(nav): :feature:home exists but is not yet wired into the MVP nav graph.
+    //            Wire it once the nav scaffold is in place (see YT-0005 or equivalent).
     implementation(project(":feature:home"))
     implementation(project(":feature:search"))
     implementation(project(":feature:player"))
     implementation(project(":feature:library"))
+    implementation(project(":feature:history"))
+    implementation(project(":feature:settings"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

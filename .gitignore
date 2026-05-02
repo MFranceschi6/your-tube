@@ -10,6 +10,7 @@
 CLAUDE.local.md
 .claude/settings.local.json
 .codex/
+obsidian-vault/
 
 # Keep only the project skill gatekeeper and the skills it explicitly routes to.
 .agents/skills/*
@@ -41,6 +42,14 @@ CLAUDE.local.md
 !.agents/skills/ios-dev/**
 !.agents/skills/ios-ui-craft/
 !.agents/skills/ios-ui-craft/**
+!.agents/skills/obsidian-bases/
+!.agents/skills/obsidian-bases/**
+!.agents/skills/obsidian-cli/
+!.agents/skills/obsidian-cli/**
+!.agents/skills/obsidian-markdown/
+!.agents/skills/obsidian-markdown/**
+!.agents/skills/obsidian-project-management/
+!.agents/skills/obsidian-project-management/**
 !.agents/skills/simulator-utils/
 !.agents/skills/simulator-utils/**
 !.agents/skills/swift-concurrency/
@@ -86,6 +95,14 @@ CLAUDE.local.md
 !.claude/skills/ios-dev/**
 !.claude/skills/ios-ui-craft/
 !.claude/skills/ios-ui-craft/**
+!.claude/skills/obsidian-bases/
+!.claude/skills/obsidian-bases/**
+!.claude/skills/obsidian-cli/
+!.claude/skills/obsidian-cli/**
+!.claude/skills/obsidian-markdown/
+!.claude/skills/obsidian-markdown/**
+!.claude/skills/obsidian-project-management/
+!.claude/skills/obsidian-project-management/**
 !.claude/skills/simulator-utils/
 !.claude/skills/simulator-utils/**
 !.claude/skills/swift-concurrency/
