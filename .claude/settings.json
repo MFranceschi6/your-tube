@@ -1,0 +1,71 @@
+{
+  "skillOverrides": {
+    "update-config": "off",
+    "keybindings-help": "off",
+    "simplify": "off",
+    "fewer-permission-prompts": "off",
+    "loop": "off",
+    "schedule": "off",
+    "claude-api": "off",
+    "storekit": "off",
+    "eventkit": "off",
+    "combine": "off",
+    "healthkit": "off",
+    "guide-swiftui-animations": "off",
+    "tipkit": "off",
+    "ios-liquid-glass": "off",
+    "android-development": "off",
+    "mapkit": "off",
+    "guide-swiftui-charts": "off",
+    "guide-swiftui-performance-audit": "off",
+    "apple-aso": "off",
+    "guide-macos-spm-packaging": "off",
+    "photosui": "off",
+    "usernotifications": "off",
+    "plan-feature": "off",
+    "review-mobile-pr": "off",
+    "fix-ci": "off",
+    "caveman:caveman-help": "off",
+    "caveman:caveman-review": "off",
+    "caveman:compress": "off",
+    "caveman:caveman-commit": "off",
+    "caveman:caveman": "off",
+    "init": "off",
+    "review": "off",
+    "security-review": "off"
+  },
+  "permissions": {
+    "allow": [
+      "Read(*)",
+      "Grep(*)",
+      "Glob(*)",
+      "LS(*)",
+      "Edit(android/**)",
+      "Edit(ios/**)",
+      "Edit(docs/**)",
+      "Edit(.claude/**)",
+      "Bash(cd android && ./gradlew :app:assembleDebug)",
+      "Bash(cd android && ./gradlew testDebugUnitTest)",
+      "Bash(cd android && ./gradlew lintDebug)",
+      "Bash(cd ios && xcodebuild -list)",
+      "Bash(cd ios && swiftformat . --lint)",
+      "Bash(cd ios && swiftlint)"
+    ],
+    "ask": [
+      "Bash(cd android && ./gradlew connectedDebugAndroidTest)",
+      "Bash(cd ios && xcodebuild*)",
+      "Bash(git *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -fd*)",
+      "Bash(security *)",
+      "Read(**/*.p8)",
+      "Read(**/*.mobileprovision)",
+      "Read(**/GoogleService-Info.plist)",
+      "Read(**/google-services.json)",
+      "Read(**/.env*)"
+    ]
+  }
+}
