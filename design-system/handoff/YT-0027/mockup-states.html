@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YT-0027 — Now Playing · additional states</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg-page: #0a0a0a;
+  --bg-panel: #141416;
+  --bg-screen: #1C1C1E;
+  --fg-1: #FFFFFF;
+  --fg-2: rgba(235,235,245,0.6);
+  --fg-3: rgba(235,235,245,0.4);
+  --fg-4: rgba(235,235,245,0.25);
+  --accent: #8B5CF6;
+  --bg-3: #2C2C2E;
+  --bg-4: #3A3A3C;
+  --hairline: rgba(84,84,88,0.45);
+}
+html, body {
+  min-height: 100%;
+  background: var(--bg-page);
+  font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  color: #EBEBF5;
+}
+body { padding: 32px 24px 64px; }
+
+.page-head {
+  max-width: 1480px; margin: 0 auto 24px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 18px;
+}
+.page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #fff; display: inline-block; }
+.page-head .meta { font-size: 12px; color: rgba(235,235,245,0.5); font-family: 'Geist Mono', 'SF Mono', monospace; }
+.page-head .badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  background: rgba(139,92,246,0.18); color: #B794F6;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-right: 8px;
+}
+.subhead {
+  max-width: 1480px; margin: 0 auto 28px;
+  font-size: 13px; color: rgba(235,235,245,0.55); line-height: 1.55;
+}
+.subhead a { color: #B794F6; text-decoration: none; }
+.subhead a:hover { text-decoration: underline; }
+
+.boards {
+  max-width: 1480px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+}
+@media (max-width: 1380px) {
+  .boards { grid-template-columns: 1fr; }
+}
+
+.board {
+  background: var(--bg-panel);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 18px;
+  padding: 24px;
+}
+.board-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 18px; gap: 12px;
+}
+.board-head h2 {
+  font-size: 16px; font-weight: 600; color: #fff; letter-spacing: -0.01em;
+}
+.board-head .tag {
+  font-size: 10px; font-weight: 600; color: rgba(235,235,245,0.55);
+  font-family: 'Geist Mono', monospace;
+  background: rgba(255,255,255,0.05);
+  padding: 3px 8px; border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+.board-desc {
+  font-size: 12.5px; color: rgba(235,235,245,0.55); line-height: 1.55;
+  margin-bottom: 20px;
+}
+
+.phone-stage {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 24px;
+  align-items: start;
+  background: radial-gradient(60% 50% at 30% 40%, #1a1a1a 0%, #0a0a0a 70%);
+  border-radius: 14px;
+  padding: 28px 24px 32px;
+  margin-bottom: 18px;
+}
+
+/* Side annotation gutter */
+.gutter {
+  position: relative;
+  height: 780px;
+  padding-top: 60px;
+}
+.gutter .pin {
+  position: absolute;
+  font-family: 'Geist Mono', monospace;
+  font-size: 9.5px; font-weight: 600;
+  color: rgba(139,92,246,0.95);
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  padding-left: 14px;
+  max-width: 150px;
+}
+.gutter .pin::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 7px;
+  width: 8px; height: 1px;
+  background: rgba(139,92,246,0.6);
+}
+.gutter .pin .sub {
+  display: block;
+  color: rgba(235,235,245,0.55);
+  font-weight: 500;
+  margin-top: 2px;
+}
+.phone {
+  width: 360px; height: 780px;
+  background: #000;
+  border-radius: 48px;
+  box-shadow: 0 0 0 2px #2a2a2a, 0 30px 80px rgba(0,0,0,0.7), inset 0 0 0 1px #444;
+  position: relative; overflow: hidden;
+  font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+}
+.island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 116px; height: 34px; background: #000; border-radius: 20px; z-index: 30;
+}
+.statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 50px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 26px 8px; z-index: 20; pointer-events: none;
+  font-size: 14px; font-weight: 600; color: #fff;
+}
+.statusbar .icons { display: flex; align-items: center; gap: 6px; }
+
+.screen {
+  position: absolute; inset: 0;
+  background: var(--bg-screen);
+}
+
+/* Annotations */
+.notes {
+  display: grid; grid-template-columns: 1fr; gap: 6px;
+  font-family: 'Geist Mono', 'SF Mono', monospace;
+  font-size: 11px;
+  color: rgba(235,235,245,0.55);
+}
+.notes .item {
+  display: grid; grid-template-columns: 110px 1fr; gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.notes .item:first-child { border-top: none; padding-top: 0; }
+.notes .k { color: rgba(139,92,246,0.85); }
+.notes .v { color: rgba(235,235,245,0.75); line-height: 1.45; }
+
+/* ─── State A: Scrubber dragging ─────────────────────── */
+.A .drag-handle {
+  position: absolute; top: 56px; left: 50%; transform: translateX(-50%);
+  width: 36px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.32);
+}
+.A .top-bar {
+  position: absolute; top: 70px; left: 16px; right: 16px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.A .top-bar .label {
+  font-size: 10px; font-weight: 600; color: var(--fg-3);
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.A .icon-btn {
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  color: var(--fg-1);
+}
+
+.A .artwork {
+  position: absolute; top: 124px; left: 50%; transform: translateX(-50%) scale(0.92);
+  width: 280px; height: 280px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #5B2A86 0%, #2B6CB0 60%, #1A365D 100%);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.18); font-size: 60px; font-weight: 700;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.45);
+  user-select: none;
+}
+
+.A .meta {
+  position: absolute; top: 432px; left: 24px; right: 24px;
+}
+.A .meta .title {
+  font-size: 22px; font-weight: 600; color: var(--fg-1);
+  letter-spacing: -0.02em; line-height: 1.2;
+}
+.A .meta .channel {
+  font-size: 15px; color: var(--fg-2); margin-top: 4px;
+}
+
+.A .scrubber {
+  position: absolute; top: 510px; left: 24px; right: 24px;
+}
+.A .scrubber .track {
+  position: relative; height: 8px; border-radius: 4px;
+  background: var(--bg-4);
+}
+.A .scrubber .fill {
+  position: absolute; left: 0; top: 0; height: 100%;
+  width: 36%; background: #fff; border-radius: 4px;
+}
+.A .scrubber .thumb {
+  position: absolute; left: 36%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 18px; height: 18px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.A .scrubber .times {
+  display: flex; justify-content: space-between; margin-top: 12px;
+  font-size: 14px; font-weight: 500; color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Floating tooltip showing tick position */
+.A .tick-tip {
+  position: absolute; top: 478px;
+  left: calc(24px + (360px - 48px) * 0.36 - 32px);
+  width: 64px;
+  background: rgba(28,28,30,0.95);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px; padding: 4px 0;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; color: var(--accent); text-align: center;
+  font-weight: 600;
+}
+.A .tick-tip::after {
+  content: ''; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%) rotate(45deg);
+  width: 8px; height: 8px; background: rgba(28,28,30,0.95);
+  border-right: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.A .transport {
+  position: absolute; top: 596px; left: 24px; right: 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  opacity: 0.5;
+}
+.A .transport .glyph { color: var(--fg-3); }
+.A .transport .play-btn {
+  width: 64px; height: 64px; border-radius: 50%; background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--bg-screen);
+}
+
+.A .anno {
+  position: absolute;
+  font-family: 'Geist Mono', monospace;
+  font-size: 9.5px; font-weight: 600;
+  color: rgba(139,92,246,0.95);
+  letter-spacing: 0.05em;
+  pointer-events: none;
+}
+.A .anno.dash {
+  border-left: 1px dashed rgba(139,92,246,0.55);
+  padding-left: 6px;
+}
+
+/* ─── State B: Up Next pushed ──────────────────────── */
+.B .navbar {
+  position: absolute; top: 50px; left: 0; right: 0; height: 44px;
+  display: flex; align-items: center; padding: 0 16px;
+  background: var(--bg-screen);
+  border-bottom: 0.5px solid var(--hairline);
+}
+.B .navbar .back {
+  display: flex; align-items: center; gap: 4px;
+  color: var(--accent); font-size: 17px; font-weight: 400;
+  cursor: pointer;
+}
+.B .navbar .title {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  font-size: 17px; font-weight: 600; color: var(--fg-1);
+}
+.B .navbar .edit {
+  margin-left: auto;
+  color: var(--accent); font-size: 17px; font-weight: 400;
+}
+
+.B .nowplaying-strip {
+  position: absolute; top: 94px; left: 16px; right: 16px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  background: rgba(44,44,46,0.6);
+  border-radius: 12px;
+}
+.B .nowplaying-strip .art {
+  width: 44px; height: 44px; border-radius: 6px;
+  background: linear-gradient(135deg, #5B2A86 0%, #2B6CB0 60%, #1A365D 100%);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.2); font-size: 18px; font-weight: 700;
+}
+.B .nowplaying-strip .meta { flex: 1; min-width: 0; }
+.B .nowplaying-strip .label {
+  font-size: 10px; font-weight: 600; color: var(--accent);
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.B .nowplaying-strip .title {
+  font-size: 13px; font-weight: 500; color: var(--fg-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.B .nowplaying-strip .pulse {
+  display: flex; gap: 2px; align-items: flex-end; height: 14px;
+}
+.B .nowplaying-strip .pulse span {
+  display: block; width: 3px; background: var(--accent); border-radius: 1px;
+}
+.B .nowplaying-strip .pulse span:nth-child(1) { height: 60%; }
+.B .nowplaying-strip .pulse span:nth-child(2) { height: 100%; }
+.B .nowplaying-strip .pulse span:nth-child(3) { height: 40%; }
+
+.B .section-head {
+  position: absolute; top: 168px; left: 16px; right: 16px;
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.B .section-head .title {
+  font-size: 22px; font-weight: 700; color: var(--fg-1);
+  letter-spacing: -0.02em;
+}
+.B .section-head .count {
+  font-size: 13px; color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.B .queue-list {
+  position: absolute; top: 210px; left: 16px; right: 16px; bottom: 0;
+}
+.B .row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 4px;
+  border-bottom: 0.5px solid var(--hairline);
+}
+.B .row:first-child { border-top: 0.5px solid var(--hairline); }
+.B .row .art {
+  width: 48px; height: 48px; border-radius: 6px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.15); font-size: 18px; font-weight: 700;
+}
+.B .row .meta { flex: 1; min-width: 0; }
+.B .row .title {
+  font-size: 15px; font-weight: 500; color: var(--fg-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.B .row .channel {
+  font-size: 13px; color: var(--fg-2); margin-top: 2px;
+}
+.B .row .duration {
+  font-size: 12px; color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+  margin-right: 4px;
+}
+.B .row .grip {
+  color: var(--fg-3);
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+}
+.B .row.swiping {
+  transform: translateX(-72px);
+  transition: transform 240ms ease;
+}
+.B .swipe-actions {
+  position: absolute; right: 16px; top: 218px;
+  display: flex; gap: 0; height: 68px;
+}
+.B .swipe-actions .act {
+  width: 72px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 500; color: #fff;
+  gap: 2px;
+}
+.B .swipe-actions .act.del { background: #FF3B30; }
+
+.B .anno {
+  position: absolute;
+  font-family: 'Geist Mono', monospace;
+  font-size: 9.5px; font-weight: 600;
+  color: rgba(139,92,246,0.95);
+  letter-spacing: 0.05em;
+  pointer-events: none;
+}
+
+/* shared svg color */
+svg { display: block; }
+</style>
+</head>
+<body data-screen-label="00 Mockup states">
+
+<div class="page-head">
+  <div>
+    <span class="badge">YT-0027</span>
+    <h1>Now Playing — additional states</h1>
+  </div>
+  <div class="meta">YourTube · iOS 17+ · SwiftUI · #8B5CF6</div>
+</div>
+
+<div class="subhead">
+  Two static states that the interactive mockup doesn't show frame-by-frame.
+  Read alongside <a href="decision-log.md">decision-log.md</a> Q4 (scrubber)
+  and Q6 (queue). All other states (play/pause, queue collapsed inline,
+  background variants, haptics) live in
+  <a href="mockup.html">mockup.html</a>.
+</div>
+
+<div class="boards">
+
+  <!-- ═══════════════════════ STATE A: SCRUBBER DRAGGING ═══════════════════════ -->
+  <section class="board" data-screen-label="A Scrubber dragging">
+    <div class="board-head">
+      <h2>A · Scrubber being dragged</h2>
+      <span class="tag">Q4 · scrubber</span>
+    </div>
+    <div class="board-desc">
+      Mid-drag state at ~36% through the track. Track expands 4→8 pt, thumb
+      grows 12→18 pt, time labels jump from secondary 12 pt to primary 14 pt
+      and gain weight. Artwork shrinks to 0.92 (subordinate to the 0.85
+      pause-scale). Haptic `.selection` ticks fire every 10 s of scrub
+      distance — never per frame.
+    </div>
+
+    <div class="phone-stage">
+      <div class="phone A">
+        <div class="island"></div>
+        <div class="statusbar">
+          <span>9:41</span>
+          <div class="icons">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.5"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.7"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+            <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+          </div>
+        </div>
+
+        <div class="screen">
+          <div class="drag-handle"></div>
+
+          <div class="top-bar">
+            <div class="icon-btn">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><polyline points="6,9 12,15 18,9"/></svg>
+            </div>
+            <div class="label">From queue · ChillHop</div>
+            <div class="icon-btn">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+            </div>
+          </div>
+
+          <div class="artwork">♪</div>
+
+          <div class="meta">
+            <div class="title">Chill Lofi Mix — Deep Focus</div>
+            <div class="channel">ChillHop Music</div>
+          </div>
+
+          <div class="scrubber">
+            <div class="track">
+              <div class="fill"></div>
+              <div class="thumb"></div>
+            </div>
+            <div class="times">
+              <span>21:42</span><span>-38:30</span>
+            </div>
+          </div>
+
+          <div class="transport">
+            <div class="glyph">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16,3 21,3 21,8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21,16 21,21 16,21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+            </div>
+            <div class="glyph">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><polygon points="20,4 9,12 20,20"/><rect x="4.5" y="4" width="2.4" height="16" rx="0.6"/></svg>
+            </div>
+            <div class="play-btn">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4.2" height="16" rx="1.2"/><rect x="13.8" y="4" width="4.2" height="16" rx="1.2"/></svg>
+            </div>
+            <div class="glyph">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><polygon points="4,4 15,12 4,20"/><rect x="17.1" y="4" width="2.4" height="16" rx="0.6"/></svg>
+            </div>
+            <div class="glyph">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17,1 21,5 17,9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7,23 3,19 7,15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="gutter">
+        <div class="pin" style="top: 56px;">dismiss · ellipsis<span class="sub">top toolbar — chevron-down + more menu</span></div>
+        <div class="pin" style="top: 156px;">artwork scale 0.92<span class="sub">subordinate to 0.85 pause-scale</span></div>
+        <div class="pin" style="top: 408px;">title 22pt / 600<span class="sub">channel 15pt / .secondary</span></div>
+        <div class="pin" style="top: 488px;">track 8pt<span class="sub">expanded from 4pt — .easeOut(0.18)</span></div>
+        <div class="pin" style="top: 528px;">thumb 18pt<span class="sub">expanded from 12pt — same easing</span></div>
+        <div class="pin" style="top: 568px;">labels primary 14pt<span class="sub">.medium weight, monospacedDigit</span></div>
+        <div class="pin" style="top: 624px;">transport dimmed<span class="sub">opacity 0.5 — focus on scrub</span></div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="item"><span class="k">// trigger</span><span class="v">DragGesture .onChanged → set isDragging = true</span></div>
+      <div class="item"><span class="k">// haptic tick</span><span class="v">.sensoryFeedback(.selection, trigger: Int(scrubPos / 10))</span></div>
+      <div class="item"><span class="k">// haptic end</span><span class="v">.sensoryFeedback(.impact(weight: .medium), trigger: isDragging) — fires on true→false</span></div>
+      <div class="item"><span class="k">// commit</span><span class="v">player.seek(to:) called only in .onEnded — never per-frame</span></div>
+      <div class="item"><span class="k">// track</span><span class="v">height 4→8pt, animation .easeOut(duration: 0.18)</span></div>
+      <div class="item"><span class="k">// thumb</span><span class="v">12→18pt circle, white fill, 1pt y-offset shadow @ 0.4 alpha</span></div>
+      <div class="item"><span class="k">// labels</span><span class="v">12→14pt, .secondary→.primary, weight .medium, monospacedDigit</span></div>
+      <div class="item"><span class="k">// artwork</span><span class="v">scaleEffect(0.92), spring(response: 0.35, dampingFraction: 0.85)</span></div>
+      <div class="item"><span class="k">// reduce-motion</span><span class="v">all size transitions instant; thumb still grows (it's affordance, not decoration)</span></div>
+      <div class="item"><span class="k">// inspiration</span><span class="v">Apple Music scrubber</span></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════ STATE B: UP NEXT PUSHED ═══════════════════════ -->
+  <section class="board" data-screen-label="B Up Next pushed">
+    <div class="board-head">
+      <h2>B · Up Next as pushed destination</h2>
+      <span class="tag">Q6 · queue</span>
+    </div>
+    <div class="board-desc">
+      Tapping the queue icon (or "See all" in the inline preview) pushes a
+      `NavigationStack` destination, not a sheet. The MiniPlayer stays
+      visible as a strip at the top so audio context is preserved. List
+      hosts native `.swipeActions` and edit-mode reorder. Row 1 shown
+      mid-swipe to expose the delete affordance.
+    </div>
+
+    <div class="phone-stage">
+      <div class="phone B">
+        <div class="island"></div>
+        <div class="statusbar">
+          <span>9:41</span>
+          <div class="icons">
+            <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.5"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.7"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+            <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+          </div>
+        </div>
+
+        <div class="screen">
+          <!-- nav bar -->
+          <div class="navbar">
+            <div class="back">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
+              <span>Now Playing</span>
+            </div>
+            <div class="title">Queue</div>
+            <div class="edit" style="position:absolute; right: 16px; top: 50%; transform: translateY(-50%);">Edit</div>
+          </div>
+
+          <!-- now-playing strip -->
+          <div class="nowplaying-strip">
+            <div class="art">♪</div>
+            <div class="meta">
+              <div class="label">Now playing</div>
+              <div class="title">Chill Lofi Mix — Deep Focus</div>
+            </div>
+            <div class="pulse"><span></span><span></span><span></span></div>
+          </div>
+
+          <!-- "Up Next" header -->
+          <div class="section-head">
+            <div class="title">Up Next</div>
+            <div class="count">7 tracks · 28 min</div>
+          </div>
+
+          <!-- queue rows -->
+          <div class="queue-list">
+            <!-- Row 1 — swiping (peek of delete action) -->
+            <div class="row swiping" style="background: rgba(28,28,30,1); position: relative; z-index: 2;">
+              <div class="art" style="background: linear-gradient(135deg, #B45309 0%, #78350F 100%);">H</div>
+              <div class="meta">
+                <div class="title">Hotel California</div>
+                <div class="channel">Eagles · Hotel California</div>
+              </div>
+              <div class="duration">6:30</div>
+              <div class="grip">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+              </div>
+            </div>
+
+            <!-- Row 2 -->
+            <div class="row">
+              <div class="art" style="background: linear-gradient(135deg, #1E40AF 0%, #0F172A 100%);">C</div>
+              <div class="meta">
+                <div class="title">Comfortably Numb</div>
+                <div class="channel">Pink Floyd · The Wall</div>
+              </div>
+              <div class="duration">6:23</div>
+              <div class="grip">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+              </div>
+            </div>
+
+            <!-- Row 3 -->
+            <div class="row">
+              <div class="art" style="background: linear-gradient(135deg, #4C1D95 0%, #1E1B4B 100%);">N</div>
+              <div class="meta">
+                <div class="title">November Rain</div>
+                <div class="channel">Guns N' Roses · Use Your Illusion I</div>
+              </div>
+              <div class="duration">8:57</div>
+              <div class="grip">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+              </div>
+            </div>
+
+            <!-- Row 4 -->
+            <div class="row">
+              <div class="art" style="background: linear-gradient(135deg, #047857 0%, #064E3B 100%);">B</div>
+              <div class="meta">
+                <div class="title">Bohemian Rhapsody</div>
+                <div class="channel">Queen · A Night at the Opera</div>
+              </div>
+              <div class="duration">5:55</div>
+              <div class="grip">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+              </div>
+            </div>
+
+            <!-- Row 5 -->
+            <div class="row">
+              <div class="art" style="background: linear-gradient(135deg, #B91C1C 0%, #450A0A 100%);">S</div>
+              <div class="meta">
+                <div class="title">Stairway to Heaven</div>
+                <div class="channel">Led Zeppelin · IV</div>
+              </div>
+              <div class="duration">8:02</div>
+              <div class="grip">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- swipe action behind row 1 -->
+          <div class="swipe-actions">
+            <div class="act del">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+              <span>Remove</span>
+            </div>
+          </div>
+
+          <!-- annotations moved to gutter -->
+        </div>
+      </div>
+      <div class="gutter">
+        <div class="pin" style="top: 50px;">push, not modal<span class="sub">NavigationStack destination — back via swipe-back</span></div>
+        <div class="pin" style="top: 100px;">audio context strip<span class="sub">always-visible MiniPlayer anchor</span></div>
+        <div class="pin" style="top: 174px;">section title 22pt<span class="sub">native large-title style</span></div>
+        <div class="pin" style="top: 240px;">native swipe actions<span class="sub">.swipeActions(edge: .trailing) destructive role</span></div>
+        <div class="pin" style="top: 320px;">grip handles<span class="sub">visible in edit mode — .onMove(perform:)</span></div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div class="item"><span class="k">// trigger</span><span class="v">tap queue icon → NavigationStack push → QueueView</span></div>
+      <div class="item"><span class="k">// haptic open</span><span class="v">.sensoryFeedback(.impact(weight: .light))</span></div>
+      <div class="item"><span class="k">// list</span><span class="v">List with .listStyle(.plain), .scrollContentBackground(.hidden)</span></div>
+      <div class="item"><span class="k">// reorder</span><span class="v">.onMove(perform:) — surfaces grip handles in edit mode</span></div>
+      <div class="item"><span class="k">// swipe</span><span class="v">.swipeActions(edge: .trailing) { Button(role: .destructive) }</span></div>
+      <div class="item"><span class="k">// strip</span><span class="v">always-visible "Now Playing" anchor — tap returns to NowPlaying view (acts as nav-back too)</span></div>
+      <div class="item"><span class="k">// pulse</span><span class="v">2-bar waveform, animates only when isPlaying — same logic as Dynamic Island</span></div>
+      <div class="item"><span class="k">// transition</span><span class="v">native NavigationStack push; reduce-motion → cross-fade</span></div>
+      <div class="item"><span class="k">// inspiration</span><span class="v">Apple Podcasts "Up Next"</span></div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>

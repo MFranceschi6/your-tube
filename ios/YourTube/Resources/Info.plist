@@ -34,7 +34,7 @@
         </dict>
     </array>
     <key>LSSupportsOpeningDocumentsInPlace</key>
-    <false/>
+    <true/>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>UILaunchScreen</key>
@@ -56,7 +56,14 @@
             <string>YourTube Playlist</string>
             <key>UTTypeConformsTo</key>
             <array>
-                <string>public.json</string>
+                <!--
+                    Conforms to `public.data` (not `public.json`) so iOS Files
+                    and QuickLook do not pre-empt YourTube as the canonical
+                    handler for `.ytplaylist.json` documents. We accept
+                    losing the JSON QuickLook preview — YourTube IS the viewer.
+                    See YT-0047.
+                -->
+                <string>public.data</string>
             </array>
             <key>UTTypeTagSpecification</key>
             <dict>

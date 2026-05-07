@@ -1,0 +1,92 @@
+name: YourTube
+
+options:
+  bundleIdPrefix: com.matteofranceschi
+  deploymentTarget:
+    iOS: "17.1"
+  developmentLanguage: en
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+  groupSortPosition: top
+  xcodeVersion: "15.0"
+  defaultConfig: Debug
+
+configs:
+  Debug: debug
+  Release: release
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    TARGETED_DEVICE_FAMILY: "1"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    ENABLE_PREVIEWS: YES
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: "0.1.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+
+targets:
+  YourTube:
+    type: application
+    platform: iOS
+    sources:
+      - path: YourTube
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.matteofranceschi.yourtube
+        PRODUCT_NAME: YourTube
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: YourTube/Resources/Info.plist
+    scheme:
+      testTargets:
+        - YourTubeTests
+        - YourTubeUITests
+      gatherCoverageData: true
+      commandLineArguments: {}
+
+  YourTubeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: YourTubeTests
+        excludes:
+          - "player-fixtures/**/*.json"
+      # YT-0034: shared cross-platform parity fixtures live under docs/fixtures
+      # so Android and iOS read identical bytes. Bundling them as test
+      # resources lets the simulator sandbox load them via `Bundle.url(forResource:)`.
+      - path: ../docs/fixtures
+        buildPhase: resources
+        type: folder
+        group: Resources
+      # YT-0162: InnerTube /player response fixtures for InnerTubePlayerClientTests.
+      # Bundled separately under `player-fixtures/` so this folder ref does
+      # not collide with the `fixtures/` folder ref above (Xcode rejects two
+      # build commands producing the same destination path).
+      - path: YourTubeTests/player-fixtures
+        buildPhase: resources
+        type: folder
+        group: Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.matteofranceschi.yourtube.tests
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/YourTube.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/YourTube"
+    dependencies:
+      - target: YourTube
+
+  YourTubeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: YourTubeUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.matteofranceschi.yourtube.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        TEST_TARGET_NAME: YourTube
+    dependencies:
+      - target: YourTube

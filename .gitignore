@@ -9,6 +9,7 @@
 # Local agent / assistant state
 CLAUDE.local.md
 .claude/settings.local.json
+.claude/worktrees/
 .codex/
 obsidian-vault/
 
@@ -42,6 +43,8 @@ obsidian-vault/
 !.agents/skills/ios-dev/**
 !.agents/skills/ios-ui-craft/
 !.agents/skills/ios-ui-craft/**
+!.agents/skills/yourtube-design/
+!.agents/skills/yourtube-design/**
 !.agents/skills/obsidian-bases/
 !.agents/skills/obsidian-bases/**
 !.agents/skills/obsidian-cli/
@@ -162,6 +165,10 @@ ios/Package.resolved
 ios/Pods/
 ios/Podfile.lock
 ios/Carthage/Build/
+
+# tools/ probe SwiftPM build artifacts
+tools/**/.build/
+tools/**/Packages/
 
 # Test and coverage output
 *.xcresult

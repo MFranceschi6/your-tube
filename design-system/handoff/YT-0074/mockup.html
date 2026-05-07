@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YT-0074 — MiniPlayer ↔ NowPlaying motion</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  min-height: 100%;
+  background: #0a0a0a;
+  font-family: 'Geist', -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  color: #EBEBF5;
+}
+body { padding: 32px 24px 96px; }
+
+.page-head {
+  max-width: 1640px; margin: 0 auto 22px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 18px;
+  flex-wrap: wrap;
+}
+.page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #fff; display: inline-block; }
+.page-head .meta { font-size: 12px; color: rgba(235,235,245,0.5); font-family: 'Geist Mono', 'SF Mono', monospace; }
+.page-head .badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  background: rgba(139,92,246,0.18); color: #B794F6;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-right: 8px;
+}
+
+.note {
+  max-width: 1640px; margin: 0 auto 24px;
+  background: rgba(139,92,246,0.08);
+  border-left: 3px solid #8B5CF6;
+  padding: 14px 18px; border-radius: 0 8px 8px 0;
+  font-size: 13px; line-height: 1.55; color: rgba(235,235,245,0.78);
+}
+.note strong { color: #fff; }
+.note code { font-family: 'Geist Mono', monospace; font-size: 12px; background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; color: #B794F6; }
+
+/* Controls */
+.controls {
+  max-width: 1640px; margin: 0 auto 24px;
+  background: #141416; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 18px 20px;
+  display: grid; grid-template-columns: 1fr auto; gap: 18px 24px; align-items: center;
+}
+.controls .left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.controls .right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.seg {
+  display: inline-flex; background: #1f1f22; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px; padding: 2px; gap: 2px;
+}
+.seg button {
+  background: transparent; border: none; color: rgba(235,235,245,0.6);
+  font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 6px;
+  cursor: pointer; font-family: inherit; transition: all 120ms ease;
+  letter-spacing: 0.02em;
+}
+.seg button.on { background: #2c2c2e; color: #fff; box-shadow: 0 1px 0 rgba(0,0,0,0.3); }
+.seg button:hover:not(.on) { color: #fff; }
+.controls label.k { font-size: 11px; color: rgba(235,235,245,0.45); font-family: 'Geist Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; }
+
+.btn-primary {
+  background: #8B5CF6; color: #fff; border: none; font-family: inherit;
+  font-size: 13px; font-weight: 600; padding: 8px 18px; border-radius: 8px;
+  cursor: pointer; transition: all 120ms ease;
+}
+.btn-primary:hover { background: #7C3AED; }
+.btn-ghost {
+  background: transparent; border: 1px solid rgba(255,255,255,0.12); color: #EBEBF5;
+  font-family: inherit; font-size: 12px; padding: 7px 12px; border-radius: 8px;
+  cursor: pointer;
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.06); }
+
+/* Scrubber */
+.scrubber {
+  max-width: 1640px; margin: 0 auto 32px;
+  background: #141416; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 18px 20px;
+}
+.scrubber-row {
+  display: grid; grid-template-columns: 60px 1fr 90px; gap: 16px; align-items: center;
+}
+.scrubber-row .t {
+  font-family: 'Geist Mono', monospace; font-size: 13px; color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.scrubber-row .total { color: rgba(235,235,245,0.5); text-align: right; }
+.track {
+  position: relative; height: 36px; cursor: pointer; user-select: none;
+}
+.track .rail {
+  position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+  height: 4px; border-radius: 2px; background: #2C2C2E;
+}
+.track .fill {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  height: 4px; border-radius: 2px; background: #8B5CF6;
+}
+.track .thumb {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: 14px; height: 14px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 0 3px rgba(139,92,246,0.3);
+}
+.track .stops {
+  position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+  height: 12px; pointer-events: none;
+}
+.track .stop {
+  position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.18);
+}
+.track .stoplabel {
+  position: absolute; top: 18px; transform: translateX(-50%);
+  font-family: 'Geist Mono', monospace; font-size: 9px; color: rgba(235,235,245,0.4);
+  white-space: nowrap;
+}
+
+/* Phones row */
+.row-phones {
+  max-width: 1640px; margin: 0 auto 36px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+}
+.phone-cell {
+  background: #141416; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 20px 20px 12px; display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+.phone-cell .label {
+  width: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+}
+.phone-cell .label .platform {
+  font-size: 13px; font-weight: 600; color: #fff; letter-spacing: -0.01em;
+}
+.phone-cell .label .frame {
+  font-family: 'Geist Mono', monospace; font-size: 11px; color: rgba(235,235,245,0.45);
+}
+.phone-stage {
+  width: 393px; max-width: 100%;
+  display: flex; justify-content: center;
+}
+
+/* iOS phone */
+.ios-phone {
+  width: 393px; height: 852px;
+  background: #000;
+  border-radius: 52px;
+  box-shadow: 0 0 0 2px #2a2a2a, 0 24px 60px rgba(0,0,0,0.6), inset 0 0 0 1px #444;
+  position: relative; overflow: hidden;
+  font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  transform: scale(0.78); transform-origin: top center;
+  margin-bottom: -188px;
+}
+.ios-phone .island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 124px; height: 36px; background: #000; border-radius: 20px; z-index: 30;
+}
+.ios-phone .statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 54px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 28px 10px; z-index: 25; pointer-events: none;
+  font-size: 15px; font-weight: 600; color: #fff;
+}
+
+/* Android phone */
+.android-phone {
+  width: 360px; height: 800px;
+  background: #000;
+  border-radius: 36px;
+  box-shadow: 0 0 0 2px #2a2a2a, 0 24px 60px rgba(0,0,0,0.6), inset 0 0 0 1px #444;
+  position: relative; overflow: hidden;
+  font-family: 'Roboto', -apple-system, sans-serif;
+  transform: scale(0.85); transform-origin: top center;
+  margin-bottom: -120px;
+}
+.android-phone .punch {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 14px; height: 14px; background: #000; border-radius: 50%; z-index: 30;
+  box-shadow: inset 0 0 0 1px #1a1a1a;
+}
+.android-phone .statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; z-index: 25; pointer-events: none;
+  font-size: 13px; font-weight: 500; color: #fff;
+}
+
+/* Keyframe strip */
+.kf-strip {
+  max-width: 1640px; margin: 0 auto 36px;
+  background: #141416; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 22px;
+}
+.kf-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 14px; gap: 16px; flex-wrap: wrap;
+}
+.kf-head h3 { font-size: 14px; font-weight: 600; color: #fff; }
+.kf-head .lede { font-size: 12px; color: rgba(235,235,245,0.5); flex: 1; }
+.kf-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px;
+}
+.kf {
+  background: #1A1A1C; border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.kf .t {
+  font-family: 'Geist Mono', monospace; font-size: 11px; color: #B794F6; letter-spacing: 0.06em;
+}
+.kf .stage {
+  height: 200px; background: #0F0F0F; border-radius: 8px; position: relative; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.kf .stage .miniplayer-mock {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; height: 38px;
+  background: #1C1C1E; border-radius: 9px; display: flex; align-items: center; gap: 6px; padding: 4px 6px;
+}
+.kf .stage .miniplayer-mock .thumb-mock {
+  width: 30px; height: 30px; border-radius: 2.5px;
+}
+.kf .stage .miniplayer-mock .meta-mock {
+  flex: 1; display: flex; flex-direction: column; gap: 2.5px;
+}
+.kf .stage .miniplayer-mock .meta-mock .l1 { width: 60%; height: 5px; border-radius: 2px; background: rgba(255,255,255,0.7); }
+.kf .stage .miniplayer-mock .meta-mock .l2 { width: 38%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.4); }
+.kf .stage .artwork-mock {
+  position: absolute; background: linear-gradient(135deg, #5B2A86 0%, #2B6CB0 100%);
+}
+.kf .stage .controls-mock {
+  position: absolute; left: 22px; right: 22px; bottom: 18px; display: flex; align-items: center; justify-content: center; gap: 14px;
+}
+.kf .stage .controls-mock .dot {
+  width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.55);
+}
+.kf .stage .controls-mock .play {
+  width: 14px; height: 14px; border-radius: 50%; background: #fff;
+}
+.kf .stage .scrub-mock {
+  position: absolute; left: 22px; right: 22px; bottom: 50px; height: 2px; background: rgba(255,255,255,0.2); border-radius: 1px;
+}
+.kf .stage .scrub-mock::after {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 36%; background: #8B5CF6; border-radius: 1px;
+}
+.kf .info {
+  font-size: 11px; line-height: 1.5; color: rgba(235,235,245,0.65);
+}
+.kf .info code { font-family: 'Geist Mono', monospace; font-size: 10.5px; color: #B794F6; background: rgba(139,92,246,0.1); padding: 1px 5px; border-radius: 3px; }
+
+/* Token table */
+.tokens {
+  max-width: 1640px; margin: 0 auto 36px;
+  background: #141416; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 22px;
+}
+.tokens h3 { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 14px; }
+.tokens-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+}
+.tok {
+  background: #1A1A1C; border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; padding: 12px 14px;
+}
+.tok .tk { font-family: 'Geist Mono', monospace; font-size: 11px; color: rgba(235,235,245,0.5); letter-spacing: 0.04em; margin-bottom: 4px; }
+.tok .tv { font-family: 'Geist Mono', monospace; font-size: 13px; color: #fff; font-weight: 500; }
+.tok .td { font-size: 11px; color: rgba(235,235,245,0.45); margin-top: 4px; line-height: 1.45; }
+
+/* Easing curve viz */
+.curves {
+  max-width: 1640px; margin: 0 auto 36px;
+  background: #141416; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 22px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+}
+.curve { background: #1A1A1C; border-radius: 10px; padding: 14px; }
+.curve .name { font-family: 'Geist Mono', monospace; font-size: 11px; color: #B794F6; margin-bottom: 8px; }
+.curve .formula { font-family: 'Geist Mono', monospace; font-size: 11px; color: rgba(235,235,245,0.55); margin-bottom: 10px; }
+.curve svg { width: 100%; height: auto; }
+
+::-webkit-scrollbar { width: 0; height: 0; }
+
+@keyframes blink { 50% { opacity: 0.4; } }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div>
+    <span class="badge">YT-0074 · MOTION</span>
+    <h1>MiniPlayer ↔ NowPlaying — canonical motion</h1>
+  </div>
+  <div class="meta">YourTube · Dark theme · #8B5CF6 · iOS-393 + Android-360</div>
+</div>
+
+<div class="note">
+  <strong>How to read this.</strong> Press <code>Play expand</code> to run the MiniPlayer→NowPlaying transition on both platforms in lockstep. Drag the scrubber to inspect any frame. Toggle <code>Reduce motion</code> to see the accessibility fallback (cross-fade, 120 ms). The <code>0.25× / 0.5× / 1×</code> buttons slow playback for review without altering the spec — measured durations stay 320 / 260 / 120 ms at 1×. Numbers are sourced from <code>motion-spec.md</code>; if anything below disagrees, the spec wins.
+</div>
+
+<div class="controls">
+  <div class="left">
+    <label class="k">Direction</label>
+    <div class="seg" id="seg-dir">
+      <button data-v="expand" class="on">Expand →</button>
+      <button data-v="collapse">← Collapse</button>
+    </div>
+    <label class="k">Reduce motion</label>
+    <div class="seg" id="seg-rm">
+      <button data-v="off" class="on">Off</button>
+      <button data-v="on">On</button>
+    </div>
+    <label class="k">Speed</label>
+    <div class="seg" id="seg-spd">
+      <button data-v="0.25">0.25×</button>
+      <button data-v="0.5">0.5×</button>
+      <button data-v="1" class="on">1×</button>
+    </div>
+  </div>
+  <div class="right">
+    <button class="btn-ghost" id="btn-loop">Loop: off</button>
+    <button class="btn-primary" id="btn-play">▶ Play</button>
+  </div>
+</div>
+
+<div class="scrubber">
+  <div class="scrubber-row">
+    <div class="t" id="t-cur">0 ms</div>
+    <div class="track" id="track">
+      <div class="rail"></div>
+      <div class="fill" id="fill"></div>
+      <div class="stops" id="stops"></div>
+      <div class="thumb" id="thumb"></div>
+    </div>
+    <div class="t total" id="t-tot">/ 320 ms</div>
+  </div>
+</div>
+
+<div class="row-phones">
+  <div class="phone-cell">
+    <div class="label">
+      <div class="platform">iOS · matchedGeometryEffect</div>
+      <div class="frame">393 × 852 · SwiftUI</div>
+    </div>
+    <div class="phone-stage"><div id="ios-root"></div></div>
+  </div>
+  <div class="phone-cell">
+    <div class="label">
+      <div class="platform">Android · SharedTransitionLayout</div>
+      <div class="frame">360 × 800 · Compose 1.7+</div>
+    </div>
+    <div class="phone-stage"><div id="android-root"></div></div>
+  </div>
+</div>
+
+<div class="kf-strip">
+  <div class="kf-head">
+    <h3>Keyframes — expand (1× speed reference)</h3>
+    <div class="lede">Same artwork bitmap in flight; corner-radius lerps 4 → 12 px; controls delayed 200 ms.</div>
+  </div>
+  <div class="kf-grid" id="kf-grid"></div>
+</div>
+
+<div class="tokens">
+  <h3>Tokens — single source of truth</h3>
+  <div class="tokens-grid">
+    <div class="tok"><div class="tk">motion.duration.expand</div><div class="tv">320 ms</div><div class="td">+20 ms over band; justified in spec §1</div></div>
+    <div class="tok"><div class="tk">motion.duration.collapse</div><div class="tv">260 ms</div><div class="td">in-band</div></div>
+    <div class="tok"><div class="tk">motion.duration.reduceMotion</div><div class="tv">120 ms</div><div class="td">opacity-only, both directions</div></div>
+    <div class="tok"><div class="tk">motion.delay.controls</div><div class="tv">200 ms</div><div class="td">transport fade-in delay on expand</div></div>
+    <div class="tok"><div class="tk">motion.easing.standard</div><div class="tv">cubic-bezier(0.2, 0, 0, 1)</div><div class="td">primary curve</div></div>
+    <div class="tok"><div class="tk">motion.easing.exit</div><div class="tv">cubic-bezier(0.3, 0, 0.8, 0.15)</div><div class="td">artwork on collapse</div></div>
+    <div class="tok"><div class="tk">artwork.startRadius / endRadius</div><div class="tv">4 px → 12 px</div><div class="td">linear interpolation</div></div>
+    <div class="tok"><div class="tk">artwork.startSize / endSize</div><div class="tv">48 → screen − 48</div><div class="td">screen width minus 24 px gutters</div></div>
+    <div class="tok"><div class="tk">scrim.colorStart / colorEnd</div><div class="tv">#1C1C1E → #0F0F0F</div><div class="td">surface → bg, cross-fade 0–240 ms</div></div>
+    <div class="tok"><div class="tk">drag.threshold</div><div class="tv">30 % screen H</div><div class="td">or velocity ≥ 800 dp/s</div></div>
+    <div class="tok"><div class="tk">a11y.focusEntry (iOS)</div><div class="tv">artwork view</div><div class="td">screenChanged, settle + 50 ms</div></div>
+    <div class="tok"><div class="tk">a11y.focusEntry (Android)</div><div class="tv">collapse button</div><div class="td">accessibilityPaneTitle = "Now playing"</div></div>
+  </div>
+</div>
+
+<div class="curves">
+  <div class="curve">
+    <div class="name">motion.easing.standard</div>
+    <div class="formula">cubic-bezier(0.2, 0.0, 0.0, 1.0)</div>
+    <svg viewBox="0 0 200 200" preserveAspectRatio="none">
+      <line x1="0" y1="200" x2="200" y2="200" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+      <line x1="0" y1="0" x2="0" y2="200" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+      <line x1="0" y1="0" x2="200" y2="0" stroke="rgba(255,255,255,0.06)" stroke-dasharray="2 4"/>
+      <line x1="200" y1="0" x2="200" y2="200" stroke="rgba(255,255,255,0.06)" stroke-dasharray="2 4"/>
+      <path d="M 0 200 C 40 200, 200 0, 200 0" stroke="#8B5CF6" stroke-width="2" fill="none"/>
+      <text x="6" y="14" fill="rgba(235,235,245,0.4)" font-size="9" font-family="Geist Mono">1.0</text>
+      <text x="6" y="194" fill="rgba(235,235,245,0.4)" font-size="9" font-family="Geist Mono">0.0</text>
+    </svg>
+  </div>
+  <div class="curve">
+    <div class="name">motion.easing.exit</div>
+    <div class="formula">cubic-bezier(0.3, 0.0, 0.8, 0.15)</div>
+    <svg viewBox="0 0 200 200" preserveAspectRatio="none">
+      <line x1="0" y1="200" x2="200" y2="200" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+      <line x1="0" y1="0" x2="0" y2="200" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+      <line x1="0" y1="0" x2="200" y2="0" stroke="rgba(255,255,255,0.06)" stroke-dasharray="2 4"/>
+      <line x1="200" y1="0" x2="200" y2="200" stroke="rgba(255,255,255,0.06)" stroke-dasharray="2 4"/>
+      <path d="M 0 200 C 60 200, 160 170, 200 0" stroke="#FF8FA3" stroke-width="2" fill="none"/>
+      <text x="6" y="14" fill="rgba(235,235,245,0.4)" font-size="9" font-family="Geist Mono">1.0</text>
+      <text x="6" y="194" fill="rgba(235,235,245,0.4)" font-size="9" font-family="Geist Mono">0.0</text>
+    </svg>
+  </div>
+  <div class="curve">
+    <div class="name">linear (reduce-motion)</div>
+    <div class="formula">cross-fade · 120 ms</div>
+    <svg viewBox="0 0 200 200" preserveAspectRatio="none">
+      <line x1="0" y1="200" x2="200" y2="200" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+      <line x1="0" y1="0" x2="0" y2="200" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+      <path d="M 0 200 L 200 0" stroke="#7CFFCB" stroke-width="2" fill="none"/>
+      <text x="6" y="14" fill="rgba(235,235,245,0.4)" font-size="9" font-family="Geist Mono">1.0</text>
+      <text x="6" y="194" fill="rgba(235,235,245,0.4)" font-size="9" font-family="Geist Mono">0.0</text>
+    </svg>
+  </div>
+</div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+// ─── tokens (mirror motion-spec.md §1) ────────────────────────────────
+const TOK = {
+  expand: 320, collapse: 260, reduce: 120,
+  controlsDelay: 200,
+  artStartR: 4, artEndR: 12,
+  surface: '#1C1C1E', bg: '#0F0F0F',
+  accent: '#8B5CF6',
+  fg1: '#FFFFFF', fg2: 'rgba(235,235,245,0.80)', fg3: 'rgba(235,235,245,0.40)',
+  hairline: 'rgba(255,255,255,0.08)',
+};
+
+const ART = 'linear-gradient(135deg, #5B2A86 0%, #2B6CB0 100%)';
+
+// ─── easings ──────────────────────────────────────────────────────────
+function bezier(p1x, p1y, p2x, p2y) {
+  // Newton-Raphson on x; cubic on y. Standard CSS cubic-bezier solver.
+  const NEWTON_ITER = 8;
+  function sampleCurveX(t) {
+    return ((1 - 3*p2x + 3*p1x) * t + (3*p2x - 6*p1x)) * t * t + 3*p1x*t;
+  }
+  function sampleCurveY(t) {
+    return ((1 - 3*p2y + 3*p1y) * t + (3*p2y - 6*p1y)) * t * t + 3*p1y*t;
+  }
+  function sampleDerivX(t) {
+    return 3 * (1 - 3*p2x + 3*p1x) * t * t + 2 * (3*p2x - 6*p1x) * t + 3*p1x;
+  }
+  function solveCurveX(x) {
+    let t = x;
+    for (let i = 0; i < NEWTON_ITER; i++) {
+      const cx = sampleCurveX(t) - x;
+      const dx = sampleDerivX(t);
+      if (Math.abs(dx) < 1e-6) break;
+      t = t - cx / dx;
+    }
+    return t;
+  }
+  return (x) => {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    return sampleCurveY(solveCurveX(x));
+  };
+}
+const E_STD  = bezier(0.2, 0.0, 0.0, 1.0);
+const E_EXIT = bezier(0.3, 0.0, 0.8, 0.15);
+const E_LIN  = (x) => x;
+
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+// blend two hex colors (#rrggbb) at t∈[0,1]
+function mixHex(a, b, t) {
+  const pa = [parseInt(a.slice(1,3),16), parseInt(a.slice(3,5),16), parseInt(a.slice(5,7),16)];
+  const pb = [parseInt(b.slice(1,3),16), parseInt(b.slice(3,5),16), parseInt(b.slice(5,7),16)];
+  const r = Math.round(lerp(pa[0],pb[0],t)), g = Math.round(lerp(pa[1],pb[1],t)), bl = Math.round(lerp(pa[2],pb[2],t));
+  return `rgb(${r}, ${g}, ${bl})`;
+}
+
+// ─── derive transition state at time t ────────────────────────────────
+// dir: 'expand' | 'collapse', reduce: bool
+// Returns: { artwork:{x,y,w,h,r}, scrim, miniOpacity, npChromeOpacity, controlsOpacity, controlsY, tabBarY, tabBarOpacity, statusOpacity }
+function computeState({ phone, t, dir, reduce, dur }) {
+  // phone: { w, h, miniBottom, miniThumbX, miniThumbY, miniThumbS, npArtX, npArtY, npArtW, tabH }
+  const p = phone;
+  const u = clamp(t / dur, 0, 1);
+
+  if (reduce) {
+    // Reduce-motion: cross-fade only; render destination geometry from frame 0.
+    const isExpand = dir === 'expand';
+    // u == 1 means fully on the destination side
+    const showNP = isExpand ? u : 1 - u;
+    return {
+      // artwork sits at NowPlaying position (no transform)
+      artwork: { x: p.npArtX, y: p.npArtY, w: p.npArtW, h: p.npArtW, r: TOK.artEndR, opacity: showNP, anchorMini: false },
+      // mini artwork shows at mini position (no transform)
+      artworkMini: { x: p.miniThumbX, y: p.miniThumbY, w: p.miniThumbS, h: p.miniThumbS, r: TOK.artStartR, opacity: 1 - showNP },
+      scrim: TOK.bg, // not animated; cross-fade handles it
+      miniOpacity: 1 - showNP,
+      npOpacity: showNP,
+      npChromeOpacity: showNP,
+      controlsOpacity: showNP,
+      controlsY: 0,
+      tabBarY: 0,
+      tabBarOpacity: 1 - showNP,
+    };
+  }
+
+  if (dir === 'expand') {
+    const eArt   = E_STD(u);
+    const eScrim = E_STD(clamp(t / 240, 0, 1));
+    const eMini  = E_STD(clamp(t / 60, 0, 1));        // 0..60ms
+    const eChr   = E_STD(clamp((t - 80) / 200, 0, 1)); // 80..280
+    const eCtrl  = E_STD(clamp((t - TOK.controlsDelay) / 120, 0, 1)); // 200..320
+    const eTab   = E_STD(clamp(t / 200, 0, 1));        // 0..200
+
+    return {
+      artwork: {
+        x: lerp(p.miniThumbX, p.npArtX, eArt),
+        y: lerp(p.miniThumbY, p.npArtY, eArt),
+        w: lerp(p.miniThumbS, p.npArtW, eArt),
+        h: lerp(p.miniThumbS, p.npArtW, eArt),
+        r: lerp(TOK.artStartR, TOK.artEndR, eArt),
+        opacity: 1,
+        anchorMini: true,
+      },
+      scrim: mixHex(TOK.surface, TOK.bg, eScrim),
+      miniOpacity: 1 - eMini,
+      npOpacity: 1, // always rendered; chrome handles its own opacity
+      npChromeOpacity: eChr,
+      controlsOpacity: eCtrl,
+      controlsY: lerp(8, 0, eCtrl),
+      tabBarY: lerp(0, p.tabH, eTab),
+      tabBarOpacity: 1 - eTab,
+    };
+  } else {
+    // collapse: artwork uses exit easing; everything else standard
+    const eArt   = E_EXIT(u);
+    const eScrim = E_STD(clamp(t / 240, 0, 1));
+    const eChrOut = E_STD(clamp(t / 60, 0, 1));
+    const eCtrlOut = E_STD(clamp(t / 120, 0, 1));
+    const eMiniIn  = E_STD(clamp((t - 130) / 130, 0, 1));
+    const eTabIn   = E_STD(clamp((t - 65) / 195, 0, 1));
+
+    return {
+      artwork: {
+        x: lerp(p.npArtX, p.miniThumbX, eArt),
+        y: lerp(p.npArtY, p.miniThumbY, eArt),
+        w: lerp(p.npArtW, p.miniThumbS, eArt),
+        h: lerp(p.npArtW, p.miniThumbS, eArt),
+        r: lerp(TOK.artEndR, TOK.artStartR, eArt),
+        opacity: 1,
+        anchorMini: false,
+      },
+      scrim: mixHex(TOK.bg, TOK.surface, eScrim),
+      miniOpacity: eMiniIn,
+      npOpacity: 1,
+      npChromeOpacity: 1 - eChrOut,
+      controlsOpacity: 1 - eCtrlOut,
+      controlsY: lerp(0, 4, eCtrlOut),
+      tabBarY: lerp(p.tabH, 0, eTabIn),
+      tabBarOpacity: eTabIn,
+    };
+  }
+}
+
+// ─── shared sub-components ────────────────────────────────────────────
+
+function FauxBackground({ phone, dir, reduce }) {
+  // The "previous screen" behind the transition — a generic search/library list.
+  return (
+    <div style={{position:'absolute', inset:0, background: TOK.bg, paddingTop: phone.statusH + 6}}>
+      <div style={{padding:'8px 16px 4px', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+        <div style={{fontSize:18, fontWeight:600, color:'#fff', letterSpacing:'-0.01em'}}>Library</div>
+        <div style={{width:28, height:28, borderRadius:14, background:'rgba(255,255,255,0.06)'}}/>
+      </div>
+      <div style={{padding:'12px 16px', display:'flex', flexDirection:'column', gap:14}}>
+        {[0,1,2,3,4,5,6].map(i => (
+          <div key={i} style={{display:'flex', alignItems:'center', gap:12}}>
+            <div style={{width:48, height:48, borderRadius:8,
+              background: `linear-gradient(135deg, ${['#5B2A86','#C05621','#2D3748','#38A169','#D69E2E','#4A5568','#2B6CB0'][i]} 0%, #1A202C 100%)`}}/>
+            <div style={{flex:1, display:'flex', flexDirection:'column', gap:5}}>
+              <div style={{height:8, width: `${50 + (i*7)%30}%`, background:'rgba(255,255,255,0.55)', borderRadius:3}}/>
+              <div style={{height:6, width: `${28 + (i*11)%18}%`, background:'rgba(255,255,255,0.25)', borderRadius:3}}/>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── iOS frame ────────────────────────────────────────────────────────
+
+function IosTransition({ t, dir, reduce, dur }) {
+  // measurements
+  const phone = {
+    w: 393, h: 852, statusH: 54, tabH: 83,
+    miniThumbX: 12, miniThumbY: 852 - 83 - 64 + 8, miniThumbS: 48,
+    npArtX: 24, npArtY: 54 + 70, npArtW: 393 - 48,
+  };
+  const s = computeState({ phone, t, dir, reduce, dur });
+
+  return (
+    <div className="ios-phone">
+      <div className="island"/>
+      <div className="statusbar" style={{opacity: 1}}>
+        <span>9:41</span>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.6"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.8"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" strokeOpacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+
+      {/* PREVIOUS / behind layer (Library) */}
+      <FauxBackground phone={phone} dir={dir} reduce={reduce}/>
+
+      {/* SCRIM — full-bleed background that fades surface→bg */}
+      <div style={{position:'absolute', inset:0, background: s.scrim,
+        opacity: reduce ? s.npOpacity : (dir === 'expand' ? E_STD(clamp(t/200, 0, 1)) : 1 - E_STD(clamp((dur-t)/200, 0, 1)))}}/>
+
+      {/* NowPlaying chrome */}
+      <div style={{position:'absolute', inset:0, opacity: s.npChromeOpacity, pointerEvents:'none'}}>
+        {/* Top row: chevron-down + queue */}
+        <div style={{position:'absolute', top: 54, left: 0, right: 0, height: 56,
+          display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px'}}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6,9 12,15 18,9"/></svg>
+          <div style={{fontSize:13, fontWeight:600, color:'rgba(255,255,255,0.7)', letterSpacing:'0.04em', textTransform:'uppercase'}}>Now Playing</div>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </div>
+        {/* Title block under artwork */}
+        <div style={{position:'absolute', top: 54 + 70 + (393-48) + 22, left: 24, right: 24}}>
+          <div style={{fontSize:24, fontWeight:600, color:'#fff', letterSpacing:'-0.02em', lineHeight:1.2}}>Sun Goes Down</div>
+          <div style={{fontSize:14, fontWeight:400, color:'rgba(235,235,245,0.65)', marginTop:6}}>Robin Schulz · Sugar</div>
+        </div>
+        {/* Scrubber */}
+        <div style={{position:'absolute', top: 54 + 70 + (393-48) + 22 + 70, left: 24, right: 24}}>
+          <div style={{height:4, borderRadius:2, background:'rgba(255,255,255,0.18)', position:'relative'}}>
+            <div style={{position:'absolute', left:0, top:0, bottom:0, width:'34%', background:'#fff', borderRadius:2}}/>
+            <div style={{position:'absolute', left:'34%', top:'50%', transform:'translate(-50%,-50%)', width:12, height:12, borderRadius:6, background:'#fff'}}/>
+          </div>
+          <div style={{display:'flex', justifyContent:'space-between', marginTop:8, fontFamily:'SF Mono, Geist Mono, monospace', fontSize:11, color:'rgba(235,235,245,0.5)'}}>
+            <span>1:14</span><span>−2:23</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Transport controls — separate opacity + Y translate */}
+      <div style={{position:'absolute', left:0, right:0, bottom: 130, display:'flex', alignItems:'center', justifyContent:'center', gap:36,
+        opacity: s.controlsOpacity, transform: `translateY(${s.controlsY}px)`}}>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M16 6h2v12h-2zM6 6l8 6-8 6V6z"/></svg>
+        <div style={{width:72, height:72, borderRadius:36, background:'#fff', display:'flex', alignItems:'center', justifyContent:'center'}}>
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="black"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+        </div>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M6 6h2v12H6zM18 6l-8 6 8 6V6z"/></svg>
+      </div>
+
+      {/* SHARED ARTWORK — drawn on top of scrim, beneath chrome glyphs above the title */}
+      <div style={{position:'absolute',
+        left: s.artwork.x, top: s.artwork.y, width: s.artwork.w, height: s.artwork.h,
+        borderRadius: s.artwork.r, background: ART, opacity: s.artwork.opacity,
+        boxShadow: dir === 'expand'
+          ? `0 ${lerp(2, 16, clamp(t/dur,0,1))}px ${lerp(8, 48, clamp(t/dur,0,1))}px rgba(0,0,0,${lerp(0.2,0.45,clamp(t/dur,0,1))})`
+          : `0 ${lerp(16, 2, clamp(t/dur,0,1))}px ${lerp(48, 8, clamp(t/dur,0,1))}px rgba(0,0,0,${lerp(0.45,0.2,clamp(t/dur,0,1))})`,
+      }}/>
+      {/* Reduce-motion: also draw the mini artwork at mini position fading out */}
+      {reduce && (
+        <div style={{position:'absolute',
+          left: 12, top: 852 - 83 - 64 + 8, width: 48, height: 48,
+          borderRadius: TOK.artStartR, background: ART, opacity: 1 - s.npOpacity}}/>
+      )}
+
+      {/* MINIPLAYER container (under tab bar) */}
+      <div style={{position:'absolute', left:8, right:8, bottom: 83 + 8, height: 64,
+        background: TOK.surface, borderRadius: 16, opacity: s.miniOpacity,
+        display:'flex', alignItems:'center', gap:10, padding:'0 12px',
+        boxShadow:'0 8px 24px rgba(0,0,0,0.5)'}}>
+        <div style={{width:48, height:48, borderRadius:4, background: 'transparent'}}/>{/* artwork sits here in flight */}
+        <div style={{flex:1, display:'flex', flexDirection:'column', gap:3, marginLeft:4}}>
+          <div style={{fontSize:13, fontWeight:600, color:'#fff', letterSpacing:'-0.01em'}}>Sun Goes Down</div>
+          <div style={{fontSize:11, color:'rgba(235,235,245,0.6)'}}>Robin Schulz</div>
+        </div>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)"><line x1="6" y1="6" x2="18" y2="18" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round"/><line x1="18" y1="6" x2="6" y2="18" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round"/></svg>
+      </div>
+
+      {/* iOS TAB BAR */}
+      <div style={{position:'absolute', left:0, right:0, bottom: -s.tabBarY, height: 83,
+        background:'rgba(28,28,30,0.92)', backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)',
+        borderTop:`0.5px solid ${TOK.hairline}`,
+        display:'flex', alignItems:'flex-start', paddingTop:8,
+        opacity: s.tabBarOpacity}}>
+        {[
+          {l:'Search', a:false},
+          {l:'Library', a:true},
+          {l:'Settings', a:false},
+        ].map((t, i) => (
+          <div key={i} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3,
+            color: t.a ? TOK.accent : TOK.fg2}}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="11" cy="11" r="3"/></svg>
+            <div style={{fontSize:10, fontWeight:500, letterSpacing:0.1}}>{t.l}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Android frame ────────────────────────────────────────────────────
+
+function AndroidTransition({ t, dir, reduce, dur }) {
+  const phone = {
+    w: 360, h: 800, statusH: 32, tabH: 80,
+    miniThumbX: 12, miniThumbY: 800 - 80 - 64 + 8, miniThumbS: 48,
+    npArtX: 24, npArtY: 32 + 64, npArtW: 360 - 48,
+  };
+  const s = computeState({ phone, t, dir, reduce, dur });
+
+  return (
+    <div className="android-phone">
+      <div className="punch"/>
+      <div className="statusbar">
+        <span style={{fontVariantNumeric:'tabular-nums'}}>9:41</span>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          <svg width="14" height="10" viewBox="0 0 14 10" fill="white"><path d="M0 8h2v2H0zM4 5h2v5H4zM8 2h2v8H8zM12 0h2v10h-2z"/></svg>
+          <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><rect x="1" y="1" width="18" height="8" rx="2" stroke="white" strokeOpacity="0.7"/><rect x="2" y="2" width="14" height="6" rx="1" fill="white"/></svg>
+        </div>
+      </div>
+
+      <FauxBackground phone={phone} dir={dir} reduce={reduce}/>
+
+      <div style={{position:'absolute', inset:0, background: s.scrim,
+        opacity: reduce ? s.npOpacity : (dir === 'expand' ? E_STD(clamp(t/200, 0, 1)) : 1 - E_STD(clamp((dur-t)/200, 0, 1)))}}/>
+
+      <div style={{position:'absolute', inset:0, opacity: s.npChromeOpacity, pointerEvents:'none'}}>
+        <div style={{position:'absolute', top: 32, left: 0, right: 0, height: 56,
+          display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 16px'}}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M7 14l5-5 5 5z" transform="rotate(180 12 12)"/></svg>
+          <div style={{fontSize:12, fontWeight:600, color:'rgba(255,255,255,0.7)', letterSpacing:'0.06em', textTransform:'uppercase'}}>Now Playing</div>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><circle cx="12" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18" r="2"/></svg>
+        </div>
+        <div style={{position:'absolute', top: 32 + 64 + (360-48) + 24, left: 24, right: 24}}>
+          <div style={{fontSize:22, fontWeight:600, color:'#fff', letterSpacing:'-0.01em', lineHeight:1.2}}>Sun Goes Down</div>
+          <div style={{fontSize:14, fontWeight:400, color:'rgba(235,235,245,0.65)', marginTop:4}}>Robin Schulz · Sugar</div>
+        </div>
+        <div style={{position:'absolute', top: 32 + 64 + (360-48) + 24 + 60, left: 24, right: 24}}>
+          <div style={{height:3, borderRadius:1.5, background:'rgba(255,255,255,0.18)', position:'relative'}}>
+            <div style={{position:'absolute', left:0, top:0, bottom:0, width:'34%', background: TOK.accent, borderRadius:1.5}}/>
+            <div style={{position:'absolute', left:'34%', top:'50%', transform:'translate(-50%,-50%)', width:14, height:14, borderRadius:7, background: TOK.accent}}/>
+          </div>
+          <div style={{display:'flex', justifyContent:'space-between', marginTop:8, fontFamily:'Roboto Mono, monospace', fontSize:11, color:'rgba(235,235,245,0.5)'}}>
+            <span>1:14</span><span>3:37</span>
+          </div>
+        </div>
+      </div>
+
+      <div style={{position:'absolute', left:0, right:0, bottom: 110, display:'flex', alignItems:'center', justifyContent:'center', gap:32,
+        opacity: s.controlsOpacity, transform: `translateY(${s.controlsY}px)`}}>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M16 6h2v12h-2zM6 6l8 6-8 6V6z"/></svg>
+        <div style={{width:64, height:64, borderRadius:32, background: TOK.accent, display:'flex', alignItems:'center', justifyContent:'center'}}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="white"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+        </div>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="white"><path d="M6 6h2v12H6zM18 6l-8 6 8 6V6z"/></svg>
+      </div>
+
+      {/* Shared artwork */}
+      <div style={{position:'absolute',
+        left: s.artwork.x, top: s.artwork.y, width: s.artwork.w, height: s.artwork.h,
+        borderRadius: s.artwork.r, background: ART, opacity: s.artwork.opacity,
+        boxShadow: dir === 'expand'
+          ? `0 ${lerp(2, 12, clamp(t/dur,0,1))}px ${lerp(8, 36, clamp(t/dur,0,1))}px rgba(0,0,0,${lerp(0.2,0.45,clamp(t/dur,0,1))})`
+          : `0 ${lerp(12, 2, clamp(t/dur,0,1))}px ${lerp(36, 8, clamp(t/dur,0,1))}px rgba(0,0,0,${lerp(0.45,0.2,clamp(t/dur,0,1))})`,
+      }}/>
+      {reduce && (
+        <div style={{position:'absolute',
+          left: 12, top: 800 - 80 - 64 + 8, width: 48, height: 48,
+          borderRadius: TOK.artStartR, background: ART, opacity: 1 - s.npOpacity}}/>
+      )}
+
+      <div style={{position:'absolute', left:8, right:8, bottom: 80 + 8, height: 64,
+        background: TOK.surface, borderRadius: 16, opacity: s.miniOpacity,
+        display:'flex', alignItems:'center', gap:10, padding:'0 12px',
+        boxShadow:'0 6px 20px rgba(0,0,0,0.5)'}}>
+        <div style={{width:48, height:48, borderRadius:4, background: 'transparent'}}/>
+        <div style={{flex:1, display:'flex', flexDirection:'column', gap:3, marginLeft:4}}>
+          <div style={{fontSize:13, fontWeight:600, color:'#fff', letterSpacing:'-0.01em'}}>Sun Goes Down</div>
+          <div style={{fontSize:11, color:'rgba(235,235,245,0.6)'}}>Robin Schulz</div>
+        </div>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="rgba(255,255,255,0.7)" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </div>
+
+      <div style={{position:'absolute', left:0, right:0, bottom: -s.tabBarY, height: 80,
+        background:'#1F1B22', display:'flex', alignItems:'center', paddingTop:0,
+        opacity: s.tabBarOpacity}}>
+        {[
+          {l:'Search', a:false},
+          {l:'Library', a:true},
+          {l:'Settings', a:false},
+        ].map((t, i) => (
+          <div key={i} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4, height:'100%', justifyContent:'center'}}>
+            <div style={{
+              width:64, height:32, borderRadius:16,
+              background: t.a ? 'rgba(208,188,255,0.25)' : 'transparent',
+              display:'flex', alignItems:'center', justifyContent:'center'}}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill={t.a ? '#D0BCFF' : '#CAC4D0'}><circle cx="11" cy="11" r="3"/></svg>
+            </div>
+            <div style={{fontSize:11, fontWeight: t.a ? 600 : 500, color: t.a ? '#E6E1E5' : '#CAC4D0'}}>{t.l}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── App ──────────────────────────────────────────────────────────────
+
+function App({ which }) {
+  // Driven entirely by URL hash so both phone instances stay in lockstep with controls.
+  const [, force] = useState(0);
+  useEffect(() => {
+    const h = () => force(x => x+1);
+    window.addEventListener('yt-state', h);
+    return () => window.removeEventListener('yt-state', h);
+  }, []);
+  const st = window.__YT_STATE;
+  const dur = st.reduce ? TOK.reduce : (st.dir === 'expand' ? TOK.expand : TOK.collapse);
+  const t = clamp(st.t, 0, dur);
+  return which === 'ios'
+    ? <IosTransition t={t} dir={st.dir} reduce={st.reduce} dur={dur}/>
+    : <AndroidTransition t={t} dir={st.dir} reduce={st.reduce} dur={dur}/>;
+}
+
+// ─── Keyframe strip (5 stills) ────────────────────────────────────────
+
+function KeyframeCell({ label, t, dur, dir, reduce, info }) {
+  const phone = { w: 220, h: 200, statusH: 0, tabH: 0,
+    miniThumbX: 12, miniThumbY: 200 - 8 - 38 + 4, miniThumbS: 30,
+    npArtX: 14, npArtY: 14, npArtW: 220 - 28 };
+  const s = computeState({ phone, t, dir, reduce, dur });
+  return (
+    <div className="kf">
+      <div className="t">t = {t} ms</div>
+      <div className="stage" style={{background: s.scrim || TOK.bg}}>
+        {/* Behind: faux library tease */}
+        <div style={{position:'absolute', inset:0, opacity: 1 - s.npChromeOpacity}}>
+          {[0,1,2,3].map(i => (
+            <div key={i} style={{position:'absolute', left:14, right:14, top: 14 + i*32,
+              display:'flex', alignItems:'center', gap:8}}>
+              <div style={{width:22, height:22, borderRadius:3, background: ['#5B2A86','#C05621','#38A169','#D69E2E'][i], opacity:0.6}}/>
+              <div style={{flex:1, height:5, background:'rgba(255,255,255,0.2)', borderRadius:2}}/>
+            </div>
+          ))}
+        </div>
+        {/* NP chrome hint */}
+        <div style={{position:'absolute', left:14, top: 14 + (220-28) + 10, fontSize:9, fontWeight:600, color:'#fff', opacity: s.npChromeOpacity}}>Sun Goes Down</div>
+        {/* Scrubber */}
+        {s.npChromeOpacity > 0 && (
+          <div className="scrub-mock" style={{opacity: s.npChromeOpacity, top: 14 + (220-28) + 24, bottom:'auto', height:2}}/>
+        )}
+        {/* Controls */}
+        <div className="controls-mock" style={{opacity: s.controlsOpacity, transform: `translateY(${s.controlsY*0.6}px)`}}>
+          <span className="dot"/><span className="play"/><span className="dot"/>
+        </div>
+        {/* Mini */}
+        <div className="miniplayer-mock" style={{opacity: s.miniOpacity}}>
+          <div className="thumb-mock" style={{background:'transparent'}}/>
+          <div className="meta-mock"><div className="l1"/><div className="l2"/></div>
+        </div>
+        {/* Artwork */}
+        <div className="artwork-mock" style={{
+          left: s.artwork.x, top: s.artwork.y, width: s.artwork.w, height: s.artwork.h,
+          borderRadius: s.artwork.r, opacity: s.artwork.opacity,
+        }}/>
+        {reduce && (
+          <div className="artwork-mock" style={{
+            left: 12, top: 200 - 8 - 38 + 4, width: 30, height: 30,
+            borderRadius: TOK.artStartR, opacity: 1 - s.npOpacity,
+          }}/>
+        )}
+      </div>
+      <div className="info">{info}</div>
+    </div>
+  );
+}
+
+function KeyframeStrip() {
+  // five stills @ t = 0, 80, 160, 240, 320 (expand, no reduce-motion)
+  const dur = TOK.expand;
+  const stills = [
+    { t:0,   info:<>Mini visible. Tap recognised. <code>artwork</code> at <code>48 px / r=4</code>.</> },
+    { t:80,  info:<>Mini fully faded. Scrim cross-fade ~33 %. Artwork ~25 % expanded.</> },
+    { t:160, info:<>Artwork past midpoint. NP chrome ~40 %. Tab bar mostly down.</> },
+    { t:240, info:<>Scrim & tab bar settled. Artwork ~85 %. Controls just starting.</> },
+    { t:320, info:<>Settled. Artwork at <code>r=12</code>. Controls fully in. <code>screenChanged</code> +50 ms.</> },
+  ];
+  return (
+    <>{stills.map((s,i) => <KeyframeCell key={i} {...s} dur={dur} dir="expand" reduce={false}/>)}</>
+  );
+}
+
+// ─── mount ────────────────────────────────────────────────────────────
+
+window.__YT_STATE = { t: 0, dir: 'expand', reduce: false, speed: 1, playing: false, loop: false };
+
+function emit() { window.dispatchEvent(new CustomEvent('yt-state')); }
+
+ReactDOM.createRoot(document.getElementById('ios-root')).render(<App which="ios"/>);
+ReactDOM.createRoot(document.getElementById('android-root')).render(<App which="android"/>);
+ReactDOM.createRoot(document.getElementById('kf-grid')).render(<KeyframeStrip/>);
+
+// ─── controls + scrubber wiring ───────────────────────────────────────
+
+function curDur() {
+  const s = window.__YT_STATE;
+  return s.reduce ? TOK.reduce : (s.dir === 'expand' ? TOK.expand : TOK.collapse);
+}
+
+function renderScrubber() {
+  const s = window.__YT_STATE;
+  const dur = curDur();
+  const u = clamp(s.t / dur, 0, 1);
+  document.getElementById('fill').style.width = `${u*100}%`;
+  document.getElementById('thumb').style.left = `${u*100}%`;
+  document.getElementById('t-cur').textContent = `${Math.round(s.t)} ms`;
+  document.getElementById('t-tot').textContent = `/ ${dur} ms`;
+  // stops
+  const stopsEl = document.getElementById('stops');
+  stopsEl.innerHTML = '';
+  const marks = s.reduce
+    ? [{at: 0, l:'0'}, {at: dur, l:`${dur}`}]
+    : (s.dir === 'expand'
+        ? [{at:0, l:'0'},{at:60,l:'60 mini'},{at:200,l:'200 ctrl'},{at:240,l:'240 scrim'},{at:dur,l:`${dur} settle`}]
+        : [{at:0, l:'0'},{at:65,l:'65'},{at:130,l:'130 mini'},{at:dur,l:`${dur} settle`}]);
+  marks.forEach(m => {
+    const x = (m.at / dur) * 100;
+    const stop = document.createElement('div');
+    stop.className = 'stop';
+    stop.style.left = `${x}%`;
+    stopsEl.appendChild(stop);
+    const lab = document.createElement('div');
+    lab.className = 'stoplabel';
+    lab.style.left = `${x}%`;
+    lab.textContent = m.l;
+    stopsEl.appendChild(lab);
+  });
+}
+
+function setSeg(id, v) {
+  const seg = document.getElementById(id);
+  seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === String(v)));
+}
+
+document.getElementById('seg-dir').addEventListener('click', (e) => {
+  const v = e.target.dataset.v;
+  if (!v) return;
+  window.__YT_STATE.dir = v;
+  window.__YT_STATE.t = 0;
+  setSeg('seg-dir', v);
+  renderScrubber(); emit();
+});
+document.getElementById('seg-rm').addEventListener('click', (e) => {
+  const v = e.target.dataset.v;
+  if (!v) return;
+  window.__YT_STATE.reduce = (v === 'on');
+  window.__YT_STATE.t = 0;
+  setSeg('seg-rm', v);
+  renderScrubber(); emit();
+});
+document.getElementById('seg-spd').addEventListener('click', (e) => {
+  const v = e.target.dataset.v;
+  if (!v) return;
+  window.__YT_STATE.speed = parseFloat(v);
+  setSeg('seg-spd', v);
+});
+document.getElementById('btn-loop').addEventListener('click', (e) => {
+  window.__YT_STATE.loop = !window.__YT_STATE.loop;
+  e.target.textContent = `Loop: ${window.__YT_STATE.loop ? 'on' : 'off'}`;
+});
+document.getElementById('btn-play').addEventListener('click', () => {
+  const s = window.__YT_STATE;
+  if (s.playing) { s.playing = false; document.getElementById('btn-play').textContent = '▶ Play'; return; }
+  if (s.t >= curDur()) s.t = 0;
+  s.playing = true;
+  document.getElementById('btn-play').textContent = '❚❚ Pause';
+  let last = performance.now();
+  function tick(now) {
+    if (!window.__YT_STATE.playing) return;
+    const dt = (now - last) * window.__YT_STATE.speed;
+    last = now;
+    window.__YT_STATE.t += dt;
+    if (window.__YT_STATE.t >= curDur()) {
+      if (window.__YT_STATE.loop) {
+        window.__YT_STATE.t = 0;
+      } else {
+        window.__YT_STATE.t = curDur();
+        window.__YT_STATE.playing = false;
+        document.getElementById('btn-play').textContent = '▶ Play';
+      }
+    }
+    renderScrubber(); emit();
+    if (window.__YT_STATE.playing) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame((n) => { last = n; tick(n); });
+});
+
+// scrubber drag
+const track = document.getElementById('track');
+let dragging = false;
+function pickFromEvent(e) {
+  const r = track.getBoundingClientRect();
+  const x = ('clientX' in e ? e.clientX : e.touches[0].clientX) - r.left;
+  const u = clamp(x / r.width, 0, 1);
+  window.__YT_STATE.t = u * curDur();
+  if (window.__YT_STATE.playing) {
+    window.__YT_STATE.playing = false;
+    document.getElementById('btn-play').textContent = '▶ Play';
+  }
+  renderScrubber(); emit();
+}
+track.addEventListener('pointerdown', (e) => { dragging = true; track.setPointerCapture(e.pointerId); pickFromEvent(e); });
+track.addEventListener('pointermove', (e) => { if (dragging) pickFromEvent(e); });
+track.addEventListener('pointerup',   (e) => { dragging = false; });
+track.addEventListener('pointercancel', (e) => { dragging = false; });
+
+renderScrubber();
+emit();
+</script>
+</body>
+</html>

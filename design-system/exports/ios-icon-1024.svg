@@ -1,0 +1,24 @@
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="30%" cy="20%" r="100%">
+      <stop offset="0%" stop-color="#A78BFA"></stop>
+      <stop offset="35%" stop-color="#8B5CF6"></stop>
+      <stop offset="75%" stop-color="#6D28D9"></stop>
+      <stop offset="100%" stop-color="#4C1D95"></stop>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"></rect>
+  <g fill="#FFFFFF">
+    <path d="M 260 580 C 260 290 340 130 512 130 C 684 130 764 290 764 580" fill="none" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round"></path>
+    <path d="M 320 156 Q 512 138 704 156" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="20" stroke-linecap="round"></path>
+    <path d="M 178 470 L 262 450 Q 290 450 290 478 L 290 762 Q 290 790 262 790 L 178 770 Q 150 770 150 742 L 150 498 Q 150 470 178 470 Z"></path>
+    <path d="M 846 470 L 762 450 Q 734 450 734 478 L 734 762 Q 734 790 762 790 L 846 770 Q 874 770 874 742 L 874 498 Q 874 470 846 470 Z"></path>
+    <path d="M 302 440 L 362 440 L 522 632 L 462 632 Z"></path>
+    <path d="M 722 440 L 662 440 L 502 632 L 562 632 Z"></path>
+    <circle cx="332" cy="440" r="30"></circle>
+    <circle cx="692" cy="440" r="30"></circle>
+    <rect x="482" y="624" width="60" height="200" rx="15"></rect>
+    <rect x="482" y="780" width="60" height="60" rx="30"></rect>
+  </g>
+</svg>

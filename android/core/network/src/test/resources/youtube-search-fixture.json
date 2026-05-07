@@ -1,0 +1,16 @@
+[
+  {
+    "videoId": "alpha123",
+    "title": "Late Night Coding Mix",
+    "channel": "Open Waves",
+    "durationSec": 3723,
+    "thumbnailUrl": "https://img.youtube.com/vi/alpha123/mqdefault.jpg"
+  },
+  {
+    "videoId": "beta456",
+    "title": "Focus Session",
+    "channel": "Desk Radio",
+    "durationSec": 0,
+    "thumbnailUrl": "https://img.youtube.com/vi/beta456/mqdefault.jpg"
+  }
+]

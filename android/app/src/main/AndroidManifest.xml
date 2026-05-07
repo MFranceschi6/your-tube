@@ -12,6 +12,7 @@
     <application
         android:name=".YourTubeApp"
         android:allowBackup="true"
+        android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -27,11 +28,44 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Open .ytplaylist.json files from file managers, downloads, etc. -->
+            <intent-filter android:label="@string/import_playlist_label">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="text/plain" />
+                <data android:pathPattern=".*\\.ytplaylist\\.json" />
+                <data android:host="*" />
+            </intent-filter>
+
+            <!-- Receive .ytplaylist.json sent from other apps. -->
+            <intent-filter android:label="@string/import_playlist_label">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
 
-        <!-- Stubbed MediaSessionService; implementation lives in :core:player later. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- Real MediaSessionService backed by ExoPlayer via :core:player. -->
         <service
-            android:name=".PlaybackServiceStub"
+            android:name="com.yourtube.core.player.PlaybackService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YT-0025/26/27 — iOS Shell, Search, Now Playing</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #1a1a1a; display: flex; align-items: center; justify-content: center; font-family: -apple-system, 'SF Pro Display', BlinkMacSystemFont, sans-serif; }
+.phone {
+  width: 393px; height: 852px;
+  background: #000;
+  border-radius: 52px;
+  box-shadow: 0 0 0 2px #3a3a3a, 0 40px 100px rgba(0,0,0,0.9), inset 0 0 0 1px #555;
+  position: relative; overflow: hidden; display: flex; flex-direction: column;
+}
+/* Annotation badge */
+.task-badge {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  background: rgba(139,92,246,0.95); color: white; font-size: 11px; font-weight: 600;
+  padding: 4px 12px; border-radius: 999px; z-index: 1000; letter-spacing: 0.03em;
+  font-family: -apple-system, sans-serif; pointer-events: none;
+  box-shadow: 0 2px 8px rgba(139,92,246,0.5);
+}
+::-webkit-scrollbar { width: 0; }
+</style>
+</head>
+<body>
+<div class="task-badge">YT-0025 · YT-0026 · YT-0027 — iOS</div>
+<div class="phone" id="root"></div>
+
+<script type="text/babel">
+// ─── Design tokens (iOS-flavored) ───────────────────────────────────────────
+const C = {
+  bg: '#000000',
+  bg2: '#1C1C1E',
+  bg3: '#2C2C2E',
+  bg4: '#3A3A3C',
+  fg1: '#FFFFFF',
+  fg2: 'rgba(235,235,245,0.6)',
+  fg3: 'rgba(235,235,245,0.3)',
+  accent: '#8B5CF6',
+  accentDim: '#7C3AED',
+  accentTint: 'rgba(139,92,246,0.15)',
+  error: '#FF453A',
+  success: '#30D158',
+  separator: 'rgba(84,84,88,0.65)',
+};
+const F = "-apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif";
+const FD = "-apple-system, 'SF Pro Display', BlinkMacSystemFont, sans-serif";
+
+// ─── SF Symbol SVGs (inline, matching SF weight) ────────────────────────────
+const Sym = {
+  search: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  library: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>,
+  settings: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  play: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>,
+  pause: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>,
+  skipBack: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="19" x2="5" y2="5"/></svg>,
+  skipFwd: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19"/></svg>,
+  chevronDown: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="6,9 12,15 18,9"/></svg>,
+  chevronRight: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9,18 15,12 9,6"/></svg>,
+  ellipsis: <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>,
+  xmark: <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>,
+  shuffle: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16,3 21,3 21,8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21,16 21,21 16,21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>,
+  repeat: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17,1 21,5 17,9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7,23 3,19 7,15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>,
+  queue: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
+  volume: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
+  airplay: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2"/><polygon points="12,15 17,21 7,21"/></svg>,
+};
+
+// ─── Sample data ─────────────────────────────────────────────────────────────
+const TRACKS = [
+  { videoId: '1', title: 'lofi hip hop radio – beats to relax/study to', channel: 'Lofi Girl', durationSec: 0 },
+  { videoId: '2', title: 'Chill Lofi Mix – Deep Focus', channel: 'ChillHop Music', durationSec: 3612 },
+  { videoId: '3', title: 'Jazz & Bossa Nova – Morning Coffee', channel: 'Café Music BGM', durationSec: 3847 },
+  { videoId: '4', title: 'Peaceful Piano Relaxing Music', channel: 'Soothing Relaxation', durationSec: 7204 },
+  { videoId: '5', title: 'Lo-Fi Beats Vol. 3 – Rain Sounds', channel: 'Lofi Records', durationSec: 5400 },
+  { videoId: '6', title: 'Bohemian Rhapsody', channel: 'Queen', durationSec: 355 },
+  { videoId: '7', title: 'Stairway to Heaven', channel: 'Led Zeppelin', durationSec: 482 },
+];
+const QUEUE = [
+  { videoId: 'q1', title: 'Hotel California', channel: 'Eagles', durationSec: 438 },
+  { videoId: 'q2', title: 'Comfortably Numb', channel: 'Pink Floyd', durationSec: 382 },
+  { videoId: 'q3', title: "November Rain", channel: "Guns N' Roses", durationSec: 537 },
+];
+
+const fmt = s => { if (!s) return 'Live'; const m = Math.floor(s/60); return `${m}:${String(s%60).padStart(2,'0')}`; };
+
+// ─── Status Bar ───────────────────────────────────────────────────────────────
+const StatusBar = () => (
+  <div style={{ height: 54, flexShrink: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '0 28px 10px', position: 'relative', zIndex: 20 }}>
+    <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 126, height: 36, background: '#000', borderRadius: 20 }} />
+    <span style={{ fontFamily: FD, fontSize: 15, fontWeight: 600, color: C.fg1 }}>9:41</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: C.fg1 }}>
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1" opacity="0.4"/><rect x="4.5" y="2" width="3" height="10" rx="1" opacity="0.6"/><rect x="9" y="0" width="3" height="12" rx="1"/></svg>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="white"><path d="M8 2.4C10.8 2.4 13.3 3.6 15 5.5L16 4.4C14 2.2 11.2 0.8 8 0.8C4.8 0.8 2 2.2 0 4.4L1 5.5C2.7 3.6 5.2 2.4 8 2.4Z" opacity="0.4"/><path d="M8 5.6C9.8 5.6 11.4 6.4 12.5 7.6L13.5 6.5C12.1 5 10.2 4 8 4C5.8 4 3.9 5 2.5 6.5L3.5 7.6C4.6 6.4 6.2 5.6 8 5.6Z" opacity="0.6"/><circle cx="8" cy="11" r="1.5"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" strokeOpacity="0.35"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6C24.5 5.5 23.8 4.8 23 4.5Z" fill="white" opacity="0.4"/></svg>
+    </div>
+  </div>
+);
+
+// ─── Tab Bar ──────────────────────────────────────────────────────────────────
+const TabBar = ({ active, onChange }) => {
+  const tabs = [
+    { id: 'search', label: 'Search', icon: Sym.search },
+    { id: 'library', label: 'Library', icon: Sym.library },
+    { id: 'settings', label: 'Settings', icon: Sym.settings },
+  ];
+  return (
+    <div style={{ height: 83, flexShrink: 0, background: 'rgba(28,28,30,0.95)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', borderTop: `0.5px solid ${C.separator}`, display: 'flex', alignItems: 'flex-start', paddingTop: 8, zIndex: 10 }}>
+      {tabs.map(t => {
+        const on = active === t.id;
+        return (
+          <button key={t.id} onClick={() => onChange(t.id)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'transparent', border: 'none', cursor: 'pointer', color: on ? C.accent : C.fg3, transition: 'color 150ms' }}>
+            {t.icon}
+            <span style={{ fontFamily: F, fontSize: 10, fontWeight: on ? 600 : 400 }}>{t.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+// ─── TrackRow ─────────────────────────────────────────────────────────────────
+const TrackRow = ({ track, playing, onTap, showDivider = true }) => (
+  <div onClick={onTap} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', cursor: 'pointer', borderTop: showDivider ? `0.5px solid ${C.separator}` : 'none', minHeight: 68 }}>
+    <div style={{ width: 52, height: 52, borderRadius: 8, background: playing ? C.accentTint : C.bg3, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+      {playing ? <EqIndicator /> : <svg width="18" height="18" viewBox="0 0 24 24" fill={C.fg3}><polygon points="5,3 19,12 5,21"/></svg>}
+    </div>
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontFamily: F, fontSize: 15, fontWeight: playing ? 600 : 400, color: playing ? C.accent : C.fg1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.3 }}>{track.title}</div>
+      <div style={{ fontFamily: F, fontSize: 13, color: C.fg2, marginTop: 2, display: 'flex', gap: 5, alignItems: 'center' }}>
+        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{track.channel}</span>
+        {track.durationSec > 0 && <><span style={{ opacity: 0.4 }}>·</span><span style={{ fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmt(track.durationSec)}</span></>}
+      </div>
+    </div>
+    <button style={{ width: 36, height: 36, borderRadius: 18, background: 'transparent', border: 'none', cursor: 'pointer', color: C.fg3, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.stopPropagation()}>{Sym.ellipsis}</button>
+  </div>
+);
+
+const EqIndicator = () => (
+  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 14 }}>
+    {[0, 0.25, 0.5].map((d, i) => <div key={i} style={{ width: 3, background: C.accent, borderRadius: 2, animation: `eq ${0.7}s ease-in-out ${d}s infinite alternate` }} />)}
+    <style>{`@keyframes eq{from{height:3px}to{height:14px}}`}</style>
+  </div>
+);
+
+// ─── Skeleton row ─────────────────────────────────────────────────────────────
+const SkeletonRow = ({ i }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderTop: i > 0 ? `0.5px solid ${C.separator}` : 'none', minHeight: 68 }}>
+    <div style={{ width: 52, height: 52, borderRadius: 8, background: C.bg3, flexShrink: 0, animation: 'sk 1.4s ease infinite', opacity: 0.6 }} />
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ height: 13, width: '65%', background: C.bg3, borderRadius: 4, animation: 'sk 1.4s ease infinite', opacity: 0.6 }} />
+      <div style={{ height: 11, width: '40%', background: C.bg3, borderRadius: 4, animation: 'sk 1.4s ease infinite', opacity: 0.4 }} />
+    </div>
+    <style>{`@keyframes sk{0%,100%{opacity:.35}50%{opacity:.7}}`}</style>
+  </div>
+);
+
+// ─── MiniPlayer ───────────────────────────────────────────────────────────────
+const MiniPlayer = ({ track, playing, progress, onToggle, onExpand }) => {
+  if (!track) return null;
+  return (
+    <div style={{ padding: '0 10px 6px' }}>
+      <div onClick={onExpand} style={{ background: 'rgba(44,44,46,0.95)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)', borderRadius: 16, padding: '10px 12px 12px', cursor: 'pointer', position: 'relative', overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.5)', border: '0.5px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 46, height: 46, borderRadius: 9, background: C.accentTint, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill={C.accent}><polygon points="5,3 19,12 5,21"/></svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: F, fontSize: 14, fontWeight: 500, color: C.fg1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{track.title}</div>
+            <div style={{ fontFamily: F, fontSize: 12, color: C.fg2, marginTop: 1 }}>{track.channel}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 2 }} onClick={e => e.stopPropagation()}>
+            <Btn size={40} onTap={onToggle} color={C.fg1}>{playing ? Sym.pause : Sym.play}</Btn>
+            <Btn size={40} color={C.fg1}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19"/></svg></Btn>
+          </div>
+        </div>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2.5, background: C.bg4 }}>
+          <div style={{ height: '100%', width: `${progress * 100}%`, background: C.accent, transition: 'width 1s linear' }} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Btn helper ───────────────────────────────────────────────────────────────
+const Btn = ({ size = 44, onTap, color = C.fg1, children, accent: isAccent }) => (
+  <button onClick={onTap} style={{ width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isAccent ? C.accent : 'transparent', borderRadius: '50%', border: 'none', cursor: 'pointer', color, transition: 'opacity 150ms' }}
+    onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+  >{children}</button>
+);
+
+// ─── Search Screen ────────────────────────────────────────────────────────────
+const SearchScreen = ({ currentTrack, onPlay }) => {
+  const [q, setQ] = React.useState('');
+  const [focused, setFocused] = React.useState(false);
+  const [state, setState] = React.useState('idle'); // idle | loading | results | empty | error
+  const inputRef = React.useRef(null);
+
+  const doSearch = (val) => {
+    if (!val.trim()) return;
+    setState('loading');
+    setTimeout(() => setState(val.toLowerCase().includes('xyz') ? 'empty' : 'results'), 900);
+  };
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', background: C.bg }}>
+      {/* iOS large title + search bar */}
+      <div style={{ padding: '8px 16px 0' }}>
+        {!focused && <div style={{ fontFamily: FD, fontSize: 28, fontWeight: 700, color: C.fg1, letterSpacing: -0.5, marginBottom: 10 }}>Search</div>}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, height: 36, padding: '0 10px', background: C.bg3, borderRadius: 10, border: `1.5px solid ${focused ? C.accent : 'transparent'}`, transition: 'border-color 200ms' }}>
+            <span style={{ color: focused ? C.accent : C.fg3, flexShrink: 0, display: 'flex' }}>{Sym.search}</span>
+            <input ref={inputRef} value={q} onChange={e => setQ(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onKeyDown={e => e.key === 'Enter' && doSearch(q)} placeholder="Search" style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontFamily: F, fontSize: 15, color: C.fg1 }} />
+            {q && <button onClick={() => { setQ(''); setState('idle'); }} style={{ color: C.fg3, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: 0 }}>{Sym.xmark}</button>}
+          </div>
+          {focused && <button onClick={() => { setFocused(false); inputRef.current?.blur(); }} style={{ fontFamily: F, fontSize: 15, fontWeight: 400, color: C.accent, background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}>Cancel</button>}
+        </div>
+      </div>
+
+      {/* States */}
+      {state === 'idle' && (
+        <div style={{ padding: '20px 16px' }}>
+          <div style={{ fontFamily: F, fontSize: 13, fontWeight: 600, color: C.fg3, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Suggestions</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {['lofi beats','jazz cafe','chill hip hop','classical piano','indie folk'].map(s => (
+              <button key={s} onClick={() => { setQ(s); doSearch(s); }} style={{ padding: '7px 14px', background: C.bg2, border: `0.5px solid ${C.bg4}`, borderRadius: 999, fontFamily: F, fontSize: 14, color: C.fg1, cursor: 'pointer' }}>{s}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {state === 'loading' && (
+        <div style={{ marginTop: 8 }}>
+          {[0,1,2,3,4].map(i => <SkeletonRow key={i} i={i} />)}
+        </div>
+      )}
+
+      {state === 'results' && (
+        <div style={{ background: C.bg2, margin: '12px 0', borderTop: `0.5px solid ${C.separator}`, borderBottom: `0.5px solid ${C.separator}` }}>
+          {TRACKS.map((t, i) => <TrackRow key={t.videoId} track={t} playing={currentTrack?.videoId === t.videoId} onTap={() => onPlay(t)} showDivider={i > 0} />)}
+        </div>
+      )}
+
+      {state === 'empty' && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '60px 32px', textAlign: 'center' }}>
+          <div style={{ width: 56, height: 56, borderRadius: 28, background: C.bg2, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.fg3 }}>{Sym.search}</div>
+          <div style={{ fontFamily: FD, fontSize: 18, fontWeight: 600, color: C.fg1, marginTop: 4 }}>No results</div>
+          <div style={{ fontFamily: F, fontSize: 14, color: C.fg2 }}>Try a different search</div>
+        </div>
+      )}
+
+      {state === 'error' && (
+        <div style={{ margin: '16px', background: 'rgba(255,69,58,0.1)', borderRadius: 12, padding: '16px', border: '0.5px solid rgba(255,69,58,0.3)', textAlign: 'center' }}>
+          <div style={{ fontFamily: F, fontSize: 15, fontWeight: 600, color: C.error }}>Couldn't load results</div>
+          <div style={{ fontFamily: F, fontSize: 13, color: C.fg2, marginTop: 4 }}>Check your connection and try again</div>
+          <button onClick={() => doSearch(q)} style={{ marginTop: 10, padding: '8px 20px', background: C.bg3, border: 'none', borderRadius: 8, fontFamily: F, fontSize: 14, color: C.fg1, cursor: 'pointer' }}>Retry</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Now Playing Screen ───────────────────────────────────────────────────────
+const NowPlayingScreen = ({ track, playing, progress, onToggle, onClose, onNext, onPrev }) => {
+  const [showQueue, setShowQueue] = React.useState(false);
+  const elapsed = fmt(Math.floor((track?.durationSec || 240) * progress));
+  const total = fmt(track?.durationSec || 240);
+
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 40, background: 'linear-gradient(165deg, #1F1035 0%, #0A0A0F 50%)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+      {/* Handle */}
+      <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 10, paddingBottom: 4 }}>
+        <div style={{ width: 36, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2 }} />
+      </div>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 20px 4px' }}>
+        <button onClick={onClose} style={{ width: 32, height: 32, background: 'rgba(255,255,255,0.1)', borderRadius: 16, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.fg1 }}>{Sym.chevronDown}</button>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontFamily: F, fontSize: 11, fontWeight: 600, color: C.fg3, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Now Playing</div>
+        </div>
+        <button style={{ width: 32, height: 32, background: 'rgba(255,255,255,0.1)', borderRadius: 16, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.fg1 }}>{Sym.ellipsis}</button>
+      </div>
+
+      {/* Artwork */}
+      <div style={{ padding: '12px 32px', flex: 1, display: 'flex', alignItems: 'center' }}>
+        <div style={{ width: '100%', aspectRatio: '1', borderRadius: 20, background: 'linear-gradient(135deg,#3D1F7A,#1A1A5E)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.7)', transform: playing ? 'scale(1)' : 'scale(0.88)', transition: 'transform 350ms cubic-bezier(.34,1.56,.64,1)', maxHeight: 280 }}>
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+      </div>
+
+      {/* Meta */}
+      <div style={{ padding: '0 24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, color: C.fg1, letterSpacing: -0.5, lineHeight: 1.2 }}>{track?.title || 'Nothing playing'}</div>
+            <div style={{ fontFamily: F, fontSize: 15, color: C.fg2, marginTop: 3 }}>{track?.channel || ''}</div>
+          </div>
+          <button style={{ width: 36, height: 36, background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </button>
+        </div>
+
+        {/* Scrubber */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ height: 4, background: C.bg4, borderRadius: 2, marginBottom: 6, position: 'relative', cursor: 'pointer' }}>
+            <div style={{ height: '100%', width: `${progress * 100}%`, background: C.fg1, borderRadius: 2, position: 'relative' }}>
+              <div style={{ position: 'absolute', right: -7, top: -6, width: 16, height: 16, background: C.fg1, borderRadius: '50%', boxShadow: '0 2px 8px rgba(0,0,0,0.5)' }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: F, fontSize: 12, color: C.fg3, fontVariantNumeric: 'tabular-nums' }}>
+            <span>{elapsed}</span><span>-{fmt((track?.durationSec || 240) - Math.floor((track?.durationSec || 240) * progress))}</span>
+          </div>
+        </div>
+
+        {/* Transport */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <Btn size={44} color={C.fg3}>{Sym.shuffle}</Btn>
+          <Btn size={52} color={C.fg1} onTap={onPrev}>{Sym.skipBack}</Btn>
+          <button onClick={onToggle} style={{ width: 68, height: 68, borderRadius: 34, background: C.fg1, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.bg, boxShadow: '0 4px 16px rgba(255,255,255,0.15)', transition: 'transform 100ms' }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            {playing
+              ? <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+              : <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 4 }}><polygon points="5,3 19,12 5,21"/></svg>
+            }
+          </button>
+          <Btn size={52} color={C.fg1} onTap={onNext}>{Sym.skipFwd}</Btn>
+          <Btn size={44} color={C.fg3}>{Sym.repeat}</Btn>
+        </div>
+
+        {/* Volume + secondary controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill={C.fg3} stroke={C.fg3} strokeWidth="0"><path d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07" fill="none" stroke={C.fg3} strokeWidth="2" strokeLinecap="round"/></svg>
+          <div style={{ flex: 1, height: 4, background: C.bg4, borderRadius: 2 }}>
+            <div style={{ height: '100%', width: '65%', background: C.fg3, borderRadius: 2 }} />
+          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.fg3} strokeWidth="2" strokeLinecap="round"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 28 }}>
+          <Btn size={40} color={C.fg3}>{Sym.airplay}</Btn>
+          <Btn size={40} color={showQueue ? C.accent : C.fg3} onTap={() => setShowQueue(q => !q)}>{Sym.queue}</Btn>
+          <Btn size={40} color={C.fg3}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></Btn>
+          <Btn size={40} color={C.fg3}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></Btn>
+        </div>
+
+        {/* Queue panel */}
+        {showQueue && (
+          <div style={{ background: C.bg2, borderRadius: 12, overflow: 'hidden', marginBottom: 24 }}>
+            <div style={{ padding: '10px 16px', fontFamily: F, fontSize: 12, fontWeight: 600, color: C.fg3, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Up Next</div>
+            {QUEUE.map((t, i) => (
+              <div key={t.videoId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 16px', borderTop: `0.5px solid ${C.separator}` }}>
+                <div style={{ width: 40, height: 40, borderRadius: 7, background: C.bg3, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill={C.fg3}><polygon points="5,3 19,12 5,21"/></svg>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: F, fontSize: 13, fontWeight: 500, color: C.fg1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.title}</div>
+                  <div style={{ fontFamily: F, fontSize: 12, color: C.fg2 }}>{t.channel}</div>
+                </div>
+                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.fg3, display: 'flex' }}>{Sym.ellipsis}</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+const App = () => {
+  const [tab, setTab] = React.useState('search');
+  const [track, setTrack] = React.useState(null);
+  const [playing, setPlaying] = React.useState(false);
+  const [progress, setProgress] = React.useState(0);
+  const [npOpen, setNpOpen] = React.useState(false);
+  const timerRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (playing) { timerRef.current = setInterval(() => setProgress(p => Math.min(1, p + 1/(track?.durationSec||240))), 1000); }
+    else clearInterval(timerRef.current);
+    return () => clearInterval(timerRef.current);
+  }, [playing, track]);
+
+  const play = (t) => { setTrack(t); setProgress(0); setPlaying(true); };
+  const toggle = () => setPlaying(p => !p);
+  const next = () => { const i = QUEUE.findIndex(t => t.videoId === track?.videoId); play(QUEUE[(i+1)%QUEUE.length]); };
+  const prev = () => setProgress(0);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg, position: 'relative' }}>
+      <StatusBar />
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {tab === 'search' && <SearchScreen currentTrack={track} onPlay={play} />}
+        {tab === 'library' && <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.fg3, fontFamily: F, fontSize: 15 }}>Library — see YT-0028 mockup</div>}
+        {tab === 'settings' && <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.fg3, fontFamily: F, fontSize: 15 }}>Settings — see YT-0031 mockup</div>}
+      </div>
+      <MiniPlayer track={track} playing={playing} progress={progress} onToggle={toggle} onExpand={() => setNpOpen(true)} />
+      <TabBar active={tab} onChange={setTab} />
+      {npOpen && <NowPlayingScreen track={track} playing={playing} progress={progress} onToggle={toggle} onClose={() => setNpOpen(false)} onNext={next} onPrev={prev} />}
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

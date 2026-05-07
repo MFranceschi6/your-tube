@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8" />
+<title>YourTube — App Icon Exploration v2</title>
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  html, body { background: #0A0A0A; color: #fff; font-family: var(--font-sans); }
+  .dc-section-title { color: #fff !important; }
+  .dc-artboard-label { color: rgba(255,255,255,0.6) !important; }
+
+  .concept-note {
+    max-width: 880px;
+    margin: 32px auto 0;
+    padding: 24px 28px;
+    background: #141416;
+    border: 1px solid #25252A;
+    border-radius: 16px;
+    color: #EBEBF5CC;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .concept-note h1 {
+    font-size: 22px; font-weight: 600; color: #fff;
+    margin-bottom: 8px; letter-spacing: -0.01em;
+  }
+  .concept-note h1 span { color: #8B5CF6; }
+  .concept-note p { margin-bottom: 8px; }
+  .concept-note .legend {
+    display: flex; gap: 24px; margin-top: 16px;
+    font-size: 12px; color: rgba(235,235,245,0.55); flex-wrap: wrap;
+  }
+  .concept-note .legend b { color: #fff; font-weight: 500; }
+
+  .icon-stage {
+    display: grid;
+    grid-template-columns: 360px 280px 280px;
+    gap: 20px;
+    padding: 24px;
+    background: #0F0F0F;
+    border-radius: 18px;
+    align-items: start;
+  }
+  .stage-cell {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 12px;
+  }
+  .stage-cell .cell-label {
+    font-family: var(--font-mono);
+    font-size: 11px; letter-spacing: 0.04em;
+    color: rgba(235,235,245,0.4);
+    text-transform: uppercase;
+  }
+
+  .icon-large { width: 320px; height: 320px; position: relative; }
+  .icon-large { filter: drop-shadow(0 10px 30px rgba(139,92,246,0.18)) drop-shadow(0 4px 12px rgba(0,0,0,0.4)); }
+
+  /* iOS phone */
+  .ios-phone {
+    width: 280px; height: 580px;
+    background: #000; border-radius: 48px;
+    padding: 12px;
+    box-shadow: 0 0 0 2px #1c1c1e, 0 30px 60px rgba(0,0,0,0.6);
+    position: relative; overflow: hidden;
+  }
+  .ios-phone .screen {
+    width: 100%; height: 100%;
+    border-radius: 38px; overflow: hidden; position: relative;
+    background-image:
+      linear-gradient(180deg, rgba(15,8,30,0.4) 0%, rgba(40,15,80,0.3) 50%, rgba(10,5,20,0.5) 100%),
+      url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><defs><radialGradient id="g1" cx="30%25" cy="20%25" r="60%25"><stop offset="0" stop-color="%23a78bfa" stop-opacity="0.45"/><stop offset="1" stop-color="%23000" stop-opacity="0"/></radialGradient><radialGradient id="g2" cx="80%25" cy="80%25" r="50%25"><stop offset="0" stop-color="%23ec4899" stop-opacity="0.35"/><stop offset="1" stop-color="%23000" stop-opacity="0"/></radialGradient></defs><rect width="200" height="200" fill="%23120a26"/><rect width="200" height="200" fill="url(%23g1)"/><rect width="200" height="200" fill="url(%23g2)"/></svg>');
+    background-size: cover;
+  }
+  .ios-phone .notch {
+    position: absolute; top: 18px; left: 50%;
+    transform: translateX(-50%);
+    width: 90px; height: 26px; background: #000;
+    border-radius: 14px; z-index: 10;
+  }
+  .ios-phone .statusbar {
+    position: absolute; top: 22px; left: 0; right: 0;
+    display: flex; justify-content: space-between;
+    padding: 0 28px; color: #fff;
+    font-size: 13px; font-weight: 600; z-index: 5;
+  }
+  .ios-phone .grid {
+    position: absolute; top: 70px;
+    left: 18px; right: 18px;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px 16px;
+  }
+  .ios-phone .dock {
+    position: absolute; bottom: 18px;
+    left: 18px; right: 18px; height: 76px;
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border-radius: 28px;
+    display: flex; align-items: center;
+    justify-content: space-around; padding: 0 12px;
+  }
+
+  /* Android phone */
+  .android-phone {
+    width: 280px; height: 580px;
+    background: #1a1a1a; border-radius: 36px;
+    padding: 10px;
+    box-shadow: 0 0 0 2px #2a2a2a, 0 30px 60px rgba(0,0,0,0.6);
+    position: relative; overflow: hidden;
+  }
+  .android-phone .screen {
+    width: 100%; height: 100%;
+    border-radius: 28px; overflow: hidden; position: relative;
+    background: linear-gradient(180deg, #1a2a3f 0%, #0d1422 100%);
+  }
+  .android-phone .punchhole {
+    position: absolute; top: 18px; left: 50%;
+    transform: translateX(-50%);
+    width: 10px; height: 10px; background: #000;
+    border-radius: 50%; z-index: 10;
+  }
+  .android-phone .statusbar {
+    position: absolute; top: 16px; left: 0; right: 0;
+    display: flex; justify-content: space-between;
+    padding: 0 18px; color: #fff;
+    font-size: 11px; font-weight: 500; z-index: 5;
+  }
+  .android-phone .grid {
+    position: absolute; top: 60px;
+    left: 14px; right: 14px;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 14px 14px;
+  }
+  .android-phone .navbar {
+    position: absolute; bottom: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 100px; height: 4px;
+    background: rgba(255,255,255,0.6);
+    border-radius: 999px;
+  }
+  .android-phone .search-bar {
+    position: absolute; bottom: 28px;
+    left: 14px; right: 14px; height: 48px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-radius: 24px;
+    display: flex; align-items: center;
+    padding: 0 16px;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px; gap: 8px;
+  }
+
+  .variant-info {
+    margin-top: 12px; width: 100%;
+    display: flex; gap: 12px;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #1c1c1e;
+    border: 1px solid #2a2a2e;
+    color: rgba(235,235,245,0.7);
+  }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<div class="concept-note">
+  <h1>YourTube · App icon — <span>la Y indossa le cuffie</span></h1>
+  <p>La <b style="color:#fff">Y è la testa</b> al centro dell'icona — una lettera Y solida, alta, con tipografia decisa. Una <b style="color:#fff">fascia di cuffie</b> (headband arcuato + due padiglioni cilindrici) la abbraccia da sopra: la fascia passa <em>sopra</em> la Y come un anello, e i due padiglioni si appoggiano <em>ai lati</em> della Y all'altezza delle "orecchie".</p>
+  <p>Sei varianti dello stesso concept che esplorano il <b style="color:#fff">peso della Y</b> (bold/regular/serif), il <b style="color:#fff">tipo di cuffia</b> (over-ear chiusa, on-ear aperta, mono-line) e la <b style="color:#fff">profondità</b> (flat per iOS legacy + Android M3, glass per iOS 26 + Android 16). Ogni variante è mostrata stand-alone, in home iOS e in home Android.</p>
+  <div class="legend">
+    <span><b style="color:#8B5CF6;">●</b> accent <b>#8B5CF6</b></span>
+    <span>safe zone: <b>66%</b> centrale</span>
+    <span>output: iOS 1024×1024 · Android 432 adaptive</span>
+  </div>
+</div>
+
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+/* ─────────────────────────────────────────────
+   GLYPHS — la Y indossa le cuffie
+   La Y è la "testa" al centro; le cuffie le girano intorno.
+   ───────────────────────────────────────────── */
+
+const VB = "0 0 1024 1024";
+
+/* Helper: render a centered solid Y at given weight (stem thickness).
+   Wider span and slightly chunkier — designed to fill the space between earcups. */
+function YHead({ fg = "#FFFFFF", weight = 150, top = 380, bottom = 820, joint = 620, span = 200 }) {
+  const cx = 512;
+  const halfWeight = weight / 2;
+  return (
+    <g>
+      {/* Left arm of V */}
+      <path
+        d={`M ${cx - span - halfWeight} ${top}
+            L ${cx - span + halfWeight} ${top}
+            L ${cx + halfWeight} ${joint - 8}
+            L ${cx - halfWeight} ${joint - 8}
+            Z`}
+        fill={fg}
+      />
+      {/* Right arm of V */}
+      <path
+        d={`M ${cx + span + halfWeight} ${top}
+            L ${cx + span - halfWeight} ${top}
+            L ${cx - halfWeight} ${joint - 8}
+            L ${cx + halfWeight} ${joint - 8}
+            Z`}
+        fill={fg}
+      />
+      {/* Vertical stem */}
+      <rect
+        x={cx - halfWeight} y={joint - 16}
+        width={weight} height={bottom - joint + 16}
+        rx={halfWeight * 0.5}
+        fill={fg}
+      />
+      {/* Optical caps */}
+      <circle cx={cx - span} cy={top} r={halfWeight} fill={fg} />
+      <circle cx={cx + span} cy={top} r={halfWeight} fill={fg} />
+      <rect x={cx - halfWeight} y={bottom - halfWeight} width={weight} height={weight} rx={halfWeight} fill={fg} />
+    </g>
+  );
+}
+
+/* Headphones — built from 3 simple primitives:
+   1) Top headband: a stroked arc that runs over the top of the icon,
+      curving down on both sides until it meets the earcups.
+   2) Two filled earcup "pills" — vertically-oriented rounded rects
+      hugging the left and right edges of the icon.
+   The Y sits in the middle, "wearing" the headphones.
+
+   Geometry on a 1024 viewBox (used inside the inner safe area).
+   Earcups: x ~ 140..320 (left), 704..884 (right); y ~ 420..820.
+   Headband: arc from top of left cup to top of right cup, peaking around y=140.
+*/
+function HeadphonesWrap({ fg = "#FFFFFF", earTint, bandWeight = 64, slim = false, asymOffset = 0 }) {
+  // Earcup geometry
+  const cupW = slim ? 150 : 180;
+  const cupH = slim ? 360 : 400;
+  const baseY = slim ? 440 : 420;
+  const cupRX = cupW / 2;
+  const leftCupX = 140;
+  const rightCupX = 1024 - 140 - cupW;
+  // Asymmetric vertical offset: positive => right cup lower than left
+  const leftCupY = baseY - asymOffset / 2;
+  const rightCupY = baseY + asymOffset / 2;
+  // Headband arc: from top-center of left cup to top-center of right cup
+  const leftAnchorX = leftCupX + cupW / 2;
+  const rightAnchorX = rightCupX + cupW / 2;
+  const leftAnchorY = leftCupY + 10;
+  const rightAnchorY = rightCupY + 10;
+  const peakY = 130;
+
+  return (
+    <g>
+      {/* Top headband — a single stroked arc (slim U shape), tilted when asym */}
+      <path
+        d={`M ${leftAnchorX} ${leftAnchorY}
+            C ${leftAnchorX} ${peakY + 40} ${leftAnchorX + 100} ${peakY} 512 ${peakY}
+            C ${rightAnchorX - 100} ${peakY} ${rightAnchorX} ${peakY + 40} ${rightAnchorX} ${rightAnchorY}`}
+        stroke={fg}
+        strokeWidth={bandWeight}
+        strokeLinecap="round"
+        fill="none"
+      />
+
+      {/* Subtle highlight on top of band */}
+      <path
+        d={`M ${leftAnchorX + 60} ${peakY + 30} Q 512 ${peakY + 8} ${rightAnchorX - 60} ${peakY + 30}`}
+        stroke="rgba(255,255,255,0.25)"
+        strokeWidth={bandWeight * 0.3}
+        strokeLinecap="round"
+        fill="none"
+      />
+
+      {/* Left earcup (asymmetric vertical position) */}
+      <rect x={leftCupX} y={leftCupY} width={cupW} height={cupH} rx={cupRX} fill={fg} />
+      {/* Right earcup */}
+      <rect x={rightCupX} y={rightCupY} width={cupW} height={cupH} rx={cupRX} fill={fg} />
+
+      {/* Inner earpad tint (two-tone variants) */}
+      {earTint && (
+        <>
+          <rect
+            x={leftCupX + 24} y={leftCupY + 30}
+            width={cupW - 48} height={cupH - 60}
+            rx={(cupW - 48) / 2}
+            fill={earTint}
+          />
+          <rect
+            x={rightCupX + 24} y={rightCupY + 30}
+            width={cupW - 48} height={cupH - 60}
+            rx={(cupW - 48) / 2}
+            fill={earTint}
+          />
+        </>
+      )}
+    </g>
+  );
+}
+
+/* Outlined version — for the airy "outline" variant */
+function HeadphonesWrapOutline({ fg = "#FFFFFF", strokeW = 50 }) {
+  const cupW = 160;
+  const cupH = 380;
+  const cupY = 430;
+  const leftCupX = 150;
+  const rightCupX = 1024 - 150 - cupW;
+  const leftAnchorX = leftCupX + cupW / 2;
+  const rightAnchorX = rightCupX + cupW / 2;
+  const anchorY = cupY + 10;
+  const peakY = 140;
+  return (
+    <g stroke={fg} strokeWidth={strokeW} fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d={`M ${leftAnchorX} ${anchorY}
+                C ${leftAnchorX} ${peakY + 40} ${leftAnchorX + 100} ${peakY} 512 ${peakY}
+                C ${rightAnchorX - 100} ${peakY} ${rightAnchorX} ${peakY + 40} ${rightAnchorX} ${anchorY}`} />
+      <rect x={leftCupX} y={cupY} width={cupW} height={cupH} rx={cupW / 2} />
+      <rect x={rightCupX} y={cupY} width={cupW} height={cupH} rx={cupW / 2} />
+    </g>
+  );
+}
+
+/* Trapezoidal earcups: wider on the INSIDE (toward the Y), narrower outside.
+   The headband anchors to the INNER-TOP corner of each cup, so the cup
+   visibly sticks out beyond the band on the outside edge.
+   Used for variant 06. */
+function HeadphonesTrapezoid({ fg = "#FFFFFF", bandWeight = 64 }) {
+  // Trapezoid geometry — outer edge is the "back" of the earcup,
+  // inner edge faces the Y and is taller.
+  // Drawn as path so we can have rounded corners selectively.
+  // Squashed in the OTHER direction: reduce horizontal span, keep height.
+  // The cup is short from inner-to-outer edge (perpendicular distance small).
+  const cupTopOuter = 470;
+  const cupBotOuter = 770;
+  const cupTopInner = 450;
+  const cupBotInner = 790;
+  const cornerR = 28;
+
+  // Cups pushed slightly outward (more space between cups and Y)
+  const Louter = 150;
+  const Linner = 290;
+  const Router = 1024 - 150;
+  const Rinner = 1024 - 290;
+  const bandInsetX = 0;
+
+  // Headband anchor: pushed slightly INWARD past the cup edge,
+  // so the cup's outer rounded corners visibly stick out beyond the band.
+  const leftAnchorX = Linner - 30;
+  const rightAnchorX = Rinner + 30;
+  const anchorY = (cupTopInner + cupBotInner) / 2 - 30;
+  const peakY = 130;
+
+  // Helper: trapezoid path with rounded corners
+  // Coords listed clockwise from outer-top
+  const leftCupPath = `
+    M ${Louter + cornerR} ${cupTopOuter}
+    L ${Linner - cornerR} ${cupTopInner}
+    Q ${Linner} ${cupTopInner} ${Linner} ${cupTopInner + cornerR}
+    L ${Linner} ${cupBotInner - cornerR}
+    Q ${Linner} ${cupBotInner} ${Linner - cornerR} ${cupBotInner}
+    L ${Louter + cornerR} ${cupBotOuter}
+    Q ${Louter} ${cupBotOuter} ${Louter} ${cupBotOuter - cornerR}
+    L ${Louter} ${cupTopOuter + cornerR}
+    Q ${Louter} ${cupTopOuter} ${Louter + cornerR} ${cupTopOuter}
+    Z
+  `;
+  const rightCupPath = `
+    M ${Router - cornerR} ${cupTopOuter}
+    L ${Rinner + cornerR} ${cupTopInner}
+    Q ${Rinner} ${cupTopInner} ${Rinner} ${cupTopInner + cornerR}
+    L ${Rinner} ${cupBotInner - cornerR}
+    Q ${Rinner} ${cupBotInner} ${Rinner + cornerR} ${cupBotInner}
+    L ${Router - cornerR} ${cupBotOuter}
+    Q ${Router} ${cupBotOuter} ${Router} ${cupBotOuter - cornerR}
+    L ${Router} ${cupTopOuter + cornerR}
+    Q ${Router} ${cupTopOuter} ${Router - cornerR} ${cupTopOuter}
+    Z
+  `;
+
+  return (
+    <g>
+      {/* Headband — anchors to INNER top of cups */}
+      <path
+        d={`M ${leftAnchorX} ${anchorY}
+            C ${leftAnchorX} ${peakY + 60} ${leftAnchorX + 80} ${peakY} 512 ${peakY}
+            C ${rightAnchorX - 80} ${peakY} ${rightAnchorX} ${peakY + 60} ${rightAnchorX} ${anchorY}`}
+        stroke={fg}
+        strokeWidth={bandWeight}
+        strokeLinecap="round"
+        fill="none"
+      />
+      {/* Highlight */}
+      <path
+        d={`M ${leftAnchorX + 60} ${peakY + 26} Q 512 ${peakY + 6} ${rightAnchorX - 60} ${peakY + 26}`}
+        stroke="rgba(255,255,255,0.25)"
+        strokeWidth={bandWeight * 0.3}
+        strokeLinecap="round"
+        fill="none"
+      />
+      {/* Trapezoidal cups */}
+      <path d={leftCupPath} fill={fg} />
+      <path d={rightCupPath} fill={fg} />
+    </g>
+  );
+}
+
+/* Variant 01 — Bold Y, chunky over-ear, monochrome white */
+function Glyph01() {
+  return (
+    <svg viewBox={VB} width="100%" height="100%">
+      <HeadphonesWrap fg="#fff" />
+      <YHead fg="#fff" weight={170} top={420} bottom={830} joint={640} span={175} />
+    </svg>
+  );
+}
+
+/* Variant 02 — Outlined: airy, modern stroke headphones + outline Y */
+function Glyph02() {
+  const fg = "#fff";
+  const sw = 50;
+  const cx = 512;
+  return (
+    <svg viewBox={VB} width="100%" height="100%">
+      <HeadphonesWrapOutline fg={fg} strokeW={sw} />
+      <path
+        d={`M ${cx - 175} 440 L ${cx} 660 L ${cx + 175} 440`}
+        stroke={fg} strokeWidth={sw}
+        strokeLinecap="round" strokeLinejoin="round"
+        fill="none"
+      />
+      <path
+        d={`M ${cx} 660 L ${cx} 840`}
+        stroke={fg} strokeWidth={sw}
+        strokeLinecap="round" fill="none"
+      />
+    </svg>
+  );
+}
+
+/* Variant 03 — Display serif Y with over-ear cuffs */
+function Glyph03() {
+  return (
+    <svg viewBox={VB} width="100%" height="100%">
+      <HeadphonesWrap fg="#fff" />
+      {/* Serif Y — wider arms with terminals, narrower stem */}
+      <g fill="#fff">
+        <path d="M 320 430 L 430 430 L 542 640 L 482 640 Z" />
+        <path d="M 704 430 L 594 430 L 482 640 L 542 640 Z" />
+        <rect x="478" y="620" width="68" height="200" />
+        <rect x="418" y="810" width="188" height="40" rx="8" />
+        <rect x="304" y="412" width="142" height="32" rx="8" />
+        <rect x="578" y="412" width="142" height="32" rx="8" />
+      </g>
+    </svg>
+  );
+}
+
+/* Variant 04 — Bold Y + headphones with VIOLET earpads (two-tone) */
+function Glyph04() {
+  return (
+    <svg viewBox={VB} width="100%" height="100%">
+      <HeadphonesWrap fg="#fff" earTint="#8B5CF6" />
+      <YHead fg="#fff" weight={170} top={420} bottom={830} joint={640} span={175} />
+    </svg>
+  );
+}
+
+/* Variant 05 — Mono-line: very thin uniform stroke everything */
+function Glyph05() {
+  const fg = "#fff";
+  const sw = 42;
+  const cx = 512;
+  return (
+    <svg viewBox={VB} width="100%" height="100%">
+      <HeadphonesWrapOutline fg={fg} strokeW={sw} />
+      <path
+        d={`M ${cx - 175} 440 L ${cx} 660 L ${cx + 175} 440`}
+        stroke={fg} strokeWidth={sw}
+        strokeLinecap="round" strokeLinejoin="round"
+        fill="none"
+      />
+      <path
+        d={`M ${cx} 660 L ${cx} 840`}
+        stroke={fg} strokeWidth={sw}
+        strokeLinecap="round" fill="none"
+      />
+    </svg>
+  );
+}
+
+/* Variant 06 — Trapezoidal cups (wider on the inside, narrower outside),
+   headband anchored to the INNER-TOP of each cup so the cups sport beyond
+   the band on the outer edge. Smaller Y centered between the inner edges. */
+function Glyph06() {
+  return (
+    <svg viewBox={VB} width="100%" height="100%">
+      <HeadphonesTrapezoid fg="#fff" bandWeight={64} />
+      {/* Smaller, lighter Y */}
+      <YHead fg="#fff" weight={120} top={440} bottom={810} joint={640} span={150} />
+    </svg>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Backgrounds
+   ───────────────────────────────────────────── */
+const FlatPurple = ({ children }) => (
+  <div style={{ width: '100%', height: '100%', background: '#8B5CF6', position: 'relative' }}>{children}</div>
+);
+const DeepPurpleGradient = ({ children }) => (
+  <div style={{
+    width: '100%', height: '100%',
+    background: 'radial-gradient(circle at 30% 20%, #A78BFA 0%, #8B5CF6 35%, #6D28D9 75%, #4C1D95 100%)',
+    position: 'relative',
+  }}>{children}</div>
+);
+const BlackGlow = ({ children }) => (
+  <div style={{
+    width: '100%', height: '100%',
+    background: 'radial-gradient(circle at 50% 60%, #2D1B5E 0%, #110820 60%, #050208 100%)',
+    position: 'relative',
+  }}>{children}</div>
+);
+const LightCream = ({ children }) => (
+  <div style={{
+    width: '100%', height: '100%',
+    background: 'linear-gradient(135deg, #FFFFFF 0%, #F4F1FB 100%)',
+    position: 'relative',
+  }}>{children}</div>
+);
+const GlassMaterial = ({ children }) => (
+  <div style={{
+    width: '100%', height: '100%', position: 'relative', overflow: 'hidden',
+    background: 'linear-gradient(135deg, rgba(167,139,250,0.6) 0%, rgba(139,92,246,0.7) 50%, rgba(76,29,149,0.8) 100%)',
+  }}>
+    <div style={{
+      position: 'absolute', inset: 0,
+      background: 'radial-gradient(circle at 20% 80%, rgba(236,72,153,0.5) 0%, transparent 40%), radial-gradient(circle at 80% 20%, rgba(96,165,250,0.5) 0%, transparent 40%)',
+    }} />
+    <div style={{
+      position: 'absolute', top: 0, left: 0, right: 0, height: '50%',
+      background: 'linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 100%)',
+    }} />
+    {children}
+  </div>
+);
+const MaterialYou = ({ children }) => (
+  <div style={{
+    width: '100%', height: '100%',
+    background: 'linear-gradient(160deg, #EDE3FF 0%, #C4B5FD 100%)',
+    position: 'relative',
+  }}>{children}</div>
+);
+
+/* ─────────────────────────────────────────────
+   Wrappers
+   ───────────────────────────────────────────── */
+const IOSSquircle = ({ size, bg: Bg, children, dark = false }) => (
+  <div style={{
+    width: size, height: size,
+    borderRadius: `${size * 0.2237}px`,
+    overflow: 'hidden',
+    boxShadow: '0 12px 32px rgba(76,29,149,0.35), 0 4px 10px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
+    position: 'relative',
+  }}>
+    <Bg>
+      <div style={{ position: 'absolute', inset: 0, padding: '17%' }}>
+        {children}
+      </div>
+    </Bg>
+  </div>
+);
+
+const AndroidAdaptive = ({ size, bg: Bg, children, shape = 'circle' }) => {
+  const radius = shape === 'circle' ? '50%' :
+                 shape === 'rounded' ? '28%' :
+                 shape === 'squircle' ? `${size * 0.2237}px` : '50%';
+  return (
+    <div style={{
+      width: size, height: size,
+      borderRadius: radius,
+      overflow: 'hidden',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.25)',
+      position: 'relative',
+    }}>
+      <Bg>
+        <div style={{ position: 'absolute', inset: 0, padding: '17%' }}>
+          {children}
+        </div>
+      </Bg>
+    </div>
+  );
+};
+
+/* ─────────────────────────────────────────────
+   Phone frames (compact)
+   ───────────────────────────────────────────── */
+function IOSHome({ ourIcon, label = "YourTube" }) {
+  const apps = [
+    { color: '#1E88E5', glyph: '✉' },
+    null,
+    { color: '#43A047', glyph: '✓' },
+    { color: '#FFB300', glyph: '☀' },
+    { color: '#000', glyph: '𝕏' },
+    { color: '#E53935', glyph: '♥' },
+    { color: '#5E35B1', glyph: '♬' },
+    { color: '#00897B', glyph: '⌘' },
+  ];
+  return (
+    <div className="ios-phone">
+      <div className="screen">
+        <div className="notch"></div>
+        <div className="statusbar">
+          <span>9:41</span>
+          <span style={{ display: 'flex', gap: 4, fontSize: 10, alignItems: 'center' }}>
+            <span>•••</span><span>100%</span>
+          </span>
+        </div>
+        <div className="grid">
+          {apps.map((app, i) => (
+            <div key={i} style={{ position: 'relative', paddingBottom: 14 }}>
+              {app === null ? (
+                <>
+                  {ourIcon}
+                  <div style={{
+                    position: 'absolute', bottom: -2, left: 0, right: 0,
+                    textAlign: 'center', color: '#fff', fontSize: 10,
+                    fontWeight: 500, textShadow: '0 1px 2px rgba(0,0,0,0.7)',
+                  }}>{label}</div>
+                </>
+              ) : (
+                <>
+                  <div style={{
+                    aspectRatio: '1', borderRadius: '22.37%',
+                    background: app.color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontSize: 22,
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                  }}>{app.glyph}</div>
+                  <div style={{
+                    position: 'absolute', bottom: -2, left: 0, right: 0,
+                    textAlign: 'center', color: '#fff', fontSize: 10,
+                    textShadow: '0 1px 2px rgba(0,0,0,0.7)',
+                  }}>App</div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="dock">
+          {[
+            { color: '#34C759', glyph: '☎' },
+            { color: '#0A84FF', glyph: '✉' },
+            { color: '#FF9500', glyph: '🗎' },
+            { color: '#FF2D55', glyph: '♬' },
+          ].map((a, i) => (
+            <div key={i} style={{
+              background: a.color, width: 50, height: 50,
+              borderRadius: '22.37%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff', fontSize: 20,
+            }}>{a.glyph}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AndroidHome({ ourIcon, label = "YourTube" }) {
+  const apps = [
+    { color: '#4285F4', glyph: 'G' },
+    null,
+    { color: '#0F9D58', glyph: '☎' },
+    { color: '#DB4437', glyph: '✉' },
+    { color: '#F4B400', glyph: '☀' },
+    { color: '#673AB7', glyph: '♬' },
+    { color: '#EA4335', glyph: '🗺' },
+    { color: '#34A853', glyph: '✓' },
+  ];
+  return (
+    <div className="android-phone">
+      <div className="screen">
+        <div className="punchhole"></div>
+        <div className="statusbar">
+          <span>9:41</span>
+          <span style={{ display: 'flex', gap: 4 }}>
+            <span>📶</span><span>🔋</span>
+          </span>
+        </div>
+        <div className="grid">
+          {apps.map((app, i) => (
+            <div key={i} style={{ position: 'relative', paddingBottom: 14 }}>
+              {app === null ? (
+                <>
+                  {ourIcon}
+                  <div style={{
+                    position: 'absolute', bottom: -2, left: 0, right: 0,
+                    textAlign: 'center', color: '#fff', fontSize: 10,
+                  }}>{label}</div>
+                </>
+              ) : (
+                <>
+                  <div style={{
+                    aspectRatio: '1', borderRadius: '50%',
+                    background: app.color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontSize: 22, fontWeight: 600,
+                  }}>{app.glyph}</div>
+                  <div style={{
+                    position: 'absolute', bottom: -2, left: 0, right: 0,
+                    textAlign: 'center', color: '#fff', fontSize: 10,
+                  }}>App</div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" style={{ width: 16, height: 16 }}>
+            <circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+          <span>Search</span>
+        </div>
+        <div className="navbar"></div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Variant stage
+   ───────────────────────────────────────────── */
+function VariantStage({ Glyph, iosBg, androidBg, androidShape, iosLabel, androidLabel }) {
+  return (
+    <div className="icon-stage">
+      <div className="stage-cell">
+        <div className="cell-label">Stand-alone · 1024px</div>
+        <div className="icon-large">
+          <IOSSquircle size={320} bg={iosBg}>
+            <Glyph />
+          </IOSSquircle>
+        </div>
+        <div className="variant-info">
+          <span className="chip">{iosLabel}</span>
+          <span className="chip">{androidLabel}</span>
+        </div>
+      </div>
+
+      <div className="stage-cell">
+        <div className="cell-label">iOS · home screen</div>
+        <IOSHome ourIcon={
+          <IOSSquircle size={48} bg={iosBg}>
+            <Glyph />
+          </IOSSquircle>
+        } />
+      </div>
+
+      <div className="stage-cell">
+        <div className="cell-label">Android · home screen</div>
+        <AndroidHome ourIcon={
+          <AndroidAdaptive size={48} bg={androidBg} shape={androidShape}>
+            <Glyph />
+          </AndroidAdaptive>
+        } />
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Main app
+   ───────────────────────────────────────────── */
+function App() {
+  const { DesignCanvas, DCSection, DCArtboard } = window;
+  if (!DesignCanvas) {
+    return <div style={{ padding: 40, color: '#fff' }}>Loading…</div>;
+  }
+  return (
+    <DesignCanvas initialZoom={0.55} pannable defaultBg="#0A0A0A">
+      <DCSection id="flat" title="A · Flat — iOS legacy + Android Material 3">
+        <DCArtboard id="v1" label="01 · Bold Y, over-ear, monocromo" width={1000} height={760}>
+          <VariantStage Glyph={Glyph01}
+            iosBg={FlatPurple} androidBg={DeepPurpleGradient} androidShape="circle"
+            iosLabel="iOS · flat purple" androidLabel="Android · gradient" />
+        </DCArtboard>
+        <DCArtboard id="v2" label="02 · Y outline, cuffia outlined" width={1000} height={760}>
+          <VariantStage Glyph={Glyph02}
+            iosBg={BlackGlow} androidBg={FlatPurple} androidShape="circle"
+            iosLabel="iOS · black glow" androidLabel="Android · flat purple" />
+        </DCArtboard>
+        <DCArtboard id="v3" label="03 · Y serif display, cuffia bold" width={1000} height={760}>
+          <VariantStage Glyph={Glyph03}
+            iosBg={DeepPurpleGradient} androidBg={MaterialYou} androidShape="rounded"
+            iosLabel="iOS · purple gradient" androidLabel="Android · Material You" />
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="glass" title="B · Glass / depth — iOS 26 + Android 16">
+        <DCArtboard id="v4" label="04 · Y bianca, padiglioni viola (two-tone)" width={1000} height={760}>
+          <VariantStage Glyph={Glyph04}
+            iosBg={GlassMaterial} androidBg={DeepPurpleGradient} androidShape="circle"
+            iosLabel="iOS · glass" androidLabel="Android · gradient" />
+        </DCArtboard>
+        <DCArtboard id="v5" label="05 · Mono-line, peso uniforme, minimal" width={1000} height={760}>
+          <VariantStage Glyph={Glyph05}
+            iosBg={GlassMaterial} androidBg={LightCream} androidShape="rounded"
+            iosLabel="iOS · glass" androidLabel="Android · light cream" />
+        </DCArtboard>
+        <DCArtboard id="v6" label="06 · Y compatta, cuffie slim asimmetriche" width={1000} height={760}>
+          <VariantStage Glyph={Glyph06}
+            iosBg={BlackGlow} androidBg={GlassMaterial} androidShape="rounded"
+            iosLabel="iOS · black glow" androidLabel="Android · glass" />
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+/* Wait for design-canvas.jsx to register globals before mounting */
+function tryMount() {
+  if (window.DesignCanvas && window.DCSection && window.DCArtboard) {
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  } else {
+    setTimeout(tryMount, 50);
+  }
+}
+tryMount();
+</script>
+
+</body>
+</html>

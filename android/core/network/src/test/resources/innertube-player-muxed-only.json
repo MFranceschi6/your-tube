@@ -1,0 +1,14 @@
+{
+  "playabilityStatus": { "status": "OK" },
+  "streamingData": {
+    "formats": [
+      {
+        "itag": 18,
+        "url": "https://example.invalid/muxed.mp4",
+        "mimeType": "video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"",
+        "bitrate": 600000,
+        "averageBitrate": 580000
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "playabilityStatus": { "status": "OK" },
+  "streamingData": {
+    "adaptiveFormats": [],
+    "hlsManifestUrl": "https://manifest.googlevideo.com/hls/manifest.m3u8"
+  }
+}

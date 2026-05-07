@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>YourTube — Android versions matrix</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="../colors_and_type.css" />
+<style>
+  html, body { height: 100%; }
+  body {
+    background: #0a0a0b;
+    color: #fff;
+    font-family: 'Geist', 'Inter', -apple-system, system-ui, sans-serif;
+    overflow: hidden;
+  }
+  /* Card-style chrome around section labels */
+  .legend {
+    background: rgba(28,28,30,0.85);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 14px 18px;
+    color: #ebebeb;
+    font-size: 12px;
+    line-height: 1.55;
+    max-width: 760px;
+  }
+  .legend h4 { font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #fff; letter-spacing: -0.01em; }
+  .legend code { font-family: 'Geist Mono', monospace; font-size: 11px; padding: 1px 6px; background: rgba(139,92,246,0.18); color: #c4b0ff; border-radius: 4px; }
+  .legend .muted { color: rgba(235,235,245,0.55); }
+  .legend ul { margin: 4px 0 0 16px; padding: 0; }
+  .legend li { margin-bottom: 2px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 500; letter-spacing: 0.02em; margin-right: 6px; }
+  .pill-base { background: rgba(139,92,246,0.18); color: #c4b0ff; }
+  .pill-you { background: rgba(255,181,156,0.2); color: #ffb59c; }
+  .pill-modern { background: rgba(167,139,250,0.18); color: #a78bfa; }
+  .pill-wear { background: rgba(48,209,88,0.18); color: #30d158; }
+  .pill-auto { background: rgba(255,214,10,0.18); color: #ffd60a; }
+  .pill-tv { background: rgba(94,196,255,0.18); color: #5ec4ff; }
+</style>
+</head>
+<body>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="../design-canvas.jsx"></script>
+<script type="text/babel" src="lib/shared.jsx"></script>
+<script type="text/babel" src="lib/phone-screens.jsx"></script>
+<script type="text/babel" src="lib/form-factors.jsx"></script>
+
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+// --- Legend artboard contents ---
+const StrategyLegend = () => (
+  <div className="legend" style={{ width: 720, padding: 24, fontSize: 13 }}>
+    <h4 style={{ fontSize: 18, marginBottom: 10 }}>YourTube · Android — strategia versioni grafiche</h4>
+    <p className="muted" style={{ marginBottom: 14 }}>
+      <code>minSdk = 26</code> (Android 8.0, già nel build.gradle) → ~95% dispositivi attivi.
+      Una sola codebase Compose · Material 3 · Media3, con tre "tier" visivi ed estensioni per form-factor.
+    </p>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div>
+        <div><span className="pill pill-base">Baseline</span><strong>API 26 – 30</strong></div>
+        <ul className="muted">
+          <li>Material 3 con palette brand fissa (purple #8B5CF6).</li>
+          <li>Status bar opaca, inset standard.</li>
+          <li>NavigationBar M3, FAB rotondo.</li>
+          <li>Splash drawable centrato (no SplashScreen API).</li>
+        </ul>
+      </div>
+      <div>
+        <div><span className="pill pill-you">Material You</span><strong>API 31 – 33</strong></div>
+        <ul className="muted">
+          <li>Dynamic color dal wallpaper di sistema.</li>
+          <li>Tonal surfaces più morbide, radii maggiori (16–22dp).</li>
+          <li>SplashScreen API nativa.</li>
+          <li>Themed icon adattabile (monochrome).</li>
+        </ul>
+      </div>
+      <div>
+        <div><span className="pill pill-modern">Modern</span><strong>API 34 – 36</strong></div>
+        <ul className="muted">
+          <li>Edge-to-edge obbligatorio (35+).</li>
+          <li>Predictive back gesture.</li>
+          <li>Shape morph su pulsanti M3 Expressive.</li>
+          <li>Translucent player & nav (blur saturate).</li>
+        </ul>
+      </div>
+      <div>
+        <div><strong>Tutti i tier condividono</strong></div>
+        <ul className="muted">
+          <li>Stessi component name (TrackRow, MiniPlayer, NowPlaying…).</li>
+          <li>Stessi token: spacing 4dp, type scale M3.</li>
+          <li>Dark/light segue sistema; toggle in Settings.</li>
+          <li>Material Symbols Rounded, niente emoji.</li>
+        </ul>
+      </div>
+    </div>
+    <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12 }}>
+      <strong style={{ fontSize: 13 }}>Form-factor extra (moduli separati, stesso brand):</strong>
+      <div style={{ marginTop: 6 }}>
+        <span className="pill pill-wear">Wear OS</span>
+        <span className="pill pill-auto">Android Auto</span>
+        <span className="pill pill-tv">Android TV</span>
+      </div>
+      <p className="muted" style={{ marginTop: 8 }}>
+        Su Auto la UI è renderizzata dal sistema dai metadati di MediaSession — fornisci playlist, artwork e
+        un accent color, niente layout custom. Su Wear/TV usi Compose for Wear / Compose for TV con gli stessi token.
+      </p>
+    </div>
+  </div>
+);
+
+const App = () => (
+  <DesignCanvas>
+    <DCSection id="strategy" title="01 · Strategia">
+      <DCArtboard id="legend" label="Versions matrix · legend" width={770} height={540}>
+        <StrategyLegend />
+      </DCArtboard>
+    </DCSection>
+
+    <DCSection id="phone-home" title="02 · Phone — Home">
+      <DCArtboard id="phone-home-base" label="API 26–30 · Baseline (brand purple)" width={360} height={720}>
+        <PhoneHome generation="baseline" />
+      </DCArtboard>
+      <DCArtboard id="phone-home-you" label="API 31–33 · Material You (dynamic color)" width={360} height={720}>
+        <PhoneHome generation="you" />
+      </DCArtboard>
+      <DCArtboard id="phone-home-modern" label="API 34+ · Modern (edge-to-edge, expressive)" width={360} height={720}>
+        <PhoneHome generation="modern" />
+      </DCArtboard>
+    </DCSection>
+
+    <DCSection id="phone-now" title="03 · Phone — Now Playing">
+      <DCArtboard id="phone-now-base" label="API 26–30 · Baseline" width={360} height={720}>
+        <PhoneNowPlaying generation="baseline" />
+      </DCArtboard>
+      <DCArtboard id="phone-now-you" label="API 31–33 · Material You" width={360} height={720}>
+        <PhoneNowPlaying generation="you" />
+      </DCArtboard>
+      <DCArtboard id="phone-now-modern" label="API 34+ · Modern" width={360} height={720}>
+        <PhoneNowPlaying generation="modern" />
+      </DCArtboard>
+    </DCSection>
+
+    <DCSection id="phone-lib" title="04 · Phone — Library">
+      <DCArtboard id="phone-lib-base" label="API 26–30 · Baseline" width={360} height={720}>
+        <PhoneLibrary generation="baseline" />
+      </DCArtboard>
+      <DCArtboard id="phone-lib-you" label="API 31–33 · Material You" width={360} height={720}>
+        <PhoneLibrary generation="you" />
+      </DCArtboard>
+      <DCArtboard id="phone-lib-modern" label="API 34+ · Modern" width={360} height={720}>
+        <PhoneLibrary generation="modern" />
+      </DCArtboard>
+    </DCSection>
+
+    <DCSection id="wear" title="05 · Wear OS — round watch (Compose for Wear)">
+      <DCArtboard id="wear-now" label="Now Playing tile" width={260} height={260}>
+        <div style={{ padding: 10 }}><WearNowPlaying /></div>
+      </DCArtboard>
+      <DCArtboard id="wear-lib" label="Library scrolling list" width={260} height={260}>
+        <div style={{ padding: 10 }}><WearLibrary /></div>
+      </DCArtboard>
+    </DCSection>
+
+    <DCSection id="auto" title="06 · Android Auto — system-rendered from MediaSession">
+      <DCArtboard id="auto-now" label="Now Playing" width={1280} height={600}>
+        <AndroidAutoNowPlaying />
+      </DCArtboard>
+      <DCArtboard id="auto-browse" label="Library / Browse" width={1280} height={600}>
+        <AndroidAutoBrowse />
+      </DCArtboard>
+    </DCSection>
+
+    <DCSection id="tv" title="07 · Android TV — 10-foot UI (Compose for TV)">
+      <DCArtboard id="tv-home" label="Home — focus on first card" width={1280} height={720}>
+        <AndroidTVHome />
+      </DCArtboard>
+      <DCArtboard id="tv-now" label="Now Playing" width={1280} height={720}>
+        <AndroidTVNowPlaying />
+      </DCArtboard>
+    </DCSection>
+  </DesignCanvas>
+);
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

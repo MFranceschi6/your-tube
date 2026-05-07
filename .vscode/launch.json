@@ -1,0 +1,44 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:your-tube}/tools/yt-probe",
+            "name": "Debug yt-probe (tools/yt-probe)",
+            "target": "yt-probe",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug yt-probe (tools/yt-probe)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:your-tube}/tools/yt-probe",
+            "name": "Release yt-probe (tools/yt-probe)",
+            "target": "yt-probe",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release yt-probe (tools/yt-probe)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:your-tube}/tools/yt-probe",
+            "name": "Debug yt-play (tools/yt-probe)",
+            "target": "yt-play",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug yt-play (tools/yt-probe)"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:your-tube}/tools/yt-probe",
+            "name": "Release yt-play (tools/yt-probe)",
+            "target": "yt-play",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release yt-play (tools/yt-probe)"
+        }
+    ]
+}

@@ -40,6 +40,8 @@ area: planning
 owner: ""
 agent_profile: shared-contract-engineer
 review_profile: mobile-reviewer
+design_skill: ""
+design_mockup: ""
 created: 2026-05-02
 updated: 2026-05-02
 due: null
@@ -150,6 +152,53 @@ tags:
   - mvp
 ```
 
+UI tasks with a concrete design-system reference may also add:
+
+```yaml
+tags:
+  - design-system
+  - mockup
+```
+
+Use `design_skill` and `design_mockup` only when a task has a concrete design-system workflow:
+
+```yaml
+design_skill: yourtube-design
+design_mockup: design-system/mockups/ios/example.html
+```
+
+`design_skill` names the design agent/skill to load before implementation or review. `design_mockup` points to the primary visual reference; keep supporting design files in `links`.
+
+Use `delivery_channel` when a task is executed by an external delivery loop instead of a local agent. Allowed values:
+
+- `claude-design` — task is sent to `claude.ai/design` for the design artifacts to be produced. The user filters on `delivery_channel: claude-design` AND `status: ready` to pull a batch and pass it externally; the deliverables land back under `design-system/handoff/` and the task moves to `review` for the local reviewer.
+
+```yaml
+delivery_channel: claude-design
+```
+
+Tasks without `delivery_channel` are picked up by the routed local agent per the Agent Routing table.
+
+## Platform Parity Waves
+
+Do not treat Android and iOS as a strict task-by-task ping-pong by default. Prefer short platform waves: complete a small iOS group to a stable checkpoint, then use the corresponding Android tasks as the parity pass. iOS leads because design mockups are produced for iOS first; Android picks up the validated shape afterwards.
+
+Rules:
+
+- Prefer one implementation platform at a time for normal feature delivery; only touch both platforms in one turn when the user explicitly asks for parity or when the task itself is cross-platform.
+- Start Android parity after the reference iOS wave is `review` or `done`, not while the iOS shape is still changing heavily.
+- Use shared docs such as `docs/api-contracts.md`, `docs/design-system.md`, and manual validation docs as the product source of truth; do not copy platform-specific implementation details across platforms.
+- When moving from an iOS wave to Android, reuse the accepted behavior, fixtures, validation expectations, and edge cases, but still implement them with Android-native architecture and UI patterns.
+- If the iOS wave reveals missing shared behavior, record that in tracked `docs/` before starting the Android parity wave.
+
+Current MVP checkpoint guidance:
+
+- Shared contract first: complete `YT-0002` before codec/import-export parity work on either platform.
+- Core foundation checkpoint: finish iOS `YT-0021`, `YT-0022`, and `YT-0025` before broad Android feature implementation. Use those as the reference checkpoint for Android `YT-0006`, `YT-0007`, `YT-0008`, and `YT-0011`, with `YT-0020` already acting as the shared codec/model counterpart.
+- Player-state checkpoint: finish iOS `YT-0023` and `YT-0024` before starting Android `YT-0009` and `YT-0010`.
+- Feature parity wave: once iOS search, now playing, library, history, sharing, and settings are each working at least as one coherent vertical slice, use iOS `YT-0026` through `YT-0031` as the parity reference for Android `YT-0012` through `YT-0017`.
+- Cross-platform validation starts after both parity waves are complete enough to run real export/import and MVP flows, culminating in `YT-0034`, `YT-0033`, `YT-0019`, and `YT-0035`.
+
 ## Agent Routing
 
 Task agents must derive their working profile from task metadata so the user does not need to restate the desired personality. When `agent_profile` or `review_profile` is missing, fill it from this table the next time the task is touched.
@@ -169,6 +218,13 @@ Area can refine the profile without overriding the platform:
 - `area: model`, `sharing`, `contracts`, and cross-platform `validation` should check `docs/api-contracts.md` and fixture compatibility.
 - `area: build` stays with the platform engineer for platform-local Gradle/Xcode changes; `platform: ops` uses `build-ops-engineer`.
 - Security-sensitive work still follows `.claude/rules/security.md` before any profile-specific preference.
+
+Design-system routing:
+
+- When `design_skill: yourtube-design` is present, load `.agents/skills/yourtube-design/SKILL.md`, which in turn loads the design-system source in `design-system/`.
+- Treat `design-system/mockups/MOCKUP_INDEX.md` as the task-to-mockup index and `design_mockup` as the primary per-task reference.
+- Keep implementation ownership with the platform engineer (`android-engineer` or `ios-engineer`); the design skill is supplemental context, not a replacement for platform idioms.
+- Review UI tasks against the linked mockup, `docs/design-system.md`, accessibility requirements, and platform-native interaction patterns.
 
 ## Kanban Status Updates
 
@@ -196,12 +252,35 @@ When implementation is finished:
 - Set `blocked_reason` whenever `status: blocked`.
 - Set `status: done` only after the requested review passes or the user explicitly says review is not needed.
 
+### Visual-pass policy for UI tasks
+
+A task with a non-empty `design_mockup` (or any `## Acceptance Criteria` mentioning a mockup or visual pass) does **not** move to `status: done` until both of the following are true:
+
+1. The required screenshots are present under `design-system/screenshots/<task-id>-*.png` (one per major state listed in the task's Reviewer Instructions or, if absent, one per primary screen state the task ships).
+2. The visual-pass acceptance checkbox is ticked.
+
+Exception: if a hard `depends_on` keeps the build from running, the task remains in `status: review` with `blocked_reason` describing what is missing. It does not silently move to `done` with the visual-pass checkbox unticked.
+
+Capture screenshots using the iOS-Simulator workflow currently in use on this Mac (assistant launches the sim, describes the tap sequence, user executes, assistant captures via `xcrun simctl io <udid> screenshot`). Save resampled (`sips --resampleHeightWidthMax 1800`).
+
+### Epic polish auto-spawn
+
+When the post-done cascade detects that every task in an `epic` is now `done` or `wont-do` (step 4 below), and any of those tasks recorded **non-blocking** review nits in `## Review Notes` that were not resolved before close, spawn a single `<Epic> Polish` task that batches them. Frontmatter shape:
+
+- `epic`: the just-closed epic
+- `phase: validation`
+- `priority: P3` (or P2 if the nits include accessibility / a11y / regression risk)
+- `links`: every source task whose nits this consolidates
+- `## Acceptance Criteria`: one checkbox per nit, each citing source-task ID and file:line
+
+This avoids leaving every closed epic with a residual nit trail and keeps the polish work visible in the Bases board instead of buried in review notes.
+
 When a task moves to `done` — post-done cascade:
 
 1. Find every task in the vault whose `depends_on` includes the just-completed ID.
 2. For each downstream task: if every entry in its `depends_on` is now `done`, move it from `blocked` to `ready`, clear `blocked_reason`, and set `updated` to today.
 3. For each downstream task that still has at least one incomplete dependency, leave it `blocked` but verify `blocked_reason` is current.
-4. Check the `epic` of the completed task: if every task sharing that `epic` is now `done` or `wont-do`, add a completion note to the relevant epic-level context in `docs/` or the vault dashboard (do not create a new task note just for this).
+4. Check the `epic` of the completed task: if every task sharing that `epic` is now `done` or `wont-do`, add a completion note to the relevant epic-level context in `docs/` or the vault dashboard, and apply the **Epic polish auto-spawn** rule (see below) if the epic accumulated non-blocking review nits.
 5. Check the `phase` of the completed task: if every task in that `phase` across the same `platform` is now `done` or `wont-do`, confirm the phase is complete before starting the next-phase tasks.
 
 When reviewing a task:
@@ -257,6 +336,7 @@ When the vault is initialized, create Bases views rather than committing board s
 - `Subtasks`: table showing `parent_id`, `child_tasks`, and `split_reason`.
 - `By Epic`: active cards grouped by `epic`.
 - `By Phase`: active cards grouped by `phase`.
+- `Design System`: tasks tagged `design-system`, showing `design_skill` and `design_mockup`.
 - `Blocked`: filtered to `status == "blocked"`.
 
 Use Task List Kanban only if the workflow needs drag-and-drop over Markdown checklist lines. Use legacy Kanban boards only for lightweight visual grouping, not as the source of truth for task metadata.

@@ -38,7 +38,7 @@ Use this skill for Android, iOS, or cross-platform feature parity work.
 - Swift Testing (`@Test`, `#expect`) for new unit tests. XCUITest for end-to-end.
 - AVPlayer / `MPNowPlayingInfoCenter` / `MPRemoteCommandCenter` are main-thread bound — wrap in a `@MainActor` service.
 - For background audio: `UIBackgroundModes = [audio]`, activate `AVAudioSession` `.playback`, handle interruption + route-change notifications.
-- See [.Codex/rules/ios.md](../../rules/ios.md) for full project iOS rules.
+- See [.claude/rules/ios.md](../../rules/ios.md) for full project iOS rules.
 
 ### iOS skill routing
 

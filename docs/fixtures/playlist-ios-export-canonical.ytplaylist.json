@@ -1,0 +1,23 @@
+{
+  "createdAt" : "2026-05-02T09:00:00Z",
+  "id" : "00000000-0000-4000-8000-000000000010",
+  "name" : "Cross Platform Round Trip",
+  "schemaVersion" : 1,
+  "tracks" : [
+    {
+      "channel" : "Fixture Channel",
+      "durationSec" : 213,
+      "thumbnailUrl" : "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
+      "title" : "Fixture Track One",
+      "videoId" : "dQw4w9WgXcQ"
+    },
+    {
+      "channel" : "Fixture Channel",
+      "durationSec" : 0,
+      "thumbnailUrl" : "https://i.ytimg.com/vi/jfKfPfyJRdk/mqdefault.jpg",
+      "title" : "Fixture Track Two",
+      "videoId" : "jfKfPfyJRdk"
+    }
+  ],
+  "updatedAt" : "2026-05-02T09:30:00Z"
+}

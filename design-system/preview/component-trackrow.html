@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { background: var(--color-bg); padding: 16px; }
+.track-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; background: var(--color-surface);
+  border-radius: 0; cursor: pointer; transition: background var(--transition-std);
+  min-height: 72px;
+}
+.track-row:hover { background: var(--color-surface-variant); }
+.track-row + .track-row { border-top: 1px solid var(--color-border); }
+.track-row:first-child { border-radius: 12px 12px 0 0; }
+.track-row:last-child { border-radius: 0 0 12px 12px; }
+.thumb {
+  width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+  background: var(--color-surface-variant); overflow: hidden; position: relative;
+}
+.thumb-img { width: 100%; height: 100%; object-fit: cover; }
+.thumb-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.title { font-size: 15px; font-weight: 500; color: var(--color-fg-primary); font-family: var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta { font-size: 13px; color: var(--color-fg-secondary); font-family: var(--font-sans); display: flex; align-items: center; gap: 6px; }
+.dot { width: 2px; height: 2px; border-radius: 50%; background: var(--color-fg-tertiary); flex-shrink: 0; }
+.dur { font-size: 12px; font-weight: 500; color: var(--color-fg-tertiary); font-family: var(--font-sans); flex-shrink: 0; }
+.overflow { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: var(--color-fg-tertiary); font-size: 18px; cursor: pointer; flex-shrink: 0; transition: background var(--transition-fast); }
+.overflow:hover { background: var(--color-surface-variant); }
+.playing-indicator { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
+.playing-indicator span {
+  width: 3px; background: var(--color-accent); border-radius: 2px;
+  animation: eq-bounce 0.8s ease-in-out infinite alternate;
+}
+.playing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.playing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes eq-bounce { from { height: 4px; } to { height: 14px; } }
+.section-gap { height: 16px; }
+.label { font-family: var(--font-mono); font-size: 10px; color: var(--color-fg-tertiary); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="label">Default state</div>
+<div>
+  <div class="track-row">
+    <div class="thumb"><div class="thumb-placeholder"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.3)" stroke-width="1.5"><polygon points="5,3 19,12 5,21"/></svg></div></div>
+    <div class="info"><div class="title">Bohemian Rhapsody</div><div class="meta"><span>Queen</span><span class="dot"></span><span>5:55</span></div></div>
+    <div class="overflow">⋮</div>
+  </div>
+  <div class="track-row">
+    <div class="thumb"><div class="thumb-placeholder"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.3)" stroke-width="1.5"><polygon points="5,3 19,12 5,21"/></svg></div></div>
+    <div class="info"><div class="title">Hotel California (Live)</div><div class="meta"><span>Eagles</span><span class="dot"></span><span>7:18</span></div></div>
+    <div class="overflow">⋮</div>
+  </div>
+  <div class="track-row" style="background: var(--color-surface-variant)">
+    <div class="thumb" style="background: rgba(139,92,246,0.15)"><div class="thumb-placeholder"><div class="playing-indicator"><span style="height:8px"></span><span style="height:14px"></span><span style="height:6px"></span></div></div></div>
+    <div class="info"><div class="title" style="color:var(--color-accent)">Stairway to Heaven</div><div class="meta"><span>Led Zeppelin</span><span class="dot"></span><span>8:02</span></div></div>
+    <div class="overflow">⋮</div>
+  </div>
+</div>
+<div class="section-gap"></div>
+<div class="label">Loading skeleton</div>
+<div style="background:var(--color-surface); border-radius:12px; padding:0 16px;">
+  <div class="track-row" style="border-radius:12px; cursor:default;">
+    <div class="thumb" style="background:var(--color-surface-variant); border-radius:8px;"></div>
+    <div class="info">
+      <div style="height:14px; width:65%; background:var(--color-surface-variant); border-radius:4px;"></div>
+      <div style="height:12px; width:40%; background:var(--color-surface-variant); border-radius:4px; margin-top:6px;"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

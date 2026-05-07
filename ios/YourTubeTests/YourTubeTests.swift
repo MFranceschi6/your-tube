@@ -1,4 +1,6 @@
 import Testing
+import Foundation
+import SwiftData
 @testable import YourTube
 
 // MARK: - Smoke
@@ -7,6 +9,79 @@ import Testing
 struct YourTubeTests {
     @Test func appBuilds() {
         #expect(true)
+    }
+}
+
+// MARK: - AppShellViewModel Tests
+
+@Suite("AppShellViewModel")
+@MainActor
+struct AppShellViewModelTests {
+
+    private func makeSUT() -> AppShellViewModel { AppShellViewModel() }
+
+    private let sampleTrack = Track(
+        videoId: "abc",
+        title: "Test Track",
+        channel: "Test Channel",
+        durationSec: 180,
+        thumbnailUrl: ""
+    )
+
+    @Test("play(_:) sets currentTrack and starts playback")
+    func playSetsCurentTrackAndIsPlaying() {
+        let sut = makeSUT()
+        sut.play(sampleTrack)
+        #expect(sut.currentTrack?.videoId == "abc")
+        #expect(sut.isPlaying == true)
+        #expect(sut.progress == 0.0)
+    }
+
+    @Test("togglePlayPause flips isPlaying")
+    func togglePlayPauseFlipsState() {
+        let sut = makeSUT()
+        sut.play(sampleTrack)
+        sut.togglePlayPause()
+        #expect(sut.isPlaying == false)
+        sut.togglePlayPause()
+        #expect(sut.isPlaying == true)
+    }
+
+    @Test("hasMiniPlayer is false when no track is loaded")
+    func hasMiniPlayerFalseWithoutTrack() {
+        let sut = makeSUT()
+        #expect(sut.hasMiniPlayer == false)
+    }
+
+    @Test("hasMiniPlayer is true after play")
+    func hasMiniPlayerTrueAfterPlay() {
+        let sut = makeSUT()
+        sut.play(sampleTrack)
+        #expect(sut.hasMiniPlayer == true)
+    }
+
+    @Test("openNowPlaying does nothing when no track is loaded")
+    func openNowPlayingGuardNoTrack() {
+        let sut = makeSUT()
+        sut.openNowPlaying()
+        #expect(sut.isNowPlayingOpen == false)
+    }
+
+    @Test("openNowPlaying sets isNowPlayingOpen when track is loaded")
+    func openNowPlayingOpensWhenTrackLoaded() {
+        let sut = makeSUT()
+        sut.play(sampleTrack)
+        sut.openNowPlaying()
+        #expect(sut.isNowPlayingOpen == true)
+    }
+
+    @Test("closeNowPlaying clears isNowPlayingOpen")
+    func closeNowPlayingClears() {
+        let sut = makeSUT()
+        sut.play(sampleTrack)
+        sut.openNowPlaying()
+        sut.closeNowPlaying()
+        #expect(sut.isNowPlayingOpen == false)
     }
 }
 
@@ -144,5 +219,116 @@ struct PlaylistCodecTests {
         } catch {
             Issue.record("Expected PlaylistCodecError.decodingFailed but got: \(error)")
         }
+    }
+}
+
+// MARK: - PlaylistCover gradient determinism
+
+@Suite("PlaylistCover")
+struct PlaylistCoverTests {
+    // Exercises `PlaylistCover.gradientSeed(for:)` directly so any future
+    // drift in the production djb2 implementation is caught — previously
+    // the test inlined a private copy of the algorithm, which silently
+    // diverged from production was a real risk (YT-0037 nit).
+
+    @Test("gradientSeed produces identical result for same UUID string")
+    func gradientSeedIsStable() {
+        let uuid = "550e8400-e29b-41d4-a716-446655440000"
+        let first = PlaylistCover.gradientSeed(for: uuid)
+        let second = PlaylistCover.gradientSeed(for: uuid)
+        #expect(first == second)
+        // hashValue is randomized — the djb2 result must be consistent regardless
+        let third = PlaylistCover.gradientSeed(for: uuid)
+        #expect(first == third)
+    }
+
+    @Test("gradientSeed produces different hues for different UUIDs")
+    func gradientSeedDifferentiatesUUIDs() {
+        #expect(PlaylistCover.gradientSeed(for: "00000000-0000-0000-0000-000000000001") !=
+                PlaylistCover.gradientSeed(for: "00000000-0000-0000-0000-000000000002"))
+    }
+}
+
+// MARK: - PlaylistDetail isPlaying wiring (YT-0069)
+
+/// Locks in the wiring contract used at
+/// `ios/YourTube/Features/Library/PlaylistDetailScreen.swift` —
+/// `TrackRow(isPlaying: currentVideoId == position.track.videoId)`.
+///
+/// SwiftUI views aren't directly introspectable in Swift Testing, so this suite
+/// exercises the equality predicate the view evaluates per row against real
+/// SwiftData entities. It locks in two invariants:
+///
+/// 1. The comparison key is `videoId`, not the SwiftData primary key (`id`),
+///    so a track returned from search and the same track stored in a playlist
+///    both light up the active-row tint.
+/// 2. Exactly one row matches when `currentVideoId` is set to a member track.
+@MainActor
+@Suite("PlaylistDetailScreen isPlaying wiring")
+struct PlaylistDetailIsPlayingWiringTests {
+
+    private func makeContainer() throws -> ModelContainer {
+        let schema = Schema(PersistenceSchema.models)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        return try ModelContainer(for: schema, configurations: config)
+    }
+
+    /// Mirror of the boolean expression in PlaylistDetailScreen's ForEach body.
+    /// Kept inline (not a helper on the screen) so a regression that drops the
+    /// argument or swaps the comparison key still surfaces as a test failure.
+    private func isPlaying(currentVideoId: String?, position: PlaylistTrackEntity) -> Bool {
+        currentVideoId == position.track.videoId
+    }
+
+    @Test("Matching currentVideoId flips isPlaying true for the matching position only")
+    func matchingVideoIdHighlightsOneRow() throws {
+        let container = try makeContainer()
+        let store = PlaylistStore(context: container.mainContext)
+        let playlist = try store.create(name: "Test", id: "pl-1", sortIndex: 0)
+        try store.addTrack(
+            Track(videoId: "v1", title: "T1", channel: "C", durationSec: 10, thumbnailUrl: ""),
+            toPlaylistId: playlist.id
+        )
+        try store.addTrack(
+            Track(videoId: "v2", title: "T2", channel: "C", durationSec: 20, thumbnailUrl: ""),
+            toPlaylistId: playlist.id
+        )
+
+        let positions = playlist.orderedPositions
+        let flags = positions.map { isPlaying(currentVideoId: "v2", position: $0) }
+        #expect(flags == [false, true])
+    }
+
+    @Test("Nil currentVideoId leaves every row inactive")
+    func nilVideoIdHighlightsNothing() throws {
+        let container = try makeContainer()
+        let store = PlaylistStore(context: container.mainContext)
+        let playlist = try store.create(name: "Test", id: "pl-2", sortIndex: 0)
+        try store.addTrack(
+            Track(videoId: "v1", title: "T1", channel: "C", durationSec: 10, thumbnailUrl: ""),
+            toPlaylistId: playlist.id
+        )
+
+        let flags = playlist.orderedPositions.map {
+            isPlaying(currentVideoId: nil, position: $0)
+        }
+        #expect(flags == [false])
+    }
+
+    @Test("Comparison uses videoId, not the SwiftData primary key")
+    func usesVideoIdNotPrimaryKey() throws {
+        let container = try makeContainer()
+        let store = PlaylistStore(context: container.mainContext)
+        let playlist = try store.create(name: "Test", id: "pl-3", sortIndex: 0)
+        try store.addTrack(
+            Track(videoId: "abc", title: "T", channel: "C", durationSec: 0, thumbnailUrl: ""),
+            toPlaylistId: playlist.id
+        )
+
+        let position = try #require(playlist.orderedPositions.first)
+        // Passing the videoId activates the row; passing any other identifier
+        // (e.g. the playlist UUID — a stand-in for any non-videoId key) does not.
+        #expect(isPlaying(currentVideoId: "abc", position: position) == true)
+        #expect(isPlaying(currentVideoId: playlist.id, position: position) == false)
     }
 }

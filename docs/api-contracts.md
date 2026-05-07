@@ -2,7 +2,7 @@
 
 YourTube has no backend. This document defines the **internal cross-platform data contract** both clients (Android, iOS) implement against, so that exported playlist files and any future cloud-synced payloads round-trip across platforms.
 
-Stream URL resolution is **not** part of this contract — stream URLs are ephemeral and re-resolved at playback time by the platform-specific extractor (NewPipeExtractor on Android, YouTubeKit on iOS).
+Stream URL resolution is **not** part of this contract — stream URLs are ephemeral and re-resolved at playback time by the platform-specific extractor (NewPipeExtractor on Android, YouTubeKit on iOS). See [youtube-extraction-notes.md](youtube-extraction-notes.md) for observed iOS extractor failure modes and mitigation ranking.
 
 ## Types
 
@@ -63,6 +63,24 @@ File extension `.ytplaylist.json`, MIME `application/json`. Produced by export, 
 - Future-schema rejection fixture: `docs/fixtures/playlist-future-schema.ytplaylist.json`
 
 Platform tests may copy these files into local test resources if required by the build system, but copied fixtures must stay byte-for-byte equivalent to the canonical files.
+
+### Cross-platform parity fixtures
+
+Two additional fixtures encode the **same logical playlist** in each platform's native export shape:
+
+- `docs/fixtures/playlist-android-export-canonical.ytplaylist.json` — Android `kotlinx.serialization` output (declaration-order keys, `": "` separator, 2-space indent).
+- `docs/fixtures/playlist-ios-export-canonical.ytplaylist.json` — iOS `JSONEncoder` output with `[.prettyPrinted, .sortedKeys]` (alphabetical keys, `" : "` separator, 2-space indent).
+
+Both files describe the same `PlaylistPayload` (same `id`, `name`, timestamps, track order, track metadata) — only the JSON formatting differs. This is the contract surface the parity tests below exercise.
+
+### Parity tests
+
+Parity is asserted automatically in two paired tests; the manual real-app round trip in `YT-0034` is now a confirmation step on top of these checks:
+
+- iOS: `ios/YourTubeTests/CrossPlatformParityTests.swift` decodes the Android-canonical fixture through `PlaylistCodec`, asserts the decoded `PlaylistPayload` matches the shared canonical record, decodes the iOS-canonical fixture and exercises a `decode -> encode -> decode` round trip to anchor the codec against the committed fixture, and asserts `playlist-future-schema.ytplaylist.json` decodes as `PlaylistCodecError.unsupportedSchemaVersion(999)`.
+- Android: `android/core/data/src/test/kotlin/com/yourtube/core/data/codec/CrossPlatformParityTest.kt` decodes the iOS-canonical fixture through `KotlinxPlaylistCodec`, asserts the decoded `Playlist` matches the same shared canonical record, re-exports the canonical record and asserts the bytes match the Android-canonical fixture (after `trim`), and asserts the future-schema fixture is rejected with `PlaylistCodecError.UnsupportedSchemaVersion(found = 999, supported = 1)`.
+
+If either side starts failing, do not silently update the fixture or the test expectation — file a follow-up task. The parity tests exist to expose codec drift, not to absorb it.
 
 ## Conflict resolution on import
 

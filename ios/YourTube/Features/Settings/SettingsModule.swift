@@ -1,4 +1,1 @@
-import Foundation
-
-/// Placeholder module marker for the Settings feature.
-enum SettingsModule {}
+// SettingsModule — reserved for future dependency injection wiring.

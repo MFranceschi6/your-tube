@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">YourTube</string>
+    <string name="import_playlist_label">Import to YourTube</string>
+    <string name="share_playlist_chooser_title">Share playlist</string>
+    <string name="share_playlist_subject">YourTube playlist: %1$s</string>
+    <string name="import_playlist_success">Imported playlist “%1$s”</string>
+    <string name="import_playlist_unsupported">Unsupported playlist file</string>
+    <string name="import_playlist_invalid">Couldn’t read playlist file</string>
+    <string name="import_playlist_unreadable">Couldn’t open the selected file</string>
 </resources>

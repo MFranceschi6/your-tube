@@ -91,7 +91,10 @@ enum PlaylistCodec {
     }
 }
 
-// MARK: - SharingService (placeholder)
+// MARK: - SharingService
 
-/// Placeholder. Real export/import via UIActivityViewController + UTType lands in a later task.
+/// Namespace for sharing-related helpers. Concrete behavior is split across:
+/// - ``PlaylistExportService`` for writing temporary `.ytplaylist.json` files
+/// - ``PlaylistImportService`` for reading and upserting them
+/// - ``PlaylistShareSheet`` (Library feature) for bridging `UIActivityViewController`
 enum SharingService {}

@@ -1,0 +1,242 @@
+/**
+ * YourTube iOS — Translucent Materials Layer
+ * ────────────────────────────────────────────
+ * An ORIGINAL translucent-materials language for YourTube,
+ * inspired by the broader trend of glass-like UI surfaces
+ * (refraction, edge-light, blur). This is NOT a clone of any
+ * platform's chrome — it is a layered material system designed
+ * for YourTube's screens (MiniPlayer, NowPlaying, sheets, tab bar).
+ *
+ * Layered on top of `colors_and_type.css`:
+ *   <link rel="stylesheet" href="../colors_and_type.css" />
+ *   <link rel="stylesheet" href="./glass_tokens.css" />
+ *
+ * The original tokens still apply for typography, spacing, accent.
+ * This file ONLY adds material-related variables and helpers.
+ */
+
+:root {
+  /* ─────────────────────────────────────────
+     MATERIAL OPACITIES (dark default)
+     The fill behind the blur. Lower = more see-through.
+     ───────────────────────────────────────── */
+  --glass-thin-fill:      rgba(28, 28, 30, 0.42);
+  --glass-regular-fill:   rgba(28, 28, 30, 0.62);
+  --glass-thick-fill:     rgba(20, 20, 22, 0.78);
+  --glass-ultra-fill:     rgba(14, 14, 16, 0.92);
+
+  /* Tint variants — pickup colors, applied as a second fill layer */
+  --glass-tint-purple:    rgba(139, 92, 246, 0.18);
+  --glass-tint-warm:      rgba(255, 200, 140, 0.14);
+  --glass-tint-cool:      rgba(120, 180, 255, 0.14);
+
+  /* ─────────────────────────────────────────
+     BLUR INTENSITIES
+     ───────────────────────────────────────── */
+  --glass-blur-thin:      18px;
+  --glass-blur-regular:   28px;
+  --glass-blur-thick:     40px;
+  --glass-blur-ultra:     56px;
+
+  /* Saturation boost — keeps content underneath vivid through blur */
+  --glass-saturate:       1.6;
+
+  /* ─────────────────────────────────────────
+     EDGE-LIGHT (refraction simulation)
+     A bright top inner stroke + dark bottom inner stroke
+     gives the impression of a refracted edge.
+     ───────────────────────────────────────── */
+  --glass-edge-top:       rgba(255, 255, 255, 0.24);
+  --glass-edge-side:      rgba(255, 255, 255, 0.10);
+  --glass-edge-bottom:    rgba(0, 0, 0, 0.32);
+  --glass-edge-width:     1px;
+
+  /* ─────────────────────────────────────────
+     SPECULAR HIGHLIGHT
+     A diagonal sheen across the top-left of the surface.
+     ───────────────────────────────────────── */
+  --glass-specular: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.10) 0%,
+    rgba(255,255,255,0.04) 22%,
+    rgba(255,255,255,0)    48%
+  );
+
+  /* ─────────────────────────────────────────
+     DEPTH SHADOWS
+     Always paired with glass surfaces to read as floating.
+     ───────────────────────────────────────── */
+  --glass-shadow-rest:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    0 2px 6px rgba(0, 0, 0, 0.30);
+
+  --glass-shadow-lift:
+    0 1px 0 rgba(255,255,255,0.06) inset,
+    0 24px 48px rgba(0, 0, 0, 0.55),
+    0 4px 12px rgba(0, 0, 0, 0.40);
+
+  --glass-shadow-flat:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 4px 12px rgba(0, 0, 0, 0.30);
+
+  /* ─────────────────────────────────────────
+     RADII for glass surfaces (continuous curvature feel)
+     ───────────────────────────────────────── */
+  --glass-radius-pill:    999px;
+  --glass-radius-card:    18px;   /* slightly larger than --radius-md to read as continuous */
+  --glass-radius-sheet:   28px;
+  --glass-radius-bubble:  22px;
+
+  /* ─────────────────────────────────────────
+     MOTION
+     ───────────────────────────────────────── */
+  --glass-press-scale:    0.97;
+  --glass-press-blur:     1.08;
+  --glass-transition:     220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ─────────────────────────────────────────────
+   LIGHT THEME OVERRIDES
+   ───────────────────────────────────────────── */
+[data-theme="light"] {
+  --glass-thin-fill:      rgba(255, 255, 255, 0.55);
+  --glass-regular-fill:   rgba(255, 255, 255, 0.70);
+  --glass-thick-fill:     rgba(250, 250, 252, 0.85);
+  --glass-ultra-fill:     rgba(250, 250, 252, 0.96);
+
+  --glass-tint-purple:    rgba(124, 58, 237, 0.10);
+  --glass-tint-warm:      rgba(255, 170, 80, 0.10);
+  --glass-tint-cool:      rgba(80, 130, 220, 0.10);
+
+  --glass-edge-top:       rgba(255, 255, 255, 0.85);
+  --glass-edge-side:      rgba(255, 255, 255, 0.55);
+  --glass-edge-bottom:    rgba(0, 0, 0, 0.10);
+
+  --glass-specular: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.40) 0%,
+    rgba(255,255,255,0.18) 22%,
+    rgba(255,255,255,0)    48%
+  );
+
+  --glass-shadow-rest:
+    0 1px 0 rgba(255,255,255,0.80) inset,
+    0 8px 24px rgba(15, 15, 20, 0.12),
+    0 2px 6px rgba(15, 15, 20, 0.08);
+
+  --glass-shadow-lift:
+    0 1px 0 rgba(255,255,255,0.95) inset,
+    0 18px 40px rgba(15, 15, 20, 0.18),
+    0 4px 10px rgba(15, 15, 20, 0.10);
+
+  --glass-shadow-flat:
+    0 1px 0 rgba(255,255,255,0.80) inset,
+    0 4px 12px rgba(15, 15, 20, 0.08);
+}
+
+/* ─────────────────────────────────────────────
+   SURFACE CLASSES
+   Apply directly to any element to make it glass.
+   Order of layers (visually, bottom→top):
+     1. backdrop-filter blur of content underneath
+     2. fill (semi-opaque tint)
+     3. specular highlight gradient
+     4. inner edge strokes (top bright / bottom dark)
+     5. outer depth shadow
+   ───────────────────────────────────────────── */
+
+.glass {
+  position: relative;
+  background-color: var(--glass-regular-fill);
+  -webkit-backdrop-filter: blur(var(--glass-blur-regular)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-regular)) saturate(var(--glass-saturate));
+  border-radius: var(--glass-radius-card);
+  box-shadow: var(--glass-shadow-rest);
+  isolation: isolate;
+}
+
+/* Specular highlight — pseudo-element so we don't fight content stacking */
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--glass-specular);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Edge stroke — top bright, bottom dark */
+.glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  /* Top inner highlight */
+  border-top: var(--glass-edge-width) solid var(--glass-edge-top);
+  border-left: var(--glass-edge-width) solid var(--glass-edge-side);
+  border-right: var(--glass-edge-width) solid var(--glass-edge-side);
+  border-bottom: var(--glass-edge-width) solid var(--glass-edge-bottom);
+}
+
+.glass > * { position: relative; z-index: 2; }
+
+/* Material variants */
+.glass-thin {
+  background-color: var(--glass-thin-fill);
+  -webkit-backdrop-filter: blur(var(--glass-blur-thin)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-thin)) saturate(var(--glass-saturate));
+}
+.glass-thick {
+  background-color: var(--glass-thick-fill);
+  -webkit-backdrop-filter: blur(var(--glass-blur-thick)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-thick)) saturate(var(--glass-saturate));
+}
+.glass-ultra {
+  background-color: var(--glass-ultra-fill);
+  -webkit-backdrop-filter: blur(var(--glass-blur-ultra)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-ultra)) saturate(var(--glass-saturate));
+}
+
+/* Shape variants */
+.glass-pill   { border-radius: var(--glass-radius-pill); }
+.glass-sheet  { border-radius: var(--glass-radius-sheet); }
+.glass-bubble { border-radius: var(--glass-radius-bubble); }
+
+/* Tint overlays — stack on top of fill */
+.glass-tint-purple { background-color: color-mix(in srgb, var(--glass-regular-fill) 100%, var(--color-accent) 18%); }
+
+/* Depth variants */
+.glass-flat { box-shadow: var(--glass-shadow-flat); }
+.glass-lift { box-shadow: var(--glass-shadow-lift); }
+
+/* Pressable interaction */
+.glass-pressable {
+  transition: transform var(--glass-transition), box-shadow var(--glass-transition);
+  cursor: pointer;
+  user-select: none;
+}
+.glass-pressable:active {
+  transform: scale(var(--glass-press-scale));
+  box-shadow: var(--glass-shadow-flat);
+}
+
+/* Reduce-motion respect */
+@media (prefers-reduced-motion: reduce) {
+  .glass-pressable { transition: none; }
+}
+
+/* Fallback: when backdrop-filter isn't supported, bump the fill opacity */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass        { background-color: rgba(28,28,30,0.95); }
+  .glass-thin   { background-color: rgba(28,28,30,0.85); }
+  .glass-thick  { background-color: rgba(20,20,22,0.97); }
+  .glass-ultra  { background-color: rgba(14,14,16,0.99); }
+  [data-theme="light"] .glass        { background-color: rgba(255,255,255,0.92); }
+  [data-theme="light"] .glass-thin   { background-color: rgba(255,255,255,0.85); }
+  [data-theme="light"] .glass-thick  { background-color: rgba(250,250,252,0.97); }
+  [data-theme="light"] .glass-ultra  { background-color: rgba(250,250,252,0.99); }
+}

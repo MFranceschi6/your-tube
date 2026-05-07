@@ -62,6 +62,21 @@ Task lifecycle:
 - Blocked: set `status: blocked`, set `blocked_reason`, and add the blocker or incomplete dependency in `Context`.
 - Reviewed complete: set `status: done` only after acceptance criteria and validation are satisfied.
 
+## Post-Done Cascade
+
+Whenever one or more tasks move to `status: done`, run the cascade script immediately:
+
+```bash
+python3 .claude/skills/obsidian-project-management/cascade-done.py YT-XXXX [YT-YYYY ...]
+```
+
+The script will:
+1. Find every task whose `depends_on` includes the completed ID(s)
+2. Move each to `ready` if all its deps are now `done`
+3. Keep it `blocked` but refresh `blocked_reason` with the remaining incomplete deps
+
+Run this from the repo root. Do not manually update downstream statuses — let the script do it.
+
 ## Review Rules
 
 When reviewing or maintaining tasks:

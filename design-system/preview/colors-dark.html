@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { background: var(--color-bg); padding: 20px; }
+.grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatch { border-radius: 8px; overflow: hidden; width: 100px; }
+.swatch-color { height: 56px; }
+.swatch-label { padding: 6px 8px; background: #1C1C1E; }
+.swatch-name { font-size: 11px; font-weight: 500; color: #fff; font-family: var(--font-sans); }
+.swatch-val { font-size: 10px; color: rgba(235,235,245,0.5); font-family: var(--font-mono); margin-top: 2px; }
+.section-title { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(235,235,245,0.4); margin: 16px 0 8px; }
+</style>
+</head>
+<body>
+<div class="section-title">Accent</div>
+<div class="grid">
+  <div class="swatch"><div class="swatch-color" style="background:#8B5CF6"></div><div class="swatch-label"><div class="swatch-name">accent</div><div class="swatch-val">#8B5CF6</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#7C3AED"></div><div class="swatch-label"><div class="swatch-name">accent-dim</div><div class="swatch-val">#7C3AED</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:rgba(139,92,246,0.12); border: 1px solid #3A3A3C;"></div><div class="swatch-label"><div class="swatch-name">accent-subtle</div><div class="swatch-val">12% opacity</div></div></div>
+</div>
+<div class="section-title">Surfaces</div>
+<div class="grid">
+  <div class="swatch"><div class="swatch-color" style="background:#0F0F0F; border: 1px solid #3A3A3C"></div><div class="swatch-label"><div class="swatch-name">bg</div><div class="swatch-val">#0F0F0F</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#1C1C1E"></div><div class="swatch-label"><div class="swatch-name">surface</div><div class="swatch-val">#1C1C1E</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#2C2C2E"></div><div class="swatch-label"><div class="swatch-name">surface-var</div><div class="swatch-val">#2C2C2E</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#3A3A3C"></div><div class="swatch-label"><div class="swatch-name">surface-high</div><div class="swatch-val">#3A3A3C</div></div></div>
+</div>
+<div class="section-title">Foreground</div>
+<div class="grid">
+  <div class="swatch"><div class="swatch-color" style="background:#FFFFFF"></div><div class="swatch-label"><div class="swatch-name">fg-primary</div><div class="swatch-val">#FFFFFF</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:rgba(235,235,245,0.80)"></div><div class="swatch-label"><div class="swatch-name">fg-secondary</div><div class="swatch-val">80% white</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:rgba(235,235,245,0.40)"></div><div class="swatch-label"><div class="swatch-name">fg-tertiary</div><div class="swatch-val">40% white</div></div></div>
+</div>
+</body>
+</html>

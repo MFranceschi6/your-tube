@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { background: var(--color-bg); padding: 20px; }
+.section { margin-bottom: 20px; }
+.label { font-family: var(--font-mono); font-size: 10px; color: var(--color-fg-tertiary); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
+.radii-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.radius-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.radius-box { background: var(--color-surface); border: 1.5px solid var(--color-accent); width: 48px; height: 48px; }
+.radius-name { font-family: var(--font-mono); font-size: 10px; color: var(--color-fg-tertiary); }
+.shadows-col { display: flex; flex-direction: column; gap: 12px; }
+.shadow-item { background: var(--color-surface); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
+.shadow-name { font-family: var(--font-mono); font-size: 11px; color: var(--color-accent); }
+.shadow-val { font-family: var(--font-mono); font-size: 10px; color: var(--color-fg-tertiary); }
+</style>
+</head>
+<body>
+<div class="section">
+  <div class="label">Corner Radii</div>
+  <div class="radii-row">
+    <div class="radius-item"><div class="radius-box" style="border-radius:4px"></div><div class="radius-name">xs·4</div></div>
+    <div class="radius-item"><div class="radius-box" style="border-radius:8px"></div><div class="radius-name">sm·8</div></div>
+    <div class="radius-item"><div class="radius-box" style="border-radius:12px"></div><div class="radius-name">md·12</div></div>
+    <div class="radius-item"><div class="radius-box" style="border-radius:16px"></div><div class="radius-name">lg·16</div></div>
+    <div class="radius-item"><div class="radius-box" style="border-radius:20px"></div><div class="radius-name">xl·20</div></div>
+    <div class="radius-item"><div class="radius-box" style="border-radius:999px"></div><div class="radius-name">full</div></div>
+  </div>
+</div>
+<div class="section">
+  <div class="label">Elevation (Dark)</div>
+  <div class="shadows-col">
+    <div class="shadow-item" style="box-shadow:none"><span class="shadow-name">none</span><span class="shadow-val">—</span></div>
+    <div class="shadow-item" style="box-shadow:0 1px 4px rgba(0,0,0,0.20)"><span class="shadow-name">shadow-sm</span><span class="shadow-val">0 1 4 / 20%</span></div>
+    <div class="shadow-item" style="box-shadow:0 4px 16px rgba(0,0,0,0.40)"><span class="shadow-name">shadow-md</span><span class="shadow-val">0 4 16 / 40%</span></div>
+    <div class="shadow-item" style="box-shadow:0 8px 32px rgba(0,0,0,0.60)"><span class="shadow-name">shadow-lg</span><span class="shadow-val">0 8 32 / 60%</span></div>
+  </div>
+</div>
+</body>
+</html>

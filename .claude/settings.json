@@ -1,4 +1,67 @@
 {
+  "permissions": {
+    "allow": [
+      "Read(*)",
+      "Grep(*)",
+      "Glob(*)",
+      "LS(*)",
+      "Edit(android/**)",
+      "Edit(ios/**)",
+      "Edit(docs/**)",
+      "Edit(.claude/**)",
+      "Edit(.agents/**)",
+      "Edit(obsidian-vault/**)",
+      "Bash(cd android && ./gradlew :app:assembleDebug)",
+      "Bash(cd android && ./gradlew testDebugUnitTest)",
+      "Bash(cd android && ./gradlew lintDebug)",
+      "Bash(cd ios && xcodebuild -list)",
+      "Bash(cd ios && swiftformat . --lint)",
+      "Bash(cd ios && swiftlint)",
+      "Bash(./gradlew :app:lintDebug)",
+      "Bash(xcodebuild -scheme YourTube -destination 'platform=iOS Simulator,id=6298E816-2B5D-451F-8E1C-A5861519C31C' -derivedDataPath /tmp/yt-dd-26 build)",
+      "Bash(open -a Simulator)",
+      "Bash(.build/release/yt-play --id dQw4w9WgXcQ --mode dash --max 12)",
+      "Bash(.build/release/yt-concurrent single *)",
+      "Bash(.build/release/yt-concurrent sequential *)",
+      "Bash(.build/release/yt-play --id dQw4w9WgXcQ --mode dash --max 8)",
+      "Bash(.build/release/yt-play --id jfKfPfyJRdk --mode hls --max 8)",
+      "Bash(.build/release/yt-play --id 9bZkp7q19f0 --mode dash --max 8)",
+      "Bash(./gradlew :feature:search:assembleDebug :feature:library:assembleDebug :feature:history:assembleDebug :app:testDebugUnitTest)",
+      "Bash(mkdir -p /tmp/yt-sim-verify)",
+      "Bash(./gradlew :app:testDebugUnitTest)",
+      "Bash(./gradlew :app:lintDebug :feature:library:lintDebug)",
+      "Bash(xcodebuild -scheme YourTube -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:YourTubeTests/AppShellLoadingAffordanceTests test)",
+      "Bash(./gradlew :core:player:testDebugUnitTest :feature:player:testDebugUnitTest)",
+      "Bash(./gradlew :core:player:assembleDebug :core:player:testDebugUnitTest :feature:player:assembleDebug :feature:player:testDebugUnitTest :app:assembleDebug :app:testDebugUnitTest)",
+      "Bash(./gradlew :core:player:lintDebug :feature:player:lintDebug :app:lintDebug)",
+      "Bash(./gradlew :feature:player:lintDebug :app:lintDebug)",
+      "Bash(./gradlew :app:lintDebug :core:player:lintDebug :feature:player:lintDebug)",
+      "Bash(xcodebuild -scheme YourTube -destination 'platform=iOS Simulator,name=iPhone 16' -only-testing:YourTubeTests/HLSProxyAtomHeaderTests -only-testing:YourTubeTests/HLSProxySidxTests -only-testing:YourTubeTests/HLSProxyM3U8Tests test)",
+      "Bash(open -a Simulator --args -CurrentDeviceUDID 6298E816-2B5D-451F-8E1C-A5861519C31C)",
+      "Bash(xcodebuild -scheme YourTube -destination 'platform=iOS Simulator,id=6298E816-2B5D-451F-8E1C-A5861519C31C' build)",
+      "Read(//Users/matteofranceschi/Library/Developer/Xcode/DerivedData/YourTube-cjpomxgrcmlknlexkquxwpiwzqcm/Build/Products/Debug-iphonesimulator/YourTube.app/PlugIns/YourTubeTests.xctest/**)",
+      "Bash(./gradlew :core:network:testDebugUnitTest :core:player:testDebugUnitTest)",
+      "Bash(xcodebuild -project /Users/matteofranceschi/Desktop/personal-projects/your-tube/ios/YourTube.xcodeproj -scheme YourTube -destination 'platform=iOS Simulator,name=iPhone 16' build test)",
+      "Bash(xcodebuild -project /Users/matteofranceschi/Desktop/personal-projects/your-tube/ios/YourTube.xcodeproj -scheme YourTube -destination 'platform=iOS Simulator,name=iPhone 16' test)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -fd*)",
+      "Bash(security *)",
+      "Read(**/*.p8)",
+      "Read(**/*.mobileprovision)",
+      "Read(**/GoogleService-Info.plist)",
+      "Read(**/google-services.json)",
+      "Read(**/.env*)"
+    ],
+    "ask": [
+      "Bash(cd android && ./gradlew connectedDebugAndroidTest)",
+      "Bash(cd ios && xcodebuild*)",
+      "Bash(obsidian *)",
+      "Bash(git *)"
+    ]
+  },
   "skillOverrides": {
     "update-config": "off",
     "keybindings-help": "off",
@@ -32,42 +95,5 @@
     "init": "off",
     "review": "off",
     "security-review": "off"
-  },
-  "permissions": {
-    "allow": [
-      "Read(*)",
-      "Grep(*)",
-      "Glob(*)",
-      "LS(*)",
-      "Edit(android/**)",
-      "Edit(ios/**)",
-      "Edit(docs/**)",
-      "Edit(.claude/**)",
-      "Edit(.agents/**)",
-      "Edit(obsidian-vault/**)",
-      "Bash(cd android && ./gradlew :app:assembleDebug)",
-      "Bash(cd android && ./gradlew testDebugUnitTest)",
-      "Bash(cd android && ./gradlew lintDebug)",
-      "Bash(cd ios && xcodebuild -list)",
-      "Bash(cd ios && swiftformat . --lint)",
-      "Bash(cd ios && swiftlint)"
-    ],
-    "ask": [
-      "Bash(cd android && ./gradlew connectedDebugAndroidTest)",
-      "Bash(cd ios && xcodebuild*)",
-      "Bash(obsidian *)",
-      "Bash(git *)"
-    ],
-    "deny": [
-      "Bash(rm -rf *)",
-      "Bash(git reset --hard*)",
-      "Bash(git clean -fd*)",
-      "Bash(security *)",
-      "Read(**/*.p8)",
-      "Read(**/*.mobileprovision)",
-      "Read(**/GoogleService-Info.plist)",
-      "Read(**/google-services.json)",
-      "Read(**/.env*)"
-    ]
   }
 }

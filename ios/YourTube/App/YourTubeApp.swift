@@ -18,6 +18,9 @@ struct YourTubeApp: App {
         }
 
         Self.activateAudioSession()
+        // YT-0162: YouTubeKit removed; the JS-solver pre-warm that lived here
+        // (formerly YT-0052) no longer applies. Direct InnerTube /player
+        // ANDROID_VR returns pre-signed URLs without a JavaScriptCore warmup.
     }
 
     var body: some Scene {
@@ -30,11 +33,16 @@ struct YourTubeApp: App {
     private static func activateAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.allowBluetoothA2DP, .allowAirPlay])
+            // YT-0046 v3: align with `.claude/rules/ios.md` "Background audio"
+            // and the engine's defensive re-activation. `.allowBluetooth`
+            // covers HFP input parity; A2DP output is implicit for `.playback`.
+            try session.setCategory(.playback, mode: .default, options: [.allowBluetooth, .allowAirPlay])
             try session.setActive(true)
         } catch {
-            // Scaffold stage: log only; full interruption handling lands with AudioEngine.
-            print("AVAudioSession activation failed: \(error)")
+            // Logging the error type only — no PII / URLs / tokens. The engine
+            // re-activates defensively in `AVPlayerAudioEngine.init()` so a
+            // transient failure here is recoverable.
+            print("AVAudioSession activation failed: \(error.localizedDescription)")
         }
     }
 
@@ -46,4 +54,5 @@ struct YourTubeApp: App {
             print("Application Support directory creation failed: \(error)")
         }
     }
+
 }

@@ -1,0 +1,62 @@
+{
+  "contents": {
+    "twoColumnSearchResultsRenderer": {
+      "primaryContents": {
+        "sectionListRenderer": {
+          "contents": [
+            {
+              "itemSectionRenderer": {
+                "contents": [
+                  {
+                    "videoRenderer": {
+                      "videoId": "alpha123",
+                      "title": { "runs": [{ "text": "Late Night Coding Mix" }] },
+                      "ownerText": { "runs": [{ "text": "Open Waves" }] },
+                      "lengthText": { "simpleText": "1:02:03" },
+                      "thumbnail": {
+                        "thumbnails": [
+                          { "url": "https://img.youtube.com/vi/alpha123/default.jpg", "width": 120, "height": 90 },
+                          { "url": "https://img.youtube.com/vi/alpha123/mqdefault.jpg", "width": 320, "height": 180 }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "videoRenderer": {
+                      "videoId": "beta456",
+                      "title": { "runs": [{ "text": "Live Lofi Stream" }] },
+                      "ownerText": { "runs": [{ "text": "Desk Radio" }] },
+                      "thumbnail": {
+                        "thumbnails": [
+                          { "url": "https://img.youtube.com/vi/beta456/mqdefault.jpg", "width": 320, "height": 180 }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "shelfRenderer": {
+                      "title": { "simpleText": "People also watched" }
+                    }
+                  },
+                  {
+                    "videoRenderer": {
+                      "videoId": "gamma789",
+                      "title": { "runs": [{ "text": "Focus Session" }] },
+                      "ownerText": { "runs": [{ "text": "Studyverse" }] },
+                      "lengthText": { "simpleText": "4:32" },
+                      "thumbnail": {
+                        "thumbnails": [
+                          { "url": "https://img.youtube.com/vi/gamma789/mqdefault.jpg", "width": 320, "height": 180 }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

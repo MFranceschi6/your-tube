@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YourTube iOS — Translucent Materials</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="./glass_tokens.css">
+<style>
+  :root { color-scheme: dark; }
+  body {
+    background: #0a0a0c;
+    color: var(--color-fg-primary);
+    padding: 48px 32px 96px;
+    font-family: var(--font-sans);
+  }
+  .wrap { max-width: 1320px; margin: 0 auto; }
+  .doc-header { margin-bottom: 56px; max-width: 72ch; }
+  .doc-eyebrow { font-family: var(--font-mono); font-size: 11px; color: var(--color-fg-tertiary); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 14px; }
+  .doc-title { font-size: 42px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; margin-bottom: 16px; }
+  .doc-lede { font-size: 16px; line-height: 1.55; color: var(--color-fg-secondary); }
+  .doc-warn {
+    margin-top: 24px;
+    padding: 14px 18px;
+    background: rgba(255,214,10,0.08);
+    border-left: 2px solid var(--color-warning);
+    border-radius: 4px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--color-fg-secondary);
+  }
+
+  /* Section card chrome */
+  section.card {
+    margin-bottom: 64px;
+    border-top: 1px solid var(--color-border);
+    padding-top: 40px;
+  }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 28px; gap: 24px; flex-wrap: wrap; }
+  .card-title { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+  .card-num { font-family: var(--font-mono); font-size: 11px; color: var(--color-fg-tertiary); text-transform: uppercase; letter-spacing: 0.12em; }
+  .card-sub { font-size: 14px; line-height: 1.55; color: var(--color-fg-secondary); margin-bottom: 24px; max-width: 72ch; }
+
+  /* Layout grids */
+  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .row-2-1 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 980px) {
+    .row-2, .row-2-1 { grid-template-columns: 1fr; }
+  }
+
+  /* Stage — the colorful backdrop the glass sits on */
+  .stage {
+    position: relative;
+    border-radius: 32px;
+    overflow: hidden;
+    aspect-ratio: 9/16;
+    background:
+      radial-gradient(120% 100% at 10% 0%, #5b2a8c 0%, transparent 55%),
+      radial-gradient(120% 100% at 90% 100%, #1f5cab 0%, transparent 50%),
+      linear-gradient(135deg, #2a1248, #0a0a14 60%);
+  }
+  .stage::after {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 22%, rgba(255,170,80,0.55), transparent 8%),
+      radial-gradient(circle at 75% 18%, rgba(255,80,140,0.55), transparent 7%),
+      radial-gradient(circle at 30% 60%, rgba(120,200,255,0.50), transparent 8%),
+      radial-gradient(circle at 82% 70%, rgba(180,140,255,0.55), transparent 8%),
+      radial-gradient(circle at 50% 88%, rgba(255,210,120,0.45), transparent 7%);
+    mix-blend-mode: screen;
+  }
+  .stage[data-theme="light"] {
+    background:
+      radial-gradient(120% 100% at 10% 0%, #ffd2a8 0%, transparent 55%),
+      radial-gradient(120% 100% at 90% 100%, #b3d4ff 0%, transparent 55%),
+      linear-gradient(135deg, #fff5e8, #e0eaff 60%);
+  }
+  .stage[data-theme="light"]::after {
+    background-image:
+      radial-gradient(circle at 25% 25%, rgba(255,150,80,0.55), transparent 8%),
+      radial-gradient(circle at 75% 18%, rgba(255,80,140,0.45), transparent 7%),
+      radial-gradient(circle at 30% 60%, rgba(80,160,255,0.50), transparent 8%),
+      radial-gradient(circle at 82% 70%, rgba(140,80,220,0.50), transparent 8%);
+    mix-blend-mode: multiply;
+  }
+  .stage-label {
+    position: absolute; top: 14px; left: 14px;
+    font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.7); padding: 4px 8px;
+    background: rgba(0,0,0,0.35); border-radius: 4px; backdrop-filter: blur(8px);
+    z-index: 10;
+  }
+  .stage[data-theme="light"] .stage-label { color: rgba(0,0,0,0.7); background: rgba(255,255,255,0.6); }
+
+  /* Mock content rows behind the glass — track list look */
+  .mock-feed { position: absolute; inset: 0; padding: 56px 16px 0; display: flex; flex-direction: column; gap: 16px; }
+  .mock-row { display: flex; align-items: center; gap: 12px; opacity: 0.92; }
+  .mock-thumb { width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0; background: rgba(255,255,255,0.08); }
+  .mock-thumb[data-c="1"] { background: linear-gradient(135deg, #ff8a4c, #ff4d8a); }
+  .mock-thumb[data-c="2"] { background: linear-gradient(135deg, #6db8ff, #b14dff); }
+  .mock-thumb[data-c="3"] { background: linear-gradient(135deg, #4dffb1, #4d9bff); }
+  .mock-thumb[data-c="4"] { background: linear-gradient(135deg, #ffd34d, #ff7a4d); }
+  .mock-thumb[data-c="5"] { background: linear-gradient(135deg, #c44dff, #ff4d9b); }
+  .mock-meta { flex: 1; min-width: 0; }
+  .mock-line {
+    height: 8px; border-radius: 4px;
+    background: rgba(255,255,255,0.18);
+  }
+  .stage[data-theme="light"] .mock-line { background: rgba(0,0,0,0.18); }
+  .mock-line.short { width: 65%; height: 6px; opacity: 0.6; margin-top: 6px; }
+
+  /* Note column */
+  .notes h4 { font-size: 14px; font-weight: 600; margin-top: 18px; margin-bottom: 6px; }
+  .notes h4:first-child { margin-top: 0; }
+  .notes p { font-size: 13px; line-height: 1.55; color: var(--color-fg-secondary); margin-bottom: 8px; }
+  .notes code { font-family: var(--font-mono); font-size: 11px; background: var(--color-surface-variant); padding: 1px 5px; border-radius: 3px; color: var(--color-fg-primary); }
+
+  .tradeoff {
+    border-left: 2px solid var(--color-accent);
+    padding: 10px 14px;
+    background: var(--color-accent-subtle);
+    border-radius: 4px;
+    margin-top: 14px;
+  }
+  .tradeoff.warn { border-color: var(--color-warning); background: rgba(255,214,10,0.08); }
+  .tradeoff-label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-accent); margin-bottom: 4px; }
+  .tradeoff.warn .tradeoff-label { color: var(--color-warning); }
+  .tradeoff-body { font-size: 12px; color: var(--color-fg-secondary); line-height: 1.5; }
+
+  /* ───────── Component-specific layouts ─────────── */
+
+  /* Materials chip stack (section 01) */
+  .mat-stack { position: absolute; inset: 0; padding: 64px 18px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  .mat-chip {
+    padding: 14px 18px; color: white; font-size: 13px; font-weight: 500;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .stage[data-theme="light"] .mat-chip { color: #111; }
+  .mat-meta { font-family: var(--font-mono); font-size: 10px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* Tab bar */
+  .tabbar-wrap { position: absolute; left: 16px; right: 16px; bottom: 24px; }
+  .tabbar {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    padding: 8px 6px;
+  }
+  .tab {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 6px 0; cursor: pointer;
+    color: rgba(255,255,255,0.55);
+    transition: color var(--glass-transition);
+  }
+  .stage[data-theme="light"] .tab { color: rgba(0,0,0,0.45); }
+  .tab.active { color: var(--color-accent); }
+  .tab svg { width: 22px; height: 22px; }
+  .tab-label { font-size: 10px; font-weight: 500; letter-spacing: -0.01em; }
+
+  /* Search bar / nav header */
+  .nav-stack { position: absolute; top: 0; left: 0; right: 0; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .nav-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+  }
+  .nav-back { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; color: var(--color-accent); cursor: pointer; }
+  .nav-title { flex: 1; font-size: 16px; font-weight: 600; color: white; letter-spacing: -0.01em; }
+  .stage[data-theme="light"] .nav-title { color: #111; }
+  .search-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+  }
+  .search-icon { color: rgba(255,255,255,0.6); display: flex; }
+  .stage[data-theme="light"] .search-icon { color: rgba(0,0,0,0.5); }
+  .search-input { flex: 1; font-size: 15px; color: white; background: transparent; border: none; outline: none; font-family: var(--font-sans); }
+  .stage[data-theme="light"] .search-input { color: #111; }
+  .search-input::placeholder { color: rgba(255,255,255,0.5); }
+  .stage[data-theme="light"] .search-input::placeholder { color: rgba(0,0,0,0.4); }
+
+  /* MiniPlayer */
+  .mp-wrap { position: absolute; left: 16px; right: 16px; bottom: 96px; }
+  .miniplayer { display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; }
+  .mp-thumb { width: 48px; height: 48px; border-radius: 10px; flex-shrink: 0; background: linear-gradient(135deg, #ff8a4c, #c44dff); position: relative; overflow: hidden; }
+  .mp-thumb::after { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent 50%); }
+  .mp-info { flex: 1; min-width: 0; }
+  .mp-title { font-size: 14px; font-weight: 600; color: white; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stage[data-theme="light"] .mp-title { color: #111; }
+  .mp-channel { font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 1px; }
+  .stage[data-theme="light"] .mp-channel { color: rgba(0,0,0,0.55); }
+  .mp-controls { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .mp-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: transparent; border: none; cursor: pointer; color: white; }
+  .stage[data-theme="light"] .mp-btn { color: #111; }
+  .mp-btn svg { width: 20px; height: 20px; }
+  .mp-progress { position: absolute; left: 24px; right: 24px; bottom: 4px; height: 2px; background: rgba(255,255,255,0.18); border-radius: 1px; overflow: hidden; }
+  .stage[data-theme="light"] .mp-progress { background: rgba(0,0,0,0.15); }
+  .mp-progress-fill { height: 100%; background: var(--color-accent); border-radius: 1px; }
+
+  /* NowPlaying */
+  .np-stage {
+    position: relative; border-radius: 32px; overflow: hidden;
+    aspect-ratio: 9/16;
+    background-color: #1a0a30;
+  }
+  .np-art {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 30% 30%, #ff5a8a 0%, transparent 45%),
+      radial-gradient(circle at 70% 70%, #5a8aff 0%, transparent 45%),
+      radial-gradient(circle at 50% 50%, #ffaa5a 0%, transparent 35%),
+      linear-gradient(135deg, #4a1880, #1a0830);
+    filter: blur(40px) saturate(1.4);
+    transform: scale(1.2);
+  }
+  .np-content { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 16px; }
+  .np-topbar { display: flex; align-items: center; justify-content: space-between; padding: 6px 4px 14px; }
+  .np-chevron, .np-more { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; }
+  .np-context { text-align: center; font-size: 12px; color: rgba(255,255,255,0.7); font-weight: 500; }
+  .np-context-strong { color: white; }
+  .np-art-card {
+    width: 78%; aspect-ratio: 1; margin: 12px auto 0;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #ff5a8a, #5a8aff 60%, #ffaa5a);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06) inset;
+    position: relative; overflow: hidden;
+  }
+  .np-art-card::after {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255,255,255,0.25), transparent 50%),
+      radial-gradient(circle at 70% 80%, rgba(0,0,0,0.25), transparent 50%);
+  }
+  .np-meta { padding: 28px 8px 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .np-meta-text { flex: 1; min-width: 0; }
+  .np-track-title { font-size: 22px; font-weight: 700; color: white; letter-spacing: -0.02em; line-height: 1.15; }
+  .np-track-channel { font-size: 14px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+  .np-fav { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.85); cursor: pointer; flex-shrink: 0; }
+  .np-scrub { padding: 0 8px; }
+  .np-scrub-track { height: 4px; background: rgba(255,255,255,0.18); border-radius: 2px; position: relative; }
+  .np-scrub-fill { position: absolute; inset: 0 60% 0 0; background: white; border-radius: 2px; }
+  .np-scrub-thumb { position: absolute; left: 40%; top: 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; border-radius: 50%; background: white; }
+  .np-time { display: flex; justify-content: space-between; padding: 6px 2px 0; font-size: 11px; font-family: var(--font-mono); color: rgba(255,255,255,0.65); }
+  .np-controls-row { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px 8px; }
+  .np-pp { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; }
+  .np-pp svg { width: 32px; height: 32px; }
+  .np-skip { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; }
+  .np-skip svg { width: 28px; height: 28px; }
+  .np-toolbar { display: flex; justify-content: space-around; padding: 12px 8px 6px; }
+  .np-tool { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.75); cursor: pointer; }
+
+  /* Sheet */
+  .sheet-stage { position: relative; border-radius: 32px; overflow: hidden; aspect-ratio: 9/16; }
+  .sheet-bg { position: absolute; inset: 0; background:
+    linear-gradient(180deg, #2a1248 0%, #0a0a14 60%);
+  }
+  .sheet-bg::after { content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 25% 18%, rgba(255,170,80,0.4), transparent 8%),
+      radial-gradient(circle at 70% 28%, rgba(255,80,140,0.4), transparent 7%);
+    mix-blend-mode: screen;
+  }
+  .sheet-scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(2px); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 20px 28px; }
+  .sheet-grabber { width: 36px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.4); margin: 0 auto 14px; }
+  .stage[data-theme="light"] .sheet-grabber, [data-theme="light"] .sheet-grabber { background: rgba(0,0,0,0.25); }
+  .sheet-title { font-size: 17px; font-weight: 600; color: white; letter-spacing: -0.01em; margin-bottom: 16px; }
+  .sheet-action { display: flex; align-items: center; gap: 14px; padding: 12px 8px; color: white; font-size: 16px; cursor: pointer; border-radius: 10px; }
+  .sheet-action svg { width: 22px; height: 22px; color: rgba(255,255,255,0.9); }
+  .sheet-action.destructive { color: var(--color-error); }
+  .sheet-action.destructive svg { color: var(--color-error); }
+  .sheet-divider { height: 1px; background: rgba(255,255,255,0.12); margin: 6px 0; }
+
+  /* Context menu */
+  .menu-stage { position: relative; border-radius: 32px; overflow: hidden; aspect-ratio: 9/16; background: #0a0a14; }
+  .menu-art {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 25% 18%, rgba(255,170,80,0.6), transparent 12%),
+      radial-gradient(circle at 75% 28%, rgba(255,80,140,0.6), transparent 12%),
+      radial-gradient(circle at 30% 70%, rgba(120,200,255,0.55), transparent 12%),
+      radial-gradient(circle at 78% 78%, rgba(180,140,255,0.6), transparent 12%),
+      linear-gradient(135deg, #2a1248, #0a0a14 60%);
+  }
+  .menu-feed { position: absolute; inset: 0; padding: 56px 16px 0; display: flex; flex-direction: column; gap: 16px; filter: blur(0); }
+  .menu-row.focused { transform: scale(1.02); transition: transform var(--glass-transition); }
+  .menu-row.dimmed { opacity: 0.4; filter: blur(2px); }
+  .ctx-menu {
+    position: absolute; left: 80px; top: 130px;
+    width: 240px; padding: 6px;
+  }
+  .ctx-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; color: white; font-size: 15px; border-radius: 10px; cursor: pointer;
+    gap: 12px;
+  }
+  .ctx-item.destructive { color: var(--color-error); }
+  .ctx-item svg { width: 18px; height: 18px; opacity: 0.85; }
+  .ctx-divider { height: 1px; background: rgba(255,255,255,0.10); margin: 4px 6px; }
+
+  /* Toast */
+  .toast-wrap { position: absolute; left: 50%; bottom: 130px; transform: translateX(-50%); }
+  .toast {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px 10px 12px;
+    color: white; font-size: 14px; font-weight: 500;
+  }
+  .stage[data-theme="light"] .toast { color: #111; }
+  .toast-icon { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; color: var(--color-success); }
+
+  /* Final assembled screens grid */
+  .screens { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+  @media (max-width: 1100px) { .screens { grid-template-columns: repeat(2, 1fr); } }
+  .screen-tag { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-fg-tertiary); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ───────── Header ───────── -->
+  <header class="doc-header">
+    <div class="doc-eyebrow">YourTube · iOS · Translucent Materials Layer</div>
+    <h1 class="doc-title">A glass material vocabulary for YourTube iOS.</h1>
+    <p class="doc-lede">An original layered translucent-materials language for the iOS build of YourTube. It sits on top of the existing brand tokens (purple accent, type scale, spacing) and re-renders the chrome surfaces — tab bar, MiniPlayer, NowPlaying controls, sheets, menus, toasts — as stacked glass: backdrop blur + tinted fill + specular highlight + refracted edge + depth shadow. Each surface has dark and light tokens and is annotated with the trade-off that comes with going translucent.</p>
+    <div class="doc-warn"><strong>Not a platform clone.</strong> This is YourTube's own translucent layer, not a recreation of any vendor's OS chrome. Apply it inside the YourTube app shell only — do not present these surfaces as system UI.</div>
+  </header>
+
+  <!-- ───────── 01 · Materials & tokens ───────── -->
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-num">01 · Foundations</div>
+        <div class="card-title">Material weights</div>
+      </div>
+    </div>
+    <p class="card-sub">Four weights — thin, regular, thick, ultra — over the same backdrop. Each weight pairs a fill opacity with a blur radius. The remaining four layers (saturation boost, specular highlight, refracted edge, depth shadow) are constants of the system.</p>
+
+    <div class="row-2">
+      <div>
+        <div class="stage">
+          <div class="stage-label">Dark · 9:16</div>
+          <div class="mat-stack">
+            <div class="glass glass-thin mat-chip glass-bubble"><span>thin · 18px blur</span><span class="mat-meta">tab bar</span></div>
+            <div class="glass mat-chip glass-bubble"><span>regular · 28px blur</span><span class="mat-meta">miniplayer</span></div>
+            <div class="glass glass-thick mat-chip glass-bubble"><span>thick · 40px blur</span><span class="mat-meta">menus · alerts</span></div>
+            <div class="glass glass-ultra mat-chip glass-bubble"><span>ultra · 56px blur</span><span class="mat-meta">modal</span></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="stage" data-theme="light">
+          <div class="stage-label">Light · 9:16</div>
+          <div class="mat-stack" data-theme="light">
+            <div class="glass glass-thin mat-chip glass-bubble"><span>thin · 18px blur</span><span class="mat-meta">tab bar</span></div>
+            <div class="glass mat-chip glass-bubble"><span>regular · 28px blur</span><span class="mat-meta">miniplayer</span></div>
+            <div class="glass glass-thick mat-chip glass-bubble"><span>thick · 40px blur</span><span class="mat-meta">menus · alerts</span></div>
+            <div class="glass glass-ultra mat-chip glass-bubble"><span>ultra · 56px blur</span><span class="mat-meta">modal</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="height: 32px"></div>
+
+    <div class="row-2-1">
+      <div class="notes">
+        <h4>The five layers (constant across all weights)</h4>
+        <p><strong>1 · Backdrop blur</strong> of the content underneath. The blur radius is what gives the material its softness.</p>
+        <p><strong>2 · Fill</strong> — a semi-opaque color (dark for dark theme, white for light theme). The opacity is what gives the material its <em>weight</em>.</p>
+        <p><strong>3 · Specular highlight</strong> — a 135° linear gradient at 6–10% white from the top-left. Gives the surface a sense of being glossy rather than flat.</p>
+        <p><strong>4 · Refracted edge</strong> — asymmetric inner stroke. Bright on top (where light would land), dark on bottom (where it would fall away). This is the move that reads most as "glass" rather than "blur".</p>
+        <p><strong>5 · Depth shadow</strong> — soft outer shadow so the material reads as floating, not flush.</p>
+
+        <h4>When to use which</h4>
+        <p><code>thin</code> — chrome you want to read THROUGH (tab bar over scrolling content).</p>
+        <p><code>regular</code> — primary interactive chrome (MiniPlayer, sheets, NowPlaying controls).</p>
+        <p><code>thick</code> — focused content where readability beats transparency (context menus, alerts).</p>
+        <p><code>ultra</code> — modal blockers, settings sheets at full height.</p>
+      </div>
+      <div class="notes">
+        <div class="tradeoff warn">
+          <div class="tradeoff-label">Trade-off · contrast</div>
+          <div class="tradeoff-body">All four materials must pass WCAG AA against the worst-case backdrop. We test white-on-glass over a saturated artwork. If contrast falls below 4.5:1, promote the material one weight. Respect <code>UIAccessibilityIsReduceTransparencyEnabled</code> — when enabled, every glass surface flattens to <code>--color-surface</code> with no blur.</div>
+        </div>
+        <div class="tradeoff warn">
+          <div class="tradeoff-label">Trade-off · performance</div>
+          <div class="tradeoff-body">Each glass surface is a paint barrier. On older iPhones, more than ~3 simultaneous large blurred surfaces (tab bar + sheet + nested menu) drops the framerate. Architect screens so only one "layer of intent" is glass at a time — when a sheet opens, freeze the tab bar's blur to a snapshot.</div>
+        </div>
+        <div class="tradeoff">
+          <div class="tradeoff-label">Trade-off · battery</div>
+          <div class="tradeoff-body">Backdrop blur is GPU-bound and modestly battery-positive on modern hardware, but it compounds. The MiniPlayer is on-screen 80% of the time the app is open — keep it at <code>regular</code>, never <code>thick</code>.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── 02 · Tab bar ───────── -->
+  <section class="card">
+    <div class="card-head">
+      <div><div class="card-num">02 · Chrome</div><div class="card-title">Tab bar</div></div>
+    </div>
+    <p class="card-sub">Floating pill at the bottom of the screen. <code>thin</code> material so the scrolling content is visible through it. Active tab uses brand purple — same accent as the rest of the system, no special "glass" color.</p>
+
+    <div class="row-2-1">
+      <div class="row-2">
+        <div>
+          <div class="screen-tag">Dark</div>
+          <div class="stage">
+            <div class="stage-label">Dark</div>
+            <div class="mock-feed">
+              <div class="mock-row"><div class="mock-thumb" data-c="1"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="4"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="5"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="1"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            </div>
+            <div class="tabbar-wrap">
+              <div class="glass glass-thin glass-pill tabbar">
+                <div class="tab active">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <span class="tab-label">Search</span>
+                </div>
+                <div class="tab">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h13M3 12h13M3 18h13"/><circle cx="20" cy="14" r="2"/><circle cx="20" cy="18" r="2"/><line x1="20" y1="6" x2="20" y2="14"/></svg>
+                  <span class="tab-label">Library</span>
+                </div>
+                <div class="tab">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+                  <span class="tab-label">History</span>
+                </div>
+                <div class="tab">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16" fill="currentColor"/></svg>
+                  <span class="tab-label">Player</span>
+                </div>
+                <div class="tab">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                  <span class="tab-label">Settings</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="screen-tag">Light</div>
+          <div class="stage" data-theme="light">
+            <div class="stage-label">Light</div>
+            <div class="mock-feed">
+              <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="4"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="5"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="1"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            </div>
+            <div class="tabbar-wrap">
+              <div class="glass glass-thin glass-pill tabbar">
+                <div class="tab active">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <span class="tab-label">Search</span>
+                </div>
+                <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h13M3 12h13M3 18h13"/><circle cx="20" cy="14" r="2"/><circle cx="20" cy="18" r="2"/><line x1="20" y1="6" x2="20" y2="14"/></svg><span class="tab-label">Library</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span class="tab-label">History</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16" fill="currentColor"/></svg><span class="tab-label">Player</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="tab-label">Settings</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Why floating, not flush</h4>
+        <p>The tab bar is detached from the screen edges with 16pt insets and pill geometry. This makes the translucency legible — flush-to-edge tab bars read as opaque even when they're not.</p>
+        <h4>Active state</h4>
+        <p>Active tab swaps icon + label color to <code>--color-accent</code>. No glass-color tricks. The inactive tabs use 55% white in dark, 45% black in light.</p>
+        <div class="tradeoff warn">
+          <div class="tradeoff-label">Trade-off</div>
+          <div class="tradeoff-body">Floating pill takes 16pt of horizontal space and 8pt extra vertical space vs. a flush tab bar. On smaller iPhones (SE class) this is non-trivial — <strong>fall back to a flush <code>thick</code> tab bar on devices &lt; 5.4"</strong>.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── 03 · MiniPlayer ───────── -->
+  <section class="card">
+    <div class="card-head">
+      <div><div class="card-num">03 · Persistent player</div><div class="card-title">MiniPlayer</div></div>
+    </div>
+    <p class="card-sub">Persistent above the tab bar whenever a track is loaded. <code>regular</code> material, pill geometry, picks up artwork color through the blur. Tapping anywhere except the controls expands to NowPlaying.</p>
+
+    <div class="row-2-1">
+      <div class="row-2">
+        <div>
+          <div class="screen-tag">Dark · over feed</div>
+          <div class="stage">
+            <div class="mock-feed">
+              <div class="mock-row"><div class="mock-thumb" data-c="1"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="4"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="5"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            </div>
+            <div class="mp-wrap">
+              <div class="glass glass-pill miniplayer" style="position: relative;">
+                <div class="mp-thumb"></div>
+                <div class="mp-info">
+                  <div class="mp-title">Bohemian Rhapsody</div>
+                  <div class="mp-channel">Queen · Greatest Hits</div>
+                </div>
+                <div class="mp-controls">
+                  <button class="mp-btn"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 14,12 6,20"/><rect x="16" y="4" width="2" height="16"/></svg></button>
+                  <button class="mp-btn" style="color: var(--color-accent)"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></button>
+                </div>
+                <div class="mp-progress"><div class="mp-progress-fill" style="width: 38%"></div></div>
+              </div>
+            </div>
+            <div class="tabbar-wrap" style="bottom: 24px;">
+              <div class="glass glass-thin glass-pill tabbar">
+                <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="tab-label">Search</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h13M3 12h13M3 18h13"/><circle cx="20" cy="14" r="2"/><circle cx="20" cy="18" r="2"/><line x1="20" y1="6" x2="20" y2="14"/></svg><span class="tab-label">Library</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span class="tab-label">History</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16" fill="currentColor"/></svg><span class="tab-label">Player</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M5 12a7 7 0 0 1 14 0"/></svg><span class="tab-label">Settings</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="screen-tag">Light · over feed</div>
+          <div class="stage" data-theme="light">
+            <div class="mock-feed">
+              <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="4"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="5"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="1"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            </div>
+            <div class="mp-wrap">
+              <div class="glass glass-pill miniplayer" style="position: relative;">
+                <div class="mp-thumb"></div>
+                <div class="mp-info">
+                  <div class="mp-title">Stairway to Heaven</div>
+                  <div class="mp-channel">Led Zeppelin · IV</div>
+                </div>
+                <div class="mp-controls">
+                  <button class="mp-btn"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 14,12 6,20"/><rect x="16" y="4" width="2" height="16"/></svg></button>
+                  <button class="mp-btn" style="color: var(--color-accent)"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg></button>
+                </div>
+                <div class="mp-progress"><div class="mp-progress-fill" style="width: 62%"></div></div>
+              </div>
+            </div>
+            <div class="tabbar-wrap" style="bottom: 24px;">
+              <div class="glass glass-thin glass-pill tabbar">
+                <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="tab-label">Search</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h13M3 12h13M3 18h13"/><circle cx="20" cy="14" r="2"/><circle cx="20" cy="18" r="2"/><line x1="20" y1="6" x2="20" y2="14"/></svg><span class="tab-label">Library</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span class="tab-label">History</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16" fill="currentColor"/></svg><span class="tab-label">Player</span></div>
+                <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M5 12a7 7 0 0 1 14 0"/></svg><span class="tab-label">Settings</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Two stacked glass surfaces</h4>
+        <p>The MiniPlayer (<code>regular</code>) sits 8pt above the tab bar (<code>thin</code>). Two glass surfaces is the upper limit before the stack starts looking smudgy — never add a third on the same screen. Both must be on screen for a "stack discount": the tab bar samples the MiniPlayer's already-blurred output, so its blur radius can drop to 12px without losing the effect.</p>
+        <h4>Progress as edge</h4>
+        <p>The progress fill rides the bottom inner edge of the pill — same purple as the active tab. It re-uses the existing <code>--color-scrubber-fill</code> token; no new color.</p>
+        <div class="tradeoff">
+          <div class="tradeoff-label">Trade-off · always-on cost</div>
+          <div class="tradeoff-body">The MiniPlayer is on screen 80%+ of the time the app is open. <code>regular</code> is the ceiling — never <code>thick</code>. If a track has no artwork, drop the glass entirely and use opaque <code>--color-surface</code> — there's nothing colorful underneath to make the translucency worth the cost.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── 04 · NowPlaying ───────── -->
+  <section class="card">
+    <div class="card-head">
+      <div><div class="card-num">04 · Full-screen player</div><div class="card-title">NowPlaying</div></div>
+    </div>
+    <p class="card-sub">Full-bleed blurred artwork as the screen background, with an opaque artwork card and translucent control surfaces floating over it. The chrome (top bar, scrubber, controls, toolbar) all use the same translucent material so they read as a single coherent layer.</p>
+
+    <div class="row-2-1">
+      <div class="row-2">
+        <div>
+          <div class="screen-tag">Dark · with tinted backdrop</div>
+          <div class="np-stage">
+            <div class="np-art"></div>
+            <div class="np-content">
+              <!-- Top bar -->
+              <div class="glass glass-thin glass-pill" style="display:flex;align-items:center;justify-content:space-between;padding:6px 14px;">
+                <div class="np-chevron"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+                <div class="np-context">Playing from <span class="np-context-strong">Late nights</span></div>
+                <div class="np-more"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></div>
+              </div>
+
+              <!-- Artwork (opaque, not glass) -->
+              <div class="np-art-card"></div>
+
+              <!-- Meta -->
+              <div class="np-meta">
+                <div class="np-meta-text">
+                  <div class="np-track-title">Midnight Drive</div>
+                  <div class="np-track-channel">Synth Sundays</div>
+                </div>
+                <div class="np-fav"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.5-9-9.5C1.5 7 5 4 8.5 5.5 10.5 6.4 12 8.5 12 8.5s1.5-2.1 3.5-3c3.5-1.5 7 1.5 5.5 6-2 5-9 9.5-9 9.5z"/></svg></div>
+              </div>
+
+              <!-- Scrubber -->
+              <div class="np-scrub">
+                <div class="np-scrub-track">
+                  <div class="np-scrub-fill"></div>
+                  <div class="np-scrub-thumb"></div>
+                </div>
+                <div class="np-time"><span>1:42</span><span>−2:31</span></div>
+              </div>
+
+              <!-- Controls -->
+              <div class="np-controls-row">
+                <div class="np-skip"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="19,4 9,12 19,20"/><rect x="5" y="4" width="2" height="16"/></svg></div>
+                <div class="glass np-pp" style="background-color: rgba(255,255,255,0.18); border-radius: 50%;">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="4" height="14" rx="1"/><rect x="13" y="5" width="4" height="14" rx="1"/></svg>
+                </div>
+                <div class="np-skip"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><rect x="17" y="4" width="2" height="16"/></svg></div>
+              </div>
+
+              <!-- Toolbar -->
+              <div class="glass glass-thin glass-pill np-toolbar">
+                <div class="np-tool"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
+                <div class="np-tool" style="color: var(--color-accent);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+                <div class="np-tool"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+                <div class="np-tool"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="screen-tag">Pause state · simpler chrome</div>
+          <div class="np-stage" style="background-color: #08203a;">
+            <div class="np-art" style="background:
+              radial-gradient(circle at 30% 30%, #5aaaff 0%, transparent 45%),
+              radial-gradient(circle at 70% 70%, #5affaa 0%, transparent 45%),
+              linear-gradient(135deg, #084080, #08203a);"></div>
+            <div class="np-content">
+              <div class="glass glass-thin glass-pill" style="display:flex;align-items:center;justify-content:space-between;padding:6px 14px;">
+                <div class="np-chevron"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+                <div class="np-context">Playing from <span class="np-context-strong">Focus</span></div>
+                <div class="np-more"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></div>
+              </div>
+              <div class="np-art-card" style="background: linear-gradient(135deg, #5aaaff, #5affaa);"></div>
+              <div class="np-meta">
+                <div class="np-meta-text">
+                  <div class="np-track-title">Glacier</div>
+                  <div class="np-track-channel">Cold Front</div>
+                </div>
+                <div class="np-fav" style="color: var(--color-accent);"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.5-9-9.5C1.5 7 5 4 8.5 5.5 10.5 6.4 12 8.5 12 8.5s1.5-2.1 3.5-3c3.5-1.5 7 1.5 5.5 6-2 5-9 9.5-9 9.5z"/></svg></div>
+              </div>
+              <div class="np-scrub">
+                <div class="np-scrub-track">
+                  <div class="np-scrub-fill" style="inset: 0 78% 0 0;"></div>
+                  <div class="np-scrub-thumb" style="left: 22%;"></div>
+                </div>
+                <div class="np-time"><span>0:48</span><span>−3:12</span></div>
+              </div>
+              <div class="np-controls-row">
+                <div class="np-skip"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="19,4 9,12 19,20"/><rect x="5" y="4" width="2" height="16"/></svg></div>
+                <div class="glass np-pp" style="background-color: rgba(255,255,255,0.18); border-radius: 50%;">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
+                </div>
+                <div class="np-skip"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><rect x="17" y="4" width="2" height="16"/></svg></div>
+              </div>
+              <div class="glass glass-thin glass-pill np-toolbar">
+                <div class="np-tool"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
+                <div class="np-tool"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+                <div class="np-tool"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+                <div class="np-tool"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Backdrop is content, chrome is glass</h4>
+        <p>The blurred artwork is the room; the controls are translucent floating panels in that room. Importantly, <strong>the artwork card itself is opaque</strong> — only the chrome is glass. Glass-on-glass would be illegible.</p>
+        <h4>Tinting from artwork</h4>
+        <p>Unlike the rest of the app where chrome is neutral, here the glass deliberately picks up the artwork color. The blur is doing the tinting, not a separate tint layer — keep the chrome material neutral and let the content do the work.</p>
+        <h4>Play/Pause as a glass dot</h4>
+        <p>The big circular play button is itself a glass surface. Press state drops it to <code>glass-flat</code> shadow + 0.97 scale.</p>
+        <div class="tradeoff warn">
+          <div class="tradeoff-label">Trade-off · text contrast</div>
+          <div class="tradeoff-body">A vivid artwork can blow out the white track title. Always render a 0.5 black gradient (40% → 0%) directly above the meta block before it lands on the artwork. This is non-negotiable for albums with very bright covers.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── 05 · Search bar / nav ───────── -->
+  <section class="card">
+    <div class="card-head">
+      <div><div class="card-num">05 · Headers</div><div class="card-title">Search bar & nav header</div></div>
+    </div>
+    <p class="card-sub">Floating top chrome. Both nav header and search field use <code>regular</code> material with pill geometry. They float over the scrolling content with a 16pt margin so the translucency reads.</p>
+
+    <div class="row-2-1">
+      <div class="row-2">
+        <div>
+          <div class="screen-tag">Dark · search</div>
+          <div class="stage">
+            <div class="mock-feed" style="padding-top: 110px;">
+              <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="4"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="5"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            </div>
+            <div class="nav-stack">
+              <div class="glass glass-pill nav-bar">
+                <div class="nav-back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+                <div class="nav-title">Search</div>
+              </div>
+              <div class="glass glass-pill search-bar">
+                <span class="search-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+                <input class="search-input" placeholder="Search YouTube" />
+                <span class="search-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M3 5h2.5l3.5 7L13 5h8M5 19h14"/></svg></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="screen-tag">Light · library</div>
+          <div class="stage" data-theme="light">
+            <div class="mock-feed" style="padding-top: 110px;">
+              <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="4"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="1"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            </div>
+            <div class="nav-stack">
+              <div class="glass glass-pill nav-bar">
+                <div class="nav-back" style="color: var(--color-accent);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+                <div class="nav-title">Late nights</div>
+                <div class="nav-back" style="color: var(--color-accent);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/></svg></div>
+              </div>
+              <div class="glass glass-pill search-bar">
+                <span class="search-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+                <input class="search-input" placeholder="Filter playlist" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Stack: header on top of search</h4>
+        <p>Two pills stacked, 8pt gap. The header is shorter (40pt) and only carries back/title/overflow; the search is taller (44pt) so the input has minimum tap target. Both glass.</p>
+        <h4>Scroll-edge effect</h4>
+        <p>When content scrolls under the headers, the blur picks up new colors. <strong>Don't</strong> add a scroll-edge gradient mask on top — the glass already does the separation work.</p>
+        <div class="tradeoff">
+          <div class="tradeoff-label">Trade-off · keyboard inset</div>
+          <div class="tradeoff-body">When the search field is focused and the keyboard rises, the floating pill must rise with it (or it will look detached over the keyboard). Easier in <code>UIKit</code> than SwiftUI; budget half a day for this.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── 06 · Sheets ───────── -->
+  <section class="card">
+    <div class="card-head">
+      <div><div class="card-num">06 · Modals</div><div class="card-title">Sheets · Add to playlist, Share</div></div>
+    </div>
+    <p class="card-sub">Bottom sheets use <code>thick</code> material — readability beats translucency here. The screen behind dims with a 40% scrim; the scrim is <em>not</em> blurred, only the sheet is. This makes it clear which surface is interactive.</p>
+
+    <div class="row-2-1">
+      <div class="row-2">
+        <div>
+          <div class="screen-tag">Dark · add to playlist</div>
+          <div class="stage">
+            <div class="mock-feed">
+              <div class="mock-row"><div class="mock-thumb" data-c="1"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            </div>
+            <div class="sheet-scrim"></div>
+            <div class="glass glass-thick sheet glass-sheet">
+              <div class="sheet-grabber"></div>
+              <div class="sheet-title">Add "Midnight Drive" to…</div>
+              <div class="sheet-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New playlist</div>
+              <div class="sheet-divider"></div>
+              <div class="sheet-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Late nights</div>
+              <div class="sheet-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Focus</div>
+              <div class="sheet-action"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Workout</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="screen-tag">Light · share</div>
+          <div class="stage" data-theme="light">
+            <div class="mock-feed">
+              <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="5"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            </div>
+            <div class="sheet-scrim" style="background: rgba(0,0,0,0.25);"></div>
+            <div class="glass glass-thick sheet glass-sheet">
+              <div class="sheet-grabber"></div>
+              <div class="sheet-title" style="color: #111;">Share playlist</div>
+              <div class="sheet-action" style="color: #111;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Export as .ytplaylist.json</div>
+              <div class="sheet-action" style="color: #111;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy link</div>
+              <div class="sheet-divider" style="background: rgba(0,0,0,0.1);"></div>
+              <div class="sheet-action destructive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>Delete playlist</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Why thick, not regular</h4>
+        <p>A sheet steals focus. The user is committing to a sub-task — Add to playlist, Share, Settings. Translucency through to the dimmed feed below would be visual noise. <code>thick</code> says "this is the new context".</p>
+        <h4>Grabber as the only "system" element</h4>
+        <p>4pt × 36pt rounded bar at the top of the sheet, 40% white in dark, 25% black in light. This is the universal "drag me down" affordance — keep it.</p>
+        <h4>Destructive actions</h4>
+        <p>Use <code>--color-error</code> for both icon and label. Always at the bottom of the sheet, separated by a divider. Never on the same row as a constructive action.</p>
+        <div class="tradeoff">
+          <div class="tradeoff-label">Trade-off · scrim or no scrim</div>
+          <div class="tradeoff-body">If the sheet is full-height (settings, queue), use <code>ultra</code> material and skip the scrim. If it's a partial sheet (action picker, share), use <code>thick</code> with a 40% scrim. Half-measures look uncertain.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── 07 · Context menu ───────── -->
+  <section class="card">
+    <div class="card-head">
+      <div><div class="card-num">07 · Overflow</div><div class="card-title">Context menu</div></div>
+    </div>
+    <p class="card-sub">Long-press on a track row reveals a context menu. <code>thick</code> material with a tighter <code>glass-bubble</code> radius. The originating row stays in focus; everything else dims and blurs slightly to reinforce the modal context.</p>
+
+    <div class="row-2-1">
+      <div class="row-2">
+        <div>
+          <div class="screen-tag">Dark · long-press</div>
+          <div class="menu-stage">
+            <div class="menu-art"></div>
+            <div class="menu-feed">
+              <div class="mock-row menu-row dimmed"><div class="mock-thumb" data-c="1"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row menu-row focused"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row menu-row dimmed"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row menu-row dimmed"><div class="mock-thumb" data-c="4"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row menu-row dimmed"><div class="mock-thumb" data-c="5"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            </div>
+            <div class="glass glass-thick glass-bubble ctx-menu">
+              <div class="ctx-item"><span>Play next</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></div>
+              <div class="ctx-item"><span>Add to queue</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="12" x2="13" y2="12"/><line x1="3" y1="18" x2="13" y2="18"/><line x1="17" y1="9" x2="21" y2="9"/><line x1="19" y1="7" x2="19" y2="11"/></svg></div>
+              <div class="ctx-item"><span>Add to playlist</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="12" x2="13" y2="12"/><line x1="3" y1="18" x2="13" y2="18"/><line x1="17" y1="14" x2="21" y2="14"/><line x1="19" y1="12" x2="19" y2="16"/></svg></div>
+              <div class="ctx-divider"></div>
+              <div class="ctx-item"><span>Share</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></div>
+              <div class="ctx-divider"></div>
+              <div class="ctx-item destructive"><span>Remove</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="screen-tag">Anatomy</div>
+          <div class="menu-stage" style="background: #0a0a14;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <div class="glass glass-thick glass-bubble" style="width:240px;padding:6px;">
+                <div class="ctx-item"><span>Play next</span></div>
+                <div class="ctx-item"><span>Add to queue</span></div>
+                <div class="ctx-divider"></div>
+                <div class="ctx-item destructive"><span>Remove</span></div>
+              </div>
+            </div>
+            <svg viewBox="0 0 360 640" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;font-family:var(--font-mono);font-size:10px;fill:rgba(255,255,255,0.7);">
+              <line x1="80" y1="270" x2="20" y2="220" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+              <text x="10" y="210">.glass-thick</text>
+              <line x1="280" y1="270" x2="340" y2="220" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+              <text x="265" y="210">22pt radius</text>
+              <line x1="190" y1="370" x2="310" y2="430" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+              <text x="265" y="445">divider 10% white</text>
+              <line x1="170" y1="430" x2="40" y2="470" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
+              <text x="10" y="485">destructive · error</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Source row stays in focus</h4>
+        <p>The row that triggered the menu scales 1.02 and stays sharp. Every other row dims to 40% opacity and blurs 2px. The menu floats next to the focused row, not centered.</p>
+        <h4>Grouping with dividers</h4>
+        <p>Constructive actions on top, share in the middle, destructive at the bottom. Dividers between groups (10% white in dark, 10% black in light) — not between every item.</p>
+        <h4>Shortcut hints</h4>
+        <p>Hardware-keyboard shortcuts (iPad) are right-aligned in tertiary text. Trailing affordance icons live in the same column.</p>
+        <div class="tradeoff">
+          <div class="tradeoff-label">Trade-off · width</div>
+          <div class="tradeoff-body">240pt is the sweet spot for two-line items at 15pt body. Don't go below 220pt or labels truncate; don't go above 280pt or the menu reads as a sheet.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── 08 · Toast ───────── -->
+  <section class="card">
+    <div class="card-head">
+      <div><div class="card-num">08 · Feedback</div><div class="card-title">Toast / inline confirmation</div></div>
+    </div>
+    <p class="card-sub">Transient confirmation pill — appears for ~2.5s above the MiniPlayer. <code>thick</code> material so the message is readable; <code>glass-pill</code> geometry; subtle entry animation (slide-up 8pt + fade).</p>
+
+    <div class="row-2-1">
+      <div class="row-2">
+        <div>
+          <div class="screen-tag">Dark · success</div>
+          <div class="stage">
+            <div class="mock-feed">
+              <div class="mock-row"><div class="mock-thumb" data-c="1"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="4"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            </div>
+            <div class="toast-wrap">
+              <div class="glass glass-thick glass-pill toast">
+                <span class="toast-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+                <span>Added to Late nights</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="screen-tag">Light · error</div>
+          <div class="stage" data-theme="light">
+            <div class="mock-feed">
+              <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="4"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+              <div class="mock-row"><div class="mock-thumb" data-c="5"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            </div>
+            <div class="toast-wrap">
+              <div class="glass glass-thick glass-pill toast">
+                <span class="toast-icon" style="color: var(--color-error);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+                <span>Couldn't load. Retry.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <h4>Above the MiniPlayer</h4>
+        <p>Position fixed at <code>bottom: tabbar + miniplayer + 16pt</code>. Toast must never overlap the controls — it's confirmation, not a focus-stealer.</p>
+        <h4>Auto-dismiss</h4>
+        <p>2.5s default; 4s if there's a Retry action. Tap dismisses. Slide-up 8pt + fade-in over 200ms; reverse on dismiss.</p>
+        <h4>One at a time</h4>
+        <p>Toasts queue, never stack. New toast pushes the current one out (slide-up + fade) before appearing.</p>
+        <div class="tradeoff warn">
+          <div class="tradeoff-label">Trade-off · don't replace alerts</div>
+          <div class="tradeoff-body">Toasts are confirmation, not consent. A destructive action (Delete playlist) still requires a real alert with a Cancel button — never a toast with an Undo. Undo-toast UX punishes the 90% of users who didn't make a mistake.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── 09 · Full screens ───────── -->
+  <section class="card">
+    <div class="card-head">
+      <div><div class="card-num">09 · Assembled</div><div class="card-title">All five iOS screens, in glass</div></div>
+    </div>
+    <p class="card-sub">The complete iOS app composed from the components above. Each screen uses the minimum number of glass layers — usually two: tab bar + one overlay (MiniPlayer, sheet, search bar).</p>
+
+    <div class="screens">
+      <!-- Search -->
+      <div>
+        <div class="screen-tag">Search</div>
+        <div class="stage">
+          <div class="mock-feed" style="padding-top: 110px;">
+            <div class="mock-row"><div class="mock-thumb" data-c="1"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            <div class="mock-row"><div class="mock-thumb" data-c="4"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+          </div>
+          <div class="nav-stack">
+            <div class="glass glass-pill nav-bar"><div class="nav-title">Search</div></div>
+            <div class="glass glass-pill search-bar">
+              <span class="search-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+              <input class="search-input" placeholder="Search YouTube" />
+            </div>
+          </div>
+          <div class="mp-wrap" style="bottom: 96px;">
+            <div class="glass glass-pill miniplayer">
+              <div class="mp-thumb"></div>
+              <div class="mp-info"><div class="mp-title">Midnight Drive</div><div class="mp-channel">Synth Sundays</div></div>
+              <div class="mp-controls"><button class="mp-btn" style="color: var(--color-accent)"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></button></div>
+              <div class="mp-progress"><div class="mp-progress-fill" style="width: 38%"></div></div>
+            </div>
+          </div>
+          <div class="tabbar-wrap" style="bottom: 24px;">
+            <div class="glass glass-thin glass-pill tabbar">
+              <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="tab-label">Search</span></div>
+              <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h13M3 12h13M3 18h13"/></svg><span class="tab-label">Library</span></div>
+              <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span class="tab-label">History</span></div>
+              <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg><span class="tab-label">Player</span></div>
+              <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/></svg><span class="tab-label">Settings</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Library -->
+      <div>
+        <div class="screen-tag">Library</div>
+        <div class="stage" data-theme="light">
+          <div class="mock-feed" style="padding-top: 110px;">
+            <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            <div class="mock-row"><div class="mock-thumb" data-c="4"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            <div class="mock-row"><div class="mock-thumb" data-c="5"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+          </div>
+          <div class="nav-stack">
+            <div class="glass glass-pill nav-bar"><div class="nav-title">Library</div></div>
+          </div>
+          <div class="mp-wrap" style="bottom: 96px;">
+            <div class="glass glass-pill miniplayer">
+              <div class="mp-thumb"></div>
+              <div class="mp-info"><div class="mp-title">Glacier</div><div class="mp-channel">Cold Front</div></div>
+              <div class="mp-controls"><button class="mp-btn" style="color: var(--color-accent)"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg></button></div>
+              <div class="mp-progress"><div class="mp-progress-fill" style="width: 22%"></div></div>
+            </div>
+          </div>
+          <div class="tabbar-wrap" style="bottom: 24px;">
+            <div class="glass glass-thin glass-pill tabbar">
+              <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="tab-label">Search</span></div>
+              <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h13M3 12h13M3 18h13"/></svg><span class="tab-label">Library</span></div>
+              <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span class="tab-label">History</span></div>
+              <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg><span class="tab-label">Player</span></div>
+              <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/></svg><span class="tab-label">Settings</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div>
+        <div class="screen-tag">History</div>
+        <div class="stage">
+          <div class="mock-feed" style="padding-top: 110px;">
+            <div class="mock-row"><div class="mock-thumb" data-c="3"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            <div class="mock-row"><div class="mock-thumb" data-c="1"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            <div class="mock-row"><div class="mock-thumb" data-c="5"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+            <div class="mock-row"><div class="mock-thumb" data-c="2"></div><div class="mock-meta"><div class="mock-line"></div><div class="mock-line short"></div></div></div>
+          </div>
+          <div class="nav-stack">
+            <div class="glass glass-pill nav-bar"><div class="nav-title">History</div></div>
+          </div>
+          <div class="tabbar-wrap" style="bottom: 24px;">
+            <div class="glass glass-thin glass-pill tabbar">
+              <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="tab-label">Search</span></div>
+              <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h13M3 12h13M3 18h13"/></svg><span class="tab-label">Library</span></div>
+              <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><span class="tab-label">History</span></div>
+              <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg><span class="tab-label">Player</span></div>
+              <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/></svg><span class="tab-label">Settings</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NowPlaying -->
+      <div>
+        <div class="screen-tag">NowPlaying</div>
+        <div class="np-stage">
+          <div class="np-art"></div>
+          <div class="np-content">
+            <div class="glass glass-thin glass-pill" style="display:flex;align-items:center;justify-content:space-between;padding:6px 14px;">
+              <div class="np-chevron"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></div>
+              <div class="np-context">Late nights</div>
+              <div class="np-more"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></div>
+            </div>
+            <div class="np-art-card"></div>
+            <div class="np-meta">
+              <div class="np-meta-text">
+                <div class="np-track-title">Midnight Drive</div>
+                <div class="np-track-channel">Synth Sundays</div>
+              </div>
+            </div>
+            <div class="np-scrub">
+              <div class="np-scrub-track">
+                <div class="np-scrub-fill"></div>
+                <div class="np-scrub-thumb"></div>
+              </div>
+              <div class="np-time"><span>1:42</span><span>−2:31</span></div>
+            </div>
+            <div class="np-controls-row">
+              <div class="np-skip"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="19,4 9,12 19,20"/></svg></div>
+              <div class="glass np-pp" style="background-color: rgba(255,255,255,0.18); border-radius: 50%;"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="5" width="4" height="14" rx="1"/><rect x="13" y="5" width="4" height="14" rx="1"/></svg></div>
+              <div class="np-skip"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/></svg></div>
+            </div>
+            <div class="glass glass-thin glass-pill np-toolbar">
+              <div class="np-tool"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14"/></svg></div>
+              <div class="np-tool" style="color: var(--color-accent);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+              <div class="np-tool"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/></svg></div>
+              <div class="np-tool"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="height: 16px"></div>
+    <div class="notes" style="max-width: 72ch;">
+      <h4>One layer of intent at a time</h4>
+      <p>Search and Library show 2 glass layers (tab bar + MiniPlayer + nav header — 3 actually, all <code>thin</code>). History only has 2 (tab bar + nav header) because no track is loaded. NowPlaying replaces the tab bar entirely — the chevron at the top is the dismiss affordance.</p>
+      <p>Total surface count rule: <strong>≤ 3 glass layers per screen</strong>. If you need more, something is in the wrong place.</p>
+    </div>
+  </section>
+
+  <!-- ───────── 10 · Summary ───────── -->
+  <section class="card">
+    <div class="card-head">
+      <div><div class="card-num">10 · Summary</div><div class="card-title">Should YourTube ship this?</div></div>
+    </div>
+    <div class="row-2">
+      <div class="notes">
+        <h4>Pros</h4>
+        <p>· The MiniPlayer + tab bar pair is the clearest win. Two persistent surfaces that float above scrolling content benefit most from translucency — they read as "always there but never opaque-blocking".</p>
+        <p>· NowPlaying gets a real visual upgrade. Blurred artwork as backdrop with translucent chrome over it is the natural place for this language.</p>
+        <p>· Only one new file — <code>glass_tokens.css</code> — and it composes additively on the existing tokens. Roll-back is one toggle.</p>
+      </div>
+      <div class="notes">
+        <h4>Cons / risks</h4>
+        <p>· <strong>Performance ceiling.</strong> Stacking more than 3 large blurred surfaces drops below 60fps on iPhone 12 and older. Architectural discipline required, not just visual.</p>
+        <p>· <strong>Contrast policing.</strong> Every glass surface needs an automated contrast test against worst-case backdrops. Without it you ship a beautiful design that fails AA.</p>
+        <p>· <strong>Reduce-transparency.</strong> Real users turn this on. Every glass surface must have a fully-opaque fallback. ~15% extra design work.</p>
+        <p>· <strong>Android divergence.</strong> Material You doesn't have an analog. Don't try to port it. The two platforms get different chrome — that's fine.</p>
+        <h4>Recommendation</h4>
+        <p>Ship it for iOS only, gated behind the existing translucent code paths in MiniPlayer (already <code>backdrop-filter: blur(20px)</code> in the original system). Start with 03 MiniPlayer + 02 tab bar + 04 NowPlaying. Defer 06 sheets and 07 menus to a second pass — they're lower-frequency surfaces.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YT-0013 / YT-0014 — Handoff Packages</title>
+<style>
+  :root {
+    --bg: #141218;
+    --surface: #1C1B1F;
+    --surface-hi: #211F26;
+    --on-surface: #E6E1E5;
+    --on-surface-variant: #C9C5D0;
+    --primary: #D0BCFF;
+    --primary-container: #4F378B;
+    --on-primary-container: #EADDFF;
+    --tertiary: #FFB4C8;
+    --error: #FFB4AB;
+    --outline: #49454F;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--on-surface);
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.55;
+    padding: 64px 24px 96px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  header { margin-bottom: 48px; }
+  .pill {
+    display: inline-block; background: var(--primary-container); color: var(--on-primary-container);
+    padding: 6px 14px; border-radius: 999px; font-size: 12px; letter-spacing: 0.06em;
+    text-transform: uppercase; font-weight: 500;
+  }
+  h1 { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; margin: 16px 0 8px; }
+  .lede { color: var(--on-surface-variant); font-size: 17px; max-width: 680px; }
+
+  .precedence {
+    background: linear-gradient(135deg, #2A1F4A, #1E1A2E);
+    border: 1px solid var(--primary-container);
+    padding: 20px 24px;
+    border-radius: var(--radius);
+    margin: 32px 0 48px;
+    font-size: 14px;
+  }
+  .precedence strong { color: var(--primary); }
+
+  .ticket {
+    background: var(--surface);
+    border: 1px solid var(--outline);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 24px;
+  }
+  .ticket h2 {
+    font-size: 24px; margin: 0 0 4px; letter-spacing: -0.01em;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .ticket h2 .tag {
+    font-size: 11px; padding: 4px 10px; border-radius: 6px;
+    background: var(--surface-hi); color: var(--primary); font-weight: 500; letter-spacing: 0.04em;
+  }
+  .ticket .summary { color: var(--on-surface-variant); font-size: 15px; margin: 4px 0 20px; }
+
+  .files {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .file {
+    display: block; padding: 14px 16px;
+    background: var(--surface-hi);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    text-decoration: none; color: var(--on-surface);
+    transition: border-color 120ms, transform 120ms;
+  }
+  .file:hover { border-color: var(--primary); transform: translateY(-1px); }
+  .file .name { font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 13px; color: var(--primary); }
+  .file .desc { font-size: 13px; color: var(--on-surface-variant); margin-top: 4px; }
+
+  .mockup-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 20px; padding: 10px 16px;
+    background: transparent; border: 1px solid var(--outline);
+    border-radius: 999px; font-size: 13px;
+    color: var(--on-surface-variant); text-decoration: none;
+  }
+  .mockup-link:hover { border-color: var(--primary); color: var(--primary); }
+
+  .meta { margin-top: 64px; padding-top: 32px; border-top: 1px solid var(--outline); font-size: 13px; color: var(--on-surface-variant); }
+  .meta code { background: var(--surface); padding: 2px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="pill">docs-maintainer · YT-0013 + YT-0014</span>
+    <h1>Android Now Playing &amp; Library — Handoff</h1>
+    <p class="lede">Markdown-only handoff packages for Claude Code. The decision logs and compose specs are the source of truth; HTML mockups are layout reference only.</p>
+  </header>
+
+  <div class="precedence">
+    <strong>Precedence rule.</strong> Where these handoff folders disagree with the HTML mockups in <code style="color: var(--on-primary-container)">design-system/mockups/android/</code>, the markdown wins. The mockups predate the Q-decisions and the post-implementation audit at <code style="color: var(--on-primary-container)">design-system/handoff/YT-0011/audit.md</code>.
+  </div>
+
+  <section class="ticket">
+    <h2>YT-0013 <span class="tag">Now Playing · Android</span></h2>
+    <p class="summary">Q1–Q12 decisions for the full-screen player: SharedTransitionLayout host, hand-rolled scrubber, 72 dp FilledIconButton transport, ModalBottomSheet queue, MediaSession parity.</p>
+
+    <div class="files">
+      <a class="file" href="YT-0013/README.md"><div class="name">README.md</div><div class="desc">Entry point, build order, tokens.</div></a>
+      <a class="file" href="YT-0013/decision-log.md"><div class="name">decision-log.md</div><div class="desc">Q1–Q12 with rationale, anti-patterns, mockup drift.</div></a>
+      <a class="file" href="YT-0013/compose-spec.md"><div class="name">compose-spec.md</div><div class="desc">View hierarchy, snippets, file layout, token map.</div></a>
+      <a class="file" href="YT-0013/haptics-and-a11y.md"><div class="name">haptics-and-a11y.md</div><div class="desc">Haptics table, fontScale, reduce-motion, TalkBack.</div></a>
+      <a class="file" href="YT-0013/media3-parity.md"><div class="name">media3-parity.md</div><div class="desc">MediaSession, lock-screen, notification mirror.</div></a>
+      <a class="file" href="YT-0013/mockup.html"><div class="name">mockup.html</div><div class="desc">Pointer + drift list to the combined legacy mockup.</div></a>
+    </div>
+
+    <a class="mockup-link" href="../mockups/android/YT-0011-0012-0013-shell-search-player.html">↗ Layout reference: YT-0011-0012-0013-shell-search-player.html</a>
+  </section>
+
+  <section class="ticket">
+    <h2>YT-0014 <span class="tag">Library · Android</span></h2>
+    <p class="summary">Q1–Q10 decisions for the Library tab: SecondaryTabRow + HorizontalPager, Downloads as default, Room source-of-truth, FilterChip sort, ListItem rows, per-tab empty states.</p>
+
+    <div class="files">
+      <a class="file" href="YT-0014/README.md"><div class="name">README.md</div><div class="desc">Entry point, build order, tokens.</div></a>
+      <a class="file" href="YT-0014/decision-log.md"><div class="name">decision-log.md</div><div class="desc">Q1–Q10 with rationale, anti-patterns, mockup drift.</div></a>
+      <a class="file" href="YT-0014/compose-spec.md"><div class="name">compose-spec.md</div><div class="desc">View hierarchy, paging, snippets, token map.</div></a>
+      <a class="file" href="YT-0014/mockup.html"><div class="name">mockup.html</div><div class="desc">Pointer + drift list to YT-0014-library.html.</div></a>
+    </div>
+
+    <a class="mockup-link" href="../mockups/android/YT-0014-library.html">↗ Layout reference: YT-0014-library.html</a>
+  </section>
+
+  <section class="ticket">
+    <h2>MOCKUP_INDEX patch <span class="tag">repo-level</span></h2>
+    <p class="summary">Patch instructions for adding a "Handoff Packages" section to <code>design-system/MOCKUP_INDEX.md</code> and footnoting the affected mockup rows.</p>
+    <div class="files">
+      <a class="file" href="MOCKUP_INDEX.patch.md"><div class="name">MOCKUP_INDEX.patch.md</div><div class="desc">Drop-in markdown section + diff summary.</div></a>
+    </div>
+  </section>
+
+  <div class="meta">
+    Folders this delivers: <code>design-system/handoff/YT-0013/</code>, <code>design-system/handoff/YT-0014/</code>. Apply <code>MOCKUP_INDEX.patch.md</code> to the existing <code>design-system/MOCKUP_INDEX.md</code> when committing.
+  </div>
+</div>
+</body>
+</html>

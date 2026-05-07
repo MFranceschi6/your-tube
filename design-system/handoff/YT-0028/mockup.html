@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YT-0028 — iOS Library & Playlist (handoff)</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  min-height: 100%;
+  background: #0a0a0a;
+  font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  color: #EBEBF5;
+}
+body { padding: 32px 24px 64px; }
+
+.page-head {
+  max-width: 1180px; margin: 0 auto 28px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 18px;
+}
+.page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #fff; }
+.page-head .meta { font-size: 12px; color: rgba(235,235,245,0.5); font-family: 'Geist Mono', 'SF Mono', monospace; }
+.page-head .badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  background: rgba(139,92,246,0.18); color: #B794F6;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-right: 8px;
+}
+
+.layout {
+  max-width: 1180px; margin: 0 auto;
+  display: grid; grid-template-columns: 393px 1fr; gap: 36px;
+  align-items: start;
+}
+
+.phone-wrap { position: sticky; top: 24px; }
+.phone {
+  width: 393px; height: 852px;
+  background: #000;
+  border-radius: 52px;
+  box-shadow: 0 0 0 2px #2a2a2a, 0 30px 80px rgba(0,0,0,0.7), inset 0 0 0 1px #444;
+  position: relative; overflow: hidden;
+  font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+}
+.island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 124px; height: 36px; background: #000; border-radius: 20px; z-index: 30;
+}
+.statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 54px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 28px 10px; z-index: 20; pointer-events: none;
+  font-size: 15px; font-weight: 600; color: #fff;
+}
+
+.panel {
+  background: #141416; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 20px; margin-bottom: 16px;
+}
+.panel h2 {
+  font-size: 11px; font-weight: 600; color: rgba(235,235,245,0.5);
+  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px;
+}
+.row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.row:last-child { margin-bottom: 0; }
+.row label { font-size: 12px; color: rgba(235,235,245,0.55); min-width: 110px; }
+.seg {
+  display: inline-flex; background: #1f1f22; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px; padding: 2px; gap: 2px;
+}
+.seg button {
+  background: transparent; border: none; color: rgba(235,235,245,0.6);
+  font-size: 12px; font-weight: 500; padding: 5px 10px; border-radius: 6px;
+  cursor: pointer; font-family: inherit; transition: all 120ms ease;
+}
+.seg button.on { background: #2c2c2e; color: #fff; box-shadow: 0 1px 0 rgba(0,0,0,0.3); }
+.seg button:hover:not(.on) { color: #fff; }
+
+.note {
+  font-size: 12px; color: rgba(235,235,245,0.55); line-height: 1.55;
+  border-left: 2px solid rgba(139,92,246,0.5); padding: 4px 0 4px 12px;
+  margin-top: 8px;
+}
+.kv { display: grid; grid-template-columns: 130px 1fr; gap: 6px 16px; font-size: 12px; }
+.kv .k { color: rgba(235,235,245,0.45); font-family: 'Geist Mono', monospace; }
+.kv .v { color: #EBEBF5; font-family: 'Geist Mono', monospace; }
+
+::-webkit-scrollbar { width: 0; height: 0; }
+.scroll::-webkit-scrollbar { width: 0; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div>
+    <span class="badge">YT-0028</span>
+    <h1 style="display:inline-block;">iOS Library &amp; Playlist Management — handoff mockup</h1>
+  </div>
+  <div class="meta">YourTube · iOS 17+ · SwiftUI · #8B5CF6</div>
+</div>
+
+<div class="layout">
+  <div class="phone-wrap">
+    <div class="phone" id="phone">
+      <div class="island"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.5"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.7"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" strokeOpacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+      <div id="screen-root" style="position:absolute;inset:0;"></div>
+    </div>
+  </div>
+
+  <div id="ctrls"></div>
+</div>
+
+<script type="text/babel">
+const C = {
+  bg: '#000',
+  surface: '#1C1C1E',
+  surface2: '#2C2C2E',
+  surface3: '#3A3A3C',
+  fg1: '#FFFFFF',
+  fg2: 'rgba(235,235,245,0.6)',
+  fg3: 'rgba(235,235,245,0.4)',
+  fg4: 'rgba(235,235,245,0.25)',
+  hairline: 'rgba(255,255,255,0.08)',
+  accent: '#8B5CF6',
+  red: '#FF453A',
+};
+
+// Deterministic gradient per playlist UUID hash → 2 hues in same lightness band
+function hashHue(seed) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) { h = (h * 31 + seed.charCodeAt(i)) & 0xFFFFFFFF; }
+  return Math.abs(h) % 360;
+}
+function gradientFor(seed) {
+  const h1 = hashHue(seed);
+  const h2 = (h1 + 40) % 360;
+  return `linear-gradient(135deg, oklch(0.45 0.12 ${h1}) 0%, oklch(0.30 0.12 ${h2}) 100%)`;
+}
+
+// Track-artwork gradients (for 4-up grid demo)
+const ART = [
+  'linear-gradient(135deg, #5B2A86 0%, #2B6CB0 100%)',
+  'linear-gradient(135deg, #C05621 0%, #742A2A 100%)',
+  'linear-gradient(135deg, #2D3748 0%, #1A202C 100%)',
+  'linear-gradient(135deg, #38A169 0%, #1A4731 100%)',
+  'linear-gradient(135deg, #D69E2E 0%, #744210 100%)',
+  'linear-gradient(135deg, #4A5568 0%, #2D3748 100%)',
+  'linear-gradient(135deg, #B83280 0%, #44337A 100%)',
+  'linear-gradient(135deg, #319795 0%, #234E52 100%)',
+];
+
+// ─── SF symbol glyphs ──────────────────────────────────────────────────
+const I = {
+  plus: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  chev: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9,6 15,12 9,18"/></svg>,
+  chevBack: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15,6 9,12 15,18"/></svg>,
+  clock: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,7 12,12 15.5,14"/></svg>,
+  ellipsis: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><circle cx="7" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="17" cy="12" r="1.2" fill="currentColor"/></svg>,
+  play: <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 21,12 6,21"/></svg>,
+  shuffle: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16,3 21,3 21,8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21,16 21,21 16,21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>,
+  musicNote: <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>,
+  musicNoteList: <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="12" x2="13" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/><circle cx="17" cy="17" r="3" fill="currentColor"/><path d="M20 17V7l-3 1"/></svg>,
+};
+
+// ─── Phone chrome bottom (tab bar + miniplayer) ──────────────────────────
+function MiniPlayer() {
+  return (
+    <div style={{position:'absolute', left:0, right:0, bottom: 49, background:'rgba(28,28,30,0.94)',
+      backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)',
+      borderTop:`1px solid ${C.hairline}`, padding:'8px 12px',
+      display:'flex', alignItems:'center', gap: 12}}>
+      <div style={{width: 44, height: 44, borderRadius: 6, background: ART[0]}}/>
+      <div style={{flex:1, minWidth:0}}>
+        <div style={{fontSize: 14, fontWeight: 600, color: C.fg1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>Chill Lofi Mix — Deep Focus</div>
+        <div style={{fontSize: 12, color: C.fg2}}>ChillHop Music</div>
+      </div>
+      <button style={{width:36, height:36, border:'none', background:'transparent', color: C.fg1, display:'flex', alignItems:'center', justifyContent:'center'}}>
+        {I.play}
+      </button>
+    </div>
+  );
+}
+function TabBar({ active }) {
+  const tabs = [
+    { id:'search', label:'Search', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg> },
+    { id:'library', label:'Library', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg> },
+    { id:'settings', label:'Settings', icon:<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg> },
+  ];
+  return (
+    <div style={{position:'absolute', left:0, right:0, bottom:0, height: 49, background:'rgba(28,28,30,0.94)',
+      backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)',
+      borderTop:`1px solid ${C.hairline}`, display:'flex', alignItems:'flex-start', paddingTop: 6}}>
+      {tabs.map(t => (
+        <div key={t.id} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap: 2,
+          color: t.id === active ? C.accent : C.fg2}}>
+          {t.icon}
+          <div style={{fontSize: 10, fontWeight: 500}}>{t.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Playlist cover (hybrid: 1 / 2-3 / 4+) ────────────────────────────
+function PlaylistCover({ playlist, size }) {
+  const r = size <= 56 ? 8 : 12;
+  const tracks = playlist.tracks;
+  if (tracks.length === 0) {
+    return (
+      <div style={{width: size, height: size, borderRadius: r, background: gradientFor(playlist.id),
+        display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,0.28)'}}>
+        <div style={{transform:`scale(${size/56})`}}>{I.musicNote}</div>
+      </div>
+    );
+  }
+  if (tracks.length === 1) {
+    return <div style={{width: size, height: size, borderRadius: r, background: ART[tracks[0] % ART.length]}}/>;
+  }
+  if (tracks.length < 4) {
+    return (
+      <div style={{width: size, height: size, borderRadius: r, background: gradientFor(playlist.id),
+        display:'flex', alignItems:'center', justifyContent:'center',
+        color:'rgba(255,255,255,0.30)', fontWeight: 700,
+        fontSize: size * 0.5, fontFamily:'-apple-system, SF Pro Display, sans-serif'}}>
+        {playlist.name.charAt(0).toUpperCase()}
+      </div>
+    );
+  }
+  // 4-up
+  return (
+    <div style={{width: size, height: size, borderRadius: r, overflow:'hidden',
+      display:'grid', gridTemplateColumns:'1fr 1fr', gridTemplateRows:'1fr 1fr', gap: 1, background:'#000'}}>
+      {tracks.slice(0,4).map((t,i) => (
+        <div key={i} style={{background: ART[t % ART.length]}}/>
+      ))}
+    </div>
+  );
+}
+
+// ─── Library row: playlist ────────────────────────────────────────────
+function PlaylistRow({ playlist, onClick, last }) {
+  return (
+    <div onClick={onClick} style={{
+      display:'flex', alignItems:'center', gap: 14, padding:'10px 16px',
+      borderBottom: last ? 'none' : `0.5px solid ${C.hairline}`,
+      cursor:'pointer'}}>
+      <PlaylistCover playlist={playlist} size={56}/>
+      <div style={{flex:1, minWidth:0}}>
+        <div style={{fontSize: 17, fontWeight: 600, color: C.fg1, lineHeight: 1.25,
+          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{playlist.name}</div>
+        <div style={{fontSize: 13, color: C.fg2, marginTop: 2, fontVariantNumeric:'tabular-nums'}}>
+          {playlist.tracks.length} {playlist.tracks.length === 1 ? 'track' : 'tracks'}
+        </div>
+      </div>
+      <span style={{color: C.fg3}}>{I.chev}</span>
+    </div>
+  );
+}
+
+// ─── Recently Played row ──────────────────────────────────────────────
+function RecentlyPlayedRow({ onClick }) {
+  return (
+    <div onClick={onClick} style={{
+      display:'flex', alignItems:'center', gap: 14, padding:'14px 16px',
+      cursor:'pointer'}}>
+      <div style={{width: 32, height: 32, borderRadius: 8, background: C.surface2,
+        display:'flex', alignItems:'center', justifyContent:'center', color: C.accent}}>
+        {I.clock}
+      </div>
+      <div style={{flex:1, fontSize: 17, fontWeight: 500, color: C.fg1}}>Recently Played</div>
+      <span style={{color: C.fg3}}>{I.chev}</span>
+    </div>
+  );
+}
+
+// ─── Section header ───────────────────────────────────────────────────
+function SectionHeader({ children }) {
+  return (
+    <div style={{padding:'24px 32px 8px', fontSize: 13, fontWeight: 400, color: C.fg2,
+      textTransform:'uppercase', letterSpacing: 0.4}}>{children}</div>
+  );
+}
+
+// ─── Inset group container ────────────────────────────────────────────
+function InsetGroup({ children, style }) {
+  return (
+    <div style={{margin:'0 16px', background: C.surface, borderRadius: 12, overflow:'hidden', ...style}}>
+      {children}
+    </div>
+  );
+}
+
+// ─── Library screen ───────────────────────────────────────────────────
+const SAMPLE_PLAYLISTS = [
+  { id:'pl-001', name:'Deep Focus', tracks:[0,1,2,3,4,5,6,7,8,9,10,11] },
+  { id:'pl-002', name:'Sunday Morning', tracks:[2,4,5,7,1,0,3] },
+  { id:'pl-003', name:'Late Drives', tracks:[6,7] },
+  { id:'pl-004', name:'Workout Mix', tracks:[0,1,2,3,4,5,6,7] },
+  { id:'pl-005', name:'Live Shows 2024', tracks:[5] },
+  { id:'pl-006', name:'Saved for Later', tracks:[] },
+];
+
+function LibraryScreen({ onOpenPlaylist }) {
+  return (
+    <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column', overflow:'hidden'}}>
+      {/* Nav */}
+      <div style={{paddingTop: 54, height: 96, display:'flex', alignItems:'flex-end', justifyContent:'space-between',
+        padding:'54px 16px 0'}}>
+        <div style={{flex:1}}/>
+        <button aria-label="Create playlist" style={{
+          width: 44, height: 44, border:'none', background:'transparent', color: C.accent,
+          display:'flex', alignItems:'center', justifyContent:'center', marginRight: 4}}>
+          {I.plus}
+        </button>
+      </div>
+
+      <div className="scroll" style={{flex:1, overflowY:'auto', paddingBottom: 130}}>
+        {/* Large title */}
+        <div style={{padding:'4px 20px 10px'}}>
+          <h1 style={{fontSize: 34, fontWeight: 700, letterSpacing:-0.4, color: C.fg1, lineHeight: 1.1}}>Library</h1>
+        </div>
+
+        {/* Recently Played - own group */}
+        <div style={{height: 18}}/>
+        <InsetGroup>
+          <RecentlyPlayedRow/>
+        </InsetGroup>
+
+        {/* Playlists */}
+        <SectionHeader>Playlists</SectionHeader>
+        <InsetGroup>
+          {SAMPLE_PLAYLISTS.map((pl, i) => (
+            <PlaylistRow key={pl.id} playlist={pl}
+              last={i === SAMPLE_PLAYLISTS.length - 1}
+              onClick={() => onOpenPlaylist(pl)}/>
+          ))}
+        </InsetGroup>
+      </div>
+
+      <MiniPlayer/>
+      <TabBar active="library"/>
+    </div>
+  );
+}
+
+// ─── Track row (matches YT-0025 spec) ─────────────────────────────────
+const TRACK_CATALOG = [
+  { i:0, title:'Sunset Avenue',         channel:'Lofi Girl',         duration:'3:42' },
+  { i:1, title:'Quiet Mornings',        channel:'ChillHop Music',    duration:'4:15' },
+  { i:2, title:'Coffee & Rain',         channel:'Lofi Girl',         duration:'3:58' },
+  { i:3, title:'Tokyo Drift Slow',      channel:'Nujabes Tribute',   duration:'5:21' },
+  { i:4, title:'Late Train Home',       channel:'ChillHop Music',    duration:'3:09' },
+  { i:5, title:'Vinyl Crackle',         channel:'Soulection',        duration:'4:48' },
+  { i:6, title:'Midnight Library',      channel:'Lofi Girl',         duration:'2:54' },
+  { i:7, title:'Empty Subway',          channel:'ChillHop Music',    duration:'3:32' },
+];
+
+function TrackRow({ track, idx, last }) {
+  return (
+    <div style={{display:'flex', alignItems:'center', gap: 12, padding:'10px 16px',
+      borderBottom: last ? 'none' : `0.5px solid ${C.hairline}`}}>
+      <div style={{width: 44, height: 44, borderRadius: 6, background: ART[track.i % ART.length], flexShrink: 0}}/>
+      <div style={{flex:1, minWidth:0}}>
+        <div style={{fontSize: 16, fontWeight: 500, color: C.fg1, lineHeight: 1.25,
+          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{track.title}</div>
+        <div style={{fontSize: 13, color: C.fg2, marginTop: 2,
+          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
+          {track.channel} · {track.duration}
+        </div>
+      </div>
+      <button style={{width: 28, height: 44, border:'none', background:'transparent',
+        color: C.fg2, display:'flex', alignItems:'center', justifyContent:'center'}}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      </button>
+    </div>
+  );
+}
+
+// ─── PlaylistDetail screen ────────────────────────────────────────────
+function PlaylistDetailScreen({ playlist, onBack }) {
+  const [scrollY, setScrollY] = React.useState(0);
+  const progress = Math.max(0, Math.min(1, scrollY / 180));
+  const coverSize = 240 - (240 - 64) * progress;
+  const tracks = playlist.tracks.map(i => TRACK_CATALOG[i % TRACK_CATALOG.length]);
+  const totalSec = tracks.reduce((acc, t) => {
+    const [m, s] = t.duration.split(':').map(Number);
+    return acc + m * 60 + s;
+  }, 0);
+  const totalLabel = totalSec >= 3600
+    ? `${Math.floor(totalSec/3600)} hr ${Math.floor((totalSec%3600)/60)} min`
+    : `${Math.floor(totalSec/60)} min`;
+
+  const collapsed = progress > 0.7;
+
+  return (
+    <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column', overflow:'hidden'}}>
+      {/* Nav */}
+      <div style={{position:'absolute', left:0, right:0, top: 0, height: 96, zIndex: 10,
+        background: collapsed ? 'rgba(0,0,0,0.8)' : 'transparent',
+        backdropFilter: collapsed ? 'blur(20px)' : 'none',
+        WebkitBackdropFilter: collapsed ? 'blur(20px)' : 'none',
+        borderBottom: collapsed ? `0.5px solid ${C.hairline}` : 'none',
+        transition:'background 200ms ease',
+        display:'flex', alignItems:'flex-end', justifyContent:'space-between', padding:'54px 8px 0'}}>
+        <button onClick={onBack} aria-label="Back" style={{
+          width: 44, height: 44, border:'none', background:'transparent', color: C.accent,
+          display:'flex', alignItems:'center', justifyContent:'center'}}>
+          {I.chevBack}
+        </button>
+        <div style={{flex:1, textAlign:'center', fontSize: 17, fontWeight: 600, color: C.fg1,
+          opacity: collapsed ? 1 : 0, transition:'opacity 180ms ease',
+          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', padding:'0 8px'}}>
+          {playlist.name}
+        </div>
+        <button aria-label="More" style={{
+          width: 44, height: 44, border:'none', background:'transparent', color: C.accent,
+          display:'flex', alignItems:'center', justifyContent:'center'}}>
+          {I.ellipsis}
+        </button>
+      </div>
+
+      <div className="scroll" style={{flex:1, overflowY:'auto', paddingTop: 96, paddingBottom: 130}}
+        onScroll={e => setScrollY(e.target.scrollTop)}>
+
+        {/* Cover */}
+        <div style={{height: 248, display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop: 8}}>
+          <div style={{
+            width: coverSize, height: coverSize,
+            boxShadow: `0 ${20 - 16*progress}px ${40 - 30*progress}px rgba(0,0,0,${0.5 - 0.3*progress})`,
+            transition:'none'}}>
+            <PlaylistCover playlist={playlist} size={coverSize}/>
+          </div>
+        </div>
+
+        {/* Title block */}
+        <div style={{padding:'16px 20px 0', textAlign:'center'}}>
+          <div style={{fontSize: 22, fontWeight: 700, color: C.fg1, letterSpacing:-0.2}}>{playlist.name}</div>
+          <div style={{fontSize: 13, color: C.fg2, marginTop: 4, fontVariantNumeric:'tabular-nums'}}>
+            {tracks.length} {tracks.length === 1 ? 'track' : 'tracks'} · {totalLabel}
+          </div>
+        </div>
+
+        {/* Play / Shuffle */}
+        <div style={{padding:'16px 16px 8px', display:'flex', gap: 12}}>
+          <button style={{flex:1, height: 50, border:'none', borderRadius: 12,
+            background: C.accent, color:'#fff', fontWeight: 600, fontSize: 16, fontFamily:'inherit',
+            display:'flex', alignItems:'center', justifyContent:'center', gap: 8,
+            boxShadow:'0 4px 12px rgba(139,92,246,0.3)', cursor:'pointer'}}>
+            {I.play} Play
+          </button>
+          <button style={{flex:1, height: 50, border:'none', borderRadius: 12,
+            background:'rgba(255,255,255,0.10)', color: C.fg1, fontWeight: 600, fontSize: 16, fontFamily:'inherit',
+            display:'flex', alignItems:'center', justifyContent:'center', gap: 8, cursor:'pointer'}}>
+            {I.shuffle} Shuffle
+          </button>
+        </div>
+
+        {/* Track list */}
+        <div style={{padding:'8px 0 24px'}}>
+          {tracks.map((t, i) => (
+            <TrackRow key={i} track={t} idx={i} last={i === tracks.length - 1}/>
+          ))}
+        </div>
+      </div>
+
+      <MiniPlayer/>
+      <TabBar active="library"/>
+    </div>
+  );
+}
+
+// ─── App shell ────────────────────────────────────────────────────────
+function App() {
+  const [route, setRoute] = React.useState({ screen: 'library' });
+  const [coverMode, setCoverMode] = React.useState('hybrid'); // hybrid | force-4up | force-gradient
+  const [scenario, setScenario] = React.useState('populated'); // populated | empty
+
+  const playlistsView = SAMPLE_PLAYLISTS;
+
+  return (
+    <>
+      {/* Phone */}
+      {route.screen === 'library'
+        ? <LibraryScreen onOpenPlaylist={pl => setRoute({ screen:'detail', playlist: pl })}/>
+        : <PlaylistDetailScreen playlist={route.playlist} onBack={() => setRoute({ screen:'library' })}/>}
+
+      {/* Side panel */}
+      {ReactDOM.createPortal(<Ctrls route={route} setRoute={setRoute}/>, document.getElementById('ctrls'))}
+    </>
+  );
+}
+
+function Ctrls({ route, setRoute }) {
+  return (
+    <div>
+      <div className="panel">
+        <h2>Screen</h2>
+        <div className="row">
+          <div className="seg">
+            <button className={route.screen === 'library' ? 'on' : ''}
+              onClick={() => setRoute({ screen:'library' })}>Library</button>
+            <button className={route.screen === 'detail' ? 'on' : ''}
+              onClick={() => setRoute({ screen:'detail', playlist: SAMPLE_PLAYLISTS[0] })}>Playlist Detail</button>
+          </div>
+        </div>
+
+        {route.screen === 'detail' && (
+          <div className="row" style={{marginTop: 12}}>
+            <label>Open playlist</label>
+            <div className="seg">
+              {SAMPLE_PLAYLISTS.slice(0, 4).map(pl => (
+                <button key={pl.id}
+                  className={route.playlist?.id === pl.id ? 'on' : ''}
+                  onClick={() => setRoute({ screen:'detail', playlist: pl })}>
+                  {pl.name.split(' ')[0]} <span style={{opacity:0.5, marginLeft:4}}>{pl.tracks.length}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="note">
+          Library demonstrates the inset-grouped list, large title, Recently Played row, and
+          mixed cover treatments (1 / 2-3 / 4+ tracks). Tap any playlist to push to PlaylistDetail.
+        </div>
+      </div>
+
+      <div className="panel">
+        <h2>Cover composition (Q1)</h2>
+        <div className="kv">
+          <span className="k">0 tracks</span><span className="v">Gradient + music.note</span>
+          <span className="k">1 track</span><span className="v">Single artwork</span>
+          <span className="k">2-3 tracks</span><span className="v">Gradient + first letter</span>
+          <span className="k">≥4 tracks</span><span className="v">2×2 grid</span>
+        </div>
+        <div className="note">
+          Gradients are deterministic per playlist UUID — hash → 2 oklch stops in same lightness band
+          (L 0.45/0.30, C 0.12). Never re-rolls between launches. The "Saved for Later" row in the
+          Library shows the 0-track fallback; "Late Drives" shows 2-3.
+        </div>
+      </div>
+
+      <div className="panel">
+        <h2>Decisions visible here</h2>
+        <div className="kv">
+          <span className="k">Q2 List style</span><span className="v">.insetGrouped</span>
+          <span className="k">Q3 Detail header</span><span className="v">Parallax 240→64pt</span>
+          <span className="k">Q4 Action row</span><span className="v">Play + Shuffle (Share→ellipsis)</span>
+          <span className="k">Q10 Recently P.</span><span className="v">Generic row → push</span>
+        </div>
+        <div className="note">
+          Scroll the PlaylistDetail screen to see the parallax cover shrink and the inline title
+          fade in. Edit-mode, sheets, and empty state live in <strong>mockup-states.html</strong>.
+        </div>
+      </div>
+
+      <div className="panel">
+        <h2>Tokens</h2>
+        <div className="kv">
+          <span className="k">bg</span><span className="v">#000</span>
+          <span className="k">surface</span><span className="v">#1C1C1E</span>
+          <span className="k">surface2</span><span className="v">#2C2C2E</span>
+          <span className="k">accent</span><span className="v">#8B5CF6</span>
+          <span className="k">red</span><span className="v">#FF453A</span>
+          <span className="k">radius cover</span><span className="v">8 / 12 pt</span>
+          <span className="k">radius card</span><span className="v">12 pt</span>
+        </div>
+      </div>
+
+      <div className="panel">
+        <h2>Files</h2>
+        <div className="kv">
+          <span className="k">Decisions</span><span className="v">decision-log.md</span>
+          <span className="k">Implementation</span><span className="v">swiftui-spec.md</span>
+          <span className="k">More states</span><span className="v">mockup-states.html</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('screen-root')).render(<App/>);
+</script>
+
+</body>
+</html>

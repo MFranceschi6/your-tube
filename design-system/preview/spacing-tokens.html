@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { background: var(--color-bg); padding: 20px; }
+.tokens { display: flex; flex-direction: column; gap: 0; }
+.token-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--color-border); }
+.token-row:last-child { border-bottom: none; }
+.token-name { font-family: var(--font-mono); font-size: 11px; color: var(--color-accent); width: 80px; flex-shrink: 0; }
+.token-val { font-family: var(--font-mono); font-size: 11px; color: var(--color-fg-tertiary); width: 36px; flex-shrink: 0; }
+.bar-wrap { flex: 1; display: flex; align-items: center; }
+.bar { background: var(--color-accent); border-radius: 2px; height: 12px; }
+</style>
+</head>
+<body>
+<div class="tokens">
+  <div class="token-row"><span class="token-name">--space-xs</span><span class="token-val">4px</span><div class="bar-wrap"><div class="bar" style="width:4px"></div></div></div>
+  <div class="token-row"><span class="token-name">--space-sm</span><span class="token-val">8px</span><div class="bar-wrap"><div class="bar" style="width:8px"></div></div></div>
+  <div class="token-row"><span class="token-name">--space-md</span><span class="token-val">16px</span><div class="bar-wrap"><div class="bar" style="width:16px"></div></div></div>
+  <div class="token-row"><span class="token-name">--space-lg</span><span class="token-val">24px</span><div class="bar-wrap"><div class="bar" style="width:24px"></div></div></div>
+  <div class="token-row"><span class="token-name">--space-xl</span><span class="token-val">32px</span><div class="bar-wrap"><div class="bar" style="width:32px"></div></div></div>
+  <div class="token-row"><span class="token-name">--space-2xl</span><span class="token-val">48px</span><div class="bar-wrap"><div class="bar" style="width:48px"></div></div></div>
+  <div class="token-row"><span class="token-name">--space-3xl</span><span class="token-val">64px</span><div class="bar-wrap"><div class="bar" style="width:64px"></div></div></div>
+</div>
+</body>
+</html>

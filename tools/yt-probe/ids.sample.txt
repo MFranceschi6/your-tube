@@ -1,0 +1,9 @@
+# label,videoId — comments + blank lines OK.
+# labels with "live" in them are treated as livestream candidates by H1 hypothesis check.
+# Replace / extend with the exact IDs that misbehaved during YT-0033 manual validation.
+
+short,jNQXAC9IVRw
+music-evergreen,dQw4w9WgXcQ
+long-vod,9bZkp7q19f0
+livestream-247-lofi,jfKfPfyJRdk
+podcast-long,5qap5aO4i9A

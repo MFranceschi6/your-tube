@@ -1,12 +1,4 @@
 package com.yourtube.app
 
-import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
-
-/**
- * Stub MediaSessionService so the manifest declaration resolves.
- * Real playback wiring belongs in :core:player.
- */
-class PlaybackServiceStub : MediaSessionService() {
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = null
-}
+// PlaybackServiceStub has been superseded by com.yourtube.core.player.PlaybackService.
+// This file is kept as a tombstone; it will be removed in a follow-up cleanup task.

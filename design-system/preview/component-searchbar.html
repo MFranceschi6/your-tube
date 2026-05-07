@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { background: var(--color-bg); padding: 16px; display: flex; flex-direction: column; gap: 20px; }
+.label { font-family: var(--font-mono); font-size: 10px; color: var(--color-fg-tertiary); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+
+/* Searchbar */
+.searchbar-wrap { display: flex; align-items: center; gap: 10px; }
+.searchbar {
+  flex: 1; display: flex; align-items: center; gap: 10px;
+  height: 44px; padding: 0 14px;
+  background: var(--color-surface-variant);
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  transition: border-color var(--transition-std), background var(--transition-std);
+}
+.searchbar.focused { border-color: var(--color-accent); background: var(--color-surface); }
+.searchbar svg { width: 18px; height: 18px; color: var(--color-fg-tertiary); flex-shrink: 0; }
+.searchbar input { flex: 1; background: none; border: none; outline: none; font-family: var(--font-sans); font-size: 15px; color: var(--color-fg-primary); }
+.searchbar input::placeholder { color: var(--color-fg-tertiary); }
+.cancel-btn { font-family: var(--font-sans); font-size: 15px; font-weight: 500; color: var(--color-accent); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+
+/* Playlist rows */
+.playlist-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; background: var(--color-surface); cursor: pointer;
+  transition: background var(--transition-std);
+}
+.playlist-row:hover { background: var(--color-surface-variant); }
+.playlist-row + .playlist-row { border-top: 1px solid var(--color-border); }
+.playlist-row:first-child { border-radius: 12px 12px 0 0; }
+.playlist-row:last-child { border-radius: 0 0 12px 12px; }
+.playlist-cover {
+  width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2px;
+  overflow: hidden; background: var(--color-surface-variant);
+}
+.cover-cell { background: var(--color-surface-high); }
+.cover-cell:nth-child(1) { background: #3D1F7A; }
+.cover-cell:nth-child(2) { background: #1F3A7A; }
+.cover-cell:nth-child(3) { background: #1F6A4A; }
+.cover-cell:nth-child(4) { background: #6A3A1F; }
+.pl-info { flex: 1; min-width: 0; }
+.pl-name { font-size: 15px; font-weight: 500; color: var(--color-fg-primary); font-family: var(--font-sans); }
+.pl-count { font-size: 12px; color: var(--color-fg-secondary); font-family: var(--font-sans); margin-top: 2px; }
+.pl-chevron { color: var(--color-fg-tertiary); font-size: 16px; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="label">SearchBar states</div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div class="searchbar-wrap">
+        <div class="searchbar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input placeholder="Search" readonly>
+        </div>
+      </div>
+      <div class="searchbar-wrap">
+        <div class="searchbar focused">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input value="lofi beats" readonly style="color:var(--color-fg-primary)">
+          <svg viewBox="0 0 24 24" fill="currentColor" style="color:var(--color-fg-tertiary);width:16px;height:16px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15" stroke="var(--color-surface-variant)" stroke-width="2"/><line x1="9" y1="9" x2="15" y2="15" stroke="var(--color-surface-variant)" stroke-width="2"/></svg>
+        </div>
+        <span class="cancel-btn">Cancel</span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="label">PlaylistRow</div>
+    <div>
+      <div class="playlist-row">
+        <div class="playlist-cover"><div class="cover-cell"></div><div class="cover-cell"></div><div class="cover-cell"></div><div class="cover-cell"></div></div>
+        <div class="pl-info"><div class="pl-name">Lofi Chill</div><div class="pl-count">24 tracks</div></div>
+        <span class="pl-chevron">›</span>
+      </div>
+      <div class="playlist-row">
+        <div class="playlist-cover" style="background:var(--color-surface-variant);align-items:center;justify-content:center;display:flex;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.3)" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <div class="pl-info"><div class="pl-name">Rock Classics</div><div class="pl-count">8 tracks</div></div>
+        <span class="pl-chevron">›</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

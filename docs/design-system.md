@@ -2,6 +2,27 @@
 
 Shared product-level design rules. Each platform implements these idiomatically — Material 3 on Android, native SwiftUI on iOS. Do not force one platform's idioms onto the other.
 
+## Implementation references
+
+- `.agents/skills/yourtube-design/SKILL.md` defines the project-facing `yourtube-design` skill; `design-system/SKILL.md` remains the design-system source from the generated folder.
+- `design-system/mockups/MOCKUP_INDEX.md` maps UI task IDs to their primary HTML mockups and lists the handoff packages.
+- `design-system/colors_and_type.css` and `design-system/preview/` are token and component references for prototyping.
+- `design-system/ui_kits/app/` contains reusable web prototype components; production code should translate the intent into Compose or SwiftUI idioms.
+
+## Handoff packages
+
+Per-surface implementation specs live under `design-system/handoff/<TICKET>/`. Each folder is the **source of truth** for its surface — it overrides the corresponding HTML mockup wherever the two disagree. Read `README.md` first, then `decision-log.md`, then `compose-spec.md` (Android) or `swiftui-spec.md` (iOS).
+
+- `design-system/handoff/YT-0011/` — Android app shell (audit + decisions)
+- `design-system/handoff/YT-0013/` — Android Now Playing
+- `design-system/handoff/YT-0014/` — Android Library (Playlists-only MVP; post-MVP tabs in `v1x-tabs-addendum.md`)
+- `design-system/handoff/YT-0027/` — iOS Now Playing
+- `design-system/handoff/YT-0028/` — iOS Library
+- `design-system/handoff/state-catalog/` — Cross-platform empty / loading / error state catalog
+- `design-system/handoff/YT-0074/` — Cross-platform MiniPlayer ↔ NowPlaying motion spec (linked from § Motion below)
+
+Index across all handoffs: `design-system/mockups/MOCKUP_INDEX.md`.
+
 ## Foundations
 
 ### Color
@@ -57,7 +78,7 @@ Names are conceptual; each platform implements its own type.
 ## Motion
 
 - Standard easing, 200–300 ms for most transitions.
-- Now-playing entry: shared-element transition from `MiniPlayer` artwork to `NowPlayingScreen` artwork on both platforms.
+- Now-playing entry: shared-element transition from `MiniPlayer` artwork to `NowPlayingScreen` artwork on both platforms. See `design-system/handoff/YT-0074/motion-spec.md` for canonical durations, easings, reduce-motion fallback, and per-platform mapping.
 - Reduce-motion respected (Android `Settings.Global.TRANSITION_ANIMATION_SCALE`, iOS `UIAccessibility.isReduceMotionEnabled`).
 
 ## Accessibility
@@ -75,6 +96,8 @@ Three required states for every list-driven screen:
 - **Loading** — skeleton rows (preferred) or spinner.
 - **Empty** — `EmptyState` with actionable copy ("Search for something to start listening").
 - **Error** — `ErrorState` with retry.
+
+Canonical per-screen catalog with copy, icons, and retry contracts: `design-system/handoff/state-catalog/`.
 
 ## Out of scope (for now)
 

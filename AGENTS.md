@@ -35,6 +35,7 @@ Before changing code:
 - Use `depends_on` for hard task prerequisites. A task with incomplete dependencies should normally be `status: blocked`; `links` are only contextual.
 - Current task notes should carry MVP roadmap metadata: `milestone: MVP`, `epic`, `phase`, `blocked_reason`, `validation_command`, and minimal tags `task` and `mvp`.
 - If a task is too large for one focused implementation and review, split it before implementation using `parent_id`, `child_tasks`, and `split_reason`; keep each child independently validatable.
+- Prefer platform parity waves over task-by-task ping-pong: finish a small iOS checkpoint first, then use the corresponding Android tasks as the parity pass unless the user explicitly asks for simultaneous cross-platform work. iOS leads because design mockups land there first.
 - Default implementation profiles are `android-engineer` for `platform: android`, `ios-engineer` for `platform: ios`, `shared-contract-engineer` for `platform: shared`, `docs-maintainer` for `platform: docs`, and `build-ops-engineer` for `platform: ops`. Default code review uses `mobile-reviewer`; planning review uses `obsidian-task-reviewer`.
 
 ## Android commands

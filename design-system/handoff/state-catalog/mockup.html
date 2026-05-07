@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YT-0073 — Empty / Loading / Error Catalog</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  min-height: 100%;
+  background: #0a0a0a;
+  font-family: 'Geist', -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  color: #EBEBF5;
+}
+body { padding: 32px 24px 96px; }
+
+.page-head {
+  max-width: 1640px; margin: 0 auto 32px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 18px;
+  flex-wrap: wrap;
+}
+.page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #fff; }
+.page-head .meta { font-size: 12px; color: rgba(235,235,245,0.5); font-family: 'Geist Mono', 'SF Mono', monospace; }
+.page-head .badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  background: rgba(139,92,246,0.18); color: #B794F6;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-right: 8px;
+}
+
+.section-head {
+  max-width: 1640px; margin: 48px auto 20px;
+  display: flex; align-items: baseline; gap: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px;
+}
+.section-head h2 {
+  font-size: 16px; font-weight: 600; color: #fff; letter-spacing: -0.01em;
+}
+.section-head .pill {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  background: rgba(139,92,246,0.15); color: #B794F6;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+  font-family: 'Geist Mono', monospace;
+}
+.section-head .lede {
+  font-size: 13px; color: rgba(235,235,245,0.55); flex: 1;
+}
+
+.grid {
+  max-width: 1640px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px 24px;
+}
+
+.cell { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.cell .meta { width: 100%; max-width: 380px; }
+.cell .meta .row1 { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.cell .meta .id {
+  display: inline-block; padding: 2px 7px; border-radius: 4px;
+  background: rgba(139,92,246,0.15); color: #B794F6;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  font-family: 'Geist Mono', monospace;
+}
+.cell .meta .platform {
+  display: inline-block; padding: 2px 7px; border-radius: 4px;
+  background: rgba(255,255,255,0.06); color: rgba(235,235,245,0.65);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+  font-family: 'Geist Mono', monospace;
+}
+.cell .meta .title {
+  color: #fff; font-weight: 600; font-size: 13px;
+}
+.cell .meta .desc {
+  color: rgba(235,235,245,0.55); font-size: 12px; line-height: 1.5;
+}
+
+/* iOS phone */
+.ios-phone {
+  width: 393px; height: 852px;
+  background: #000;
+  border-radius: 52px;
+  box-shadow: 0 0 0 2px #2a2a2a, 0 24px 60px rgba(0,0,0,0.6), inset 0 0 0 1px #444;
+  position: relative; overflow: hidden;
+  font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  transform: scale(0.7); transform-origin: top center;
+  margin-bottom: -255px;
+}
+.ios-phone .island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 124px; height: 36px; background: #000; border-radius: 20px; z-index: 30;
+}
+.ios-phone .statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 54px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 28px 10px; z-index: 20; pointer-events: none;
+  font-size: 15px; font-weight: 600; color: #fff;
+}
+
+/* Android phone */
+.android-phone {
+  width: 360px; height: 800px;
+  background: #000;
+  border-radius: 36px;
+  box-shadow: 0 0 0 2px #2a2a2a, 0 24px 60px rgba(0,0,0,0.6), inset 0 0 0 1px #444;
+  position: relative; overflow: hidden;
+  font-family: 'Roboto', -apple-system, sans-serif;
+  transform: scale(0.7); transform-origin: top center;
+  margin-bottom: -240px;
+}
+.android-phone .punch {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 14px; height: 14px; background: #000; border-radius: 50%; z-index: 30;
+  box-shadow: inset 0 0 0 1px #1a1a1a;
+}
+.android-phone .statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; z-index: 20; pointer-events: none;
+  font-size: 13px; font-weight: 500; color: #fff;
+}
+
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+@keyframes blink { 50% { opacity: 0.4; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.skel {
+  position: relative; overflow: hidden; background: #2C2C2E;
+}
+.skel::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);
+  animation: shimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skel::after { animation: none; }
+}
+
+/* Note callout */
+.note {
+  max-width: 1640px; margin: 0 auto 28px;
+  background: rgba(139,92,246,0.08);
+  border-left: 3px solid #8B5CF6;
+  padding: 14px 18px; border-radius: 0 8px 8px 0;
+  font-size: 13px; line-height: 1.55; color: rgba(235,235,245,0.78);
+}
+.note strong { color: #fff; }
+.note code { font-family: 'Geist Mono', monospace; font-size: 12px; background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; color: #B794F6; }
+
+.legend {
+  max-width: 1640px; margin: 0 auto 32px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+}
+.legend .item {
+  background: #1C1C1E; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px; padding: 14px 16px;
+}
+.legend .item .k { font-family: 'Geist Mono', monospace; font-size: 11px; color: #B794F6; letter-spacing: 0.04em; margin-bottom: 6px; }
+.legend .item .v { font-size: 13px; color: #fff; font-weight: 500; line-height: 1.4; }
+.legend .item .d { font-size: 11px; color: rgba(235,235,245,0.5); margin-top: 4px; line-height: 1.4; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div>
+    <span class="badge">YT-0073 · CATALOG</span>
+    <h1 style="display:inline-block;">Empty / Loading / Error states — every cell, both platforms</h1>
+  </div>
+  <div class="meta">YourTube · Dark theme · #8B5CF6 · iOS-393 + Android-360</div>
+</div>
+
+<div class="legend">
+  <div class="item">
+    <div class="k">EMPTY</div>
+    <div class="v">icon + title + body + action</div>
+    <div class="d">tertiary-color icon · 56dp · accent CTA</div>
+  </div>
+  <div class="item">
+    <div class="k">LOADING</div>
+    <div class="v">skeleton (preferred) or spinner</div>
+    <div class="d">1400ms shimmer · 80ms row stagger</div>
+  </div>
+  <div class="item">
+    <div class="k">ERROR</div>
+    <div class="v">icon + title + body + Try again</div>
+    <div class="d">icon stays tertiary, NOT red</div>
+  </div>
+  <div class="item">
+    <div class="k">SETTINGS</div>
+    <div class="v">inline overlay + inline banner</div>
+    <div class="d">no screen takeover for ops</div>
+  </div>
+</div>
+
+<div class="note">
+  <strong>How to read this catalog.</strong> Each section is one screen. Each row inside a section is one platform — iOS frame on top, Android frame below. Each card in a row is one state cell (loading / empty / error). Cell IDs (<code>C1</code>…<code>C16</code>) match <code>copy.md</code>, <code>loading.md</code>, <code>empty.md</code>, <code>error.md</code>. The two platforms are deliberately not pixel-identical — they share intent, copy, and tokens; glyphs and chrome are idiomatic.
+</div>
+
+<div id="root"></div>
+
+<script type="text/babel">
+const C = {
+  bg:        '#0F0F0F',
+  surface:   '#1C1C1E',
+  surface2:  '#2C2C2E',
+  surface3:  '#3A3A3C',
+  fg1:       '#FFFFFF',
+  fg2:       'rgba(235,235,245,0.80)',
+  fg3:       'rgba(235,235,245,0.40)',
+  fg4:       'rgba(235,235,245,0.25)',
+  hairline:  'rgba(255,255,255,0.08)',
+  accent:    '#8B5CF6',
+  accentDim: '#7C3AED',
+  red:       '#FF453A',
+  redSurf:   'rgba(255,69,58,0.12)',
+};
+
+const ART = [
+  'linear-gradient(135deg, #5B2A86 0%, #2B6CB0 100%)',
+  'linear-gradient(135deg, #C05621 0%, #742A2A 100%)',
+  'linear-gradient(135deg, #2D3748 0%, #1A202C 100%)',
+  'linear-gradient(135deg, #38A169 0%, #1A4731 100%)',
+  'linear-gradient(135deg, #D69E2E 0%, #744210 100%)',
+  'linear-gradient(135deg, #4A5568 0%, #2D3748 100%)',
+];
+
+// ─── ICONS (SF Symbols on iOS, Material Symbols rounded on Android) ─────
+// Drawn as SVG to approximate the platform's bundled glyphs.
+
+const SF = {
+  search:        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>,
+  musicListLg:   <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="12" x2="13" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/><circle cx="17" cy="17" r="3" fill="currentColor"/><path d="M20 17V7l-3 1"/></svg>,
+  musicNoteLg:   <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3" fill="currentColor"/><circle cx="18" cy="16" r="3" fill="currentColor"/></svg>,
+  clockHistLg:   <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3,3 3,8 8,8"/><polyline points="12,7 12,12 15.5,14"/></svg>,
+  warnTriLg:     <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.7L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17.01"/></svg>,
+  wifiOffLg:     <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="2" x2="22" y2="22"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.82A15 15 0 0 1 6.7 6"/><path d="M10.7 2.07a16 16 0 0 1 11.3 4.75"/><path d="M16.85 11.25a10 10 0 0 1 2.4 1.65"/><line x1="12" y1="20" x2="12" y2="20.01"/></svg>,
+  // small/inline
+  chev:          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="9,6 15,12 9,18"/></svg>,
+  chevBack:      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="15,6 9,12 15,18"/></svg>,
+  clock:         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,7 12,12 15.5,14"/></svg>,
+  searchSm:      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>,
+  librarySm:     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg>,
+  settingsSm:    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>,
+  warnSm:        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.7L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12" y2="17.01"/></svg>,
+  play:          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 21,12 6,21"/></svg>,
+};
+
+// Material Symbols rounded variants — slightly heavier, geometric, rounded line-ends.
+const MS = {
+  search:        <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 16q-2.71 0-4.605-1.895Q3 12.21 3 9.5q0-2.71 1.895-4.605Q6.79 3 9.5 3q2.71 0 4.605 1.895Q16 6.79 16 9.5q0 1.215-.402 2.31-.403 1.097-1.073 1.94l5.625 5.624q.213.213.213.524t-.213.524q-.215.214-.526.214-.31 0-.524-.214l-5.625-5.625q-.92.71-2.012 1.108Q10.27 16 9.5 16zm0-1.5q2.094 0 3.547-1.453T14.5 9.5q0-2.094-1.453-3.547T9.5 4.5Q7.405 4.5 5.953 5.953T4.5 9.5q0 2.094 1.453 3.547T9.5 14.5z"/></svg>,
+  searchOff:     <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor"><path d="M19.8 22.6 14 16.8q-.95.6-2.075.9-1.125.3-2.425.3-2.71 0-4.605-1.895Q3 14.21 3 11.5q0-1.3.3-2.425.3-1.125.9-2.075L1.4 3.6q-.275-.275-.275-.7t.275-.7q.275-.275.7-.275t.7.275l18.4 18.4q.275.275.275.7t-.275.7q-.275.275-.7.275t-.7-.275zm-10.3-7.6q.45 0 .8-.075.35-.075.7-.225L5.3 10q-.15.35-.225.7-.075.35-.075.8 0 1.875 1.313 3.188Q7.625 16 9.5 16zm6.55-1.65L13.6 12.9q.075-.35.138-.7.062-.35.062-.7 0-1.875-1.312-3.188Q11.175 7 9.3 7q-.35 0-.7.063-.35.062-.7.137L5.45 4.75q.95-.5 2.013-.625Q8.525 4 9.5 4q3.125 0 5.313 2.188Q17 8.375 17 11.5q0 .975-.225 2.013-.225 1.037-.725 1.987z"/></svg>,
+  libraryMusic:  <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor"><path d="M14.5 19q-1.45 0-2.475-1.025Q11 16.95 11 15.5q0-1.45 1.025-2.475Q13.05 12 14.5 12q.5 0 .938.125.437.125.812.375V6q0-.425.288-.713Q16.825 5 17.25 5h2.75q.425 0 .713.288.287.287.287.712 0 .425-.287.713Q20.425 7 20 7h-2.5v8.5q0 1.45-1.025 2.475Q15.45 19 14.5 19zM5 16q-.825 0-1.412-.587Q3 14.825 3 14V5q0-.825.588-1.413Q4.175 3 5 3h6q.825 0 1.413.587Q13 4.175 13 5v9q0 .825-.587 1.413Q11.825 16 11 16zm0-2h6V5H5v9zm-2 7q-.425 0-.713-.288Q2 20.425 2 20q0-.425.287-.712Q2.575 19 3 19h12q.425 0 .713.288.287.287.287.712 0 .425-.287.712Q15.425 21 15 21z"/></svg>,
+  musicNote:     <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor"><path d="M9 18q-1.25 0-2.125-.875T6 15q0-1.25.875-2.125T9 12q.55 0 1 .137.45.138.85.4V5q0-.425.288-.713Q11.425 4 11.85 4h4.4q.425 0 .713.287.287.288.287.713v2q0 .425-.287.713Q16.675 8 16.25 8H13v7q0 1.25-.875 2.125T10 18z"/></svg>,
+  history:       <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21q-3.275 0-5.738-2.075Q3.8 16.85 3.275 13.6q-.05-.4.225-.713.275-.312.7-.337.4-.025.7.225.3.25.375.625.45 2.55 2.413 4.225Q9.65 19.3 12 19.3q2.85 0 4.825-2T18.8 12.45q0-2.85-2-4.825T11.95 5.65q-1.65 0-3.075.738T6.45 8.45h2.05q.425 0 .713.287.287.288.287.713 0 .425-.287.713-.288.287-.713.287H4.5q-.425 0-.712-.287Q3.5 9.875 3.5 9.45V5.4q0-.425.287-.713.288-.287.713-.287.425 0 .713.287.287.288.287.713V7q1.4-1.4 3.213-2.2 1.812-.8 3.737-.8 1.875 0 3.525.713 1.65.712 2.875 1.937 1.225 1.225 1.938 2.875.712 1.65.712 3.525 0 1.875-.712 3.525-.713 1.65-1.938 2.875-1.225 1.225-2.875 1.937Q13.875 21 12 21zm.65-9.4 2.55 2.55q.275.275.275.7 0 .425-.275.7-.275.275-.7.275-.425 0-.7-.275l-2.85-2.85q-.15-.15-.225-.337-.075-.188-.075-.388V8.95q0-.425.288-.712.287-.288.712-.288.425 0 .713.288.287.287.287.712z"/></svg>,
+  errorOut:      <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17q.425 0 .713-.288Q13 16.425 13 16q0-.425-.287-.712Q12.425 15 12 15q-.425 0-.712.288Q11 15.575 11 16q0 .425.288.712Q11.575 17 12 17zm-1-4h2V7h-2zm1 9q-2.075 0-3.9-.788-1.825-.787-3.175-2.137-1.35-1.35-2.137-3.175Q2 14.075 2 12t.788-3.9q.787-1.825 2.137-3.175 1.35-1.35 3.175-2.138Q9.925 2 12 2t3.9.787q1.825.788 3.175 2.138 1.35 1.35 2.138 3.175Q22 9.925 22 12t-.787 3.9q-.788 1.825-2.138 3.175-1.35 1.35-3.175 2.137Q14.075 22 12 22zm0-2q3.35 0 5.675-2.325Q20 15.35 20 12q0-3.35-2.325-5.675Q15.35 4 12 4 8.65 4 6.325 6.325 4 8.65 4 12q0 3.35 2.325 5.675Q8.65 20 12 20z"/></svg>,
+  wifiOff:       <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor"><path d="M19.775 14.85q-.275 0-.512-.137-.238-.138-.388-.388-.625-1.025-1.625-1.65-1-.625-2.25-.625h-.55l-2-2q.65-.225 1.275-.325.625-.1 1.275-.1 1.825 0 3.388.95 1.562.95 2.387 2.55.225.4.075.838-.15.437-.575.7-.15.075-.3.137-.15.062-.3.05zm-3.275 3.225q-.275 0-.512-.087-.238-.088-.413-.263L6.6 8.55q-1.125.4-2.075 1.062-.95.663-1.7 1.563-.275.325-.7.413-.425.087-.825-.163-.4-.275-.475-.713-.075-.437.225-.787.85-1 1.875-1.738 1.025-.737 2.225-1.262L1.4 3.4q-.275-.275-.275-.7 0-.425.275-.7.275-.275.7-.275t.7.275l18.4 18.4q.275.275.275.7t-.275.7q-.275.275-.7.275t-.7-.275L17.025 18l-.525.075zM12 21q-.625 0-1.062-.438Q10.5 20.125 10.5 19.5q0-.625.438-1.062Q11.375 18 12 18q.625 0 1.062.438.438.437.438 1.062 0 .625-.438 1.062Q12.625 21 12 21z"/></svg>,
+  // small / inline
+  chevSm:        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9,6 15,12 9,18"/></svg>,
+  back:          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11 17q.275.275.275.7 0 .425-.275.7-.275.275-.7.275-.425 0-.7-.275L4.7 12.7q-.15-.15-.213-.325-.062-.175-.062-.375t.062-.375q.063-.175.213-.325L9.6 6.4q.275-.275.7-.275.425 0 .7.275.275.275.275.7 0 .425-.275.7L7.4 11h11.6q.425 0 .713.287.287.288.287.713 0 .425-.287.712Q19.425 13 19 13H7.4z"/></svg>,
+  searchSm:      <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M9.5 16q-2.71 0-4.605-1.895Q3 12.21 3 9.5q0-2.71 1.895-4.605Q6.79 3 9.5 3q2.71 0 4.605 1.895Q16 6.79 16 9.5q0 1.215-.402 2.31-.403 1.097-1.073 1.94l5.625 5.624q.213.213.213.524t-.213.524q-.215.214-.526.214-.31 0-.524-.214l-5.625-5.625q-.92.71-2.012 1.108Q10.27 16 9.5 16z"/></svg>,
+  librarySm:     <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M5 16q-.825 0-1.412-.587Q3 14.825 3 14V5q0-.825.588-1.413Q4.175 3 5 3h14q.825 0 1.413.587Q21 4.175 21 5v9q0 .825-.587 1.413Q19.825 16 19 16zm0-2h14V5H5zm-2 7q-.425 0-.713-.288Q2 20.425 2 20t.287-.712Q2.575 19 3 19h18q.425 0 .713.288.287.287.287.712 0 .425-.287.712Q21.425 21 21 21z"/></svg>,
+  settingsSm:    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19.5 12q0-.275-.025-.55-.025-.275-.075-.55l1.85-1.45q.25-.2.3-.5.05-.3-.1-.55l-1.75-3q-.15-.25-.45-.337-.3-.088-.575.012l-2.2.875q-.4-.275-.825-.487-.425-.213-.875-.388L13.875 2.65q-.05-.3-.275-.475Q13.375 2 13.075 2h-3.5q-.3 0-.525.175-.225.175-.275.475L8.45 4.825q-.45.175-.875.4-.425.225-.825.5l-2.2-.875q-.275-.1-.575-.012-.3.087-.45.337l-1.75 3q-.15.25-.1.55t.3.5L4.4 10.9q-.05.275-.075.55-.025.275-.025.55t.025.55q.025.275.075.55l-1.85 1.45q-.25.2-.3.5-.05.3.1.55l1.75 3q.15.25.45.337.3.088.575-.012l2.2-.875q.4.275.825.487.425.213.875.388l.35 2.425q.05.3.275.475.225.175.525.175h3.5q.3 0 .525-.175.225-.175.275-.475l.35-2.425q.45-.175.875-.4.425-.225.825-.5l2.2.875q.275.1.575.012.3-.087.45-.337l1.75-3q.15-.25.1-.55-.05-.3-.3-.5L19.6 13.1q.05-.275.075-.55.025-.275.025-.55zM12 15.5q-1.45 0-2.475-1.025Q8.5 13.45 8.5 12t1.025-2.475Q10.55 8.5 12 8.5t2.475 1.025Q15.5 10.55 15.5 12t-1.025 2.475Q13.45 15.5 12 15.5z"/></svg>,
+  add:           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11 13H6q-.425 0-.713-.288Q5 12.425 5 12q0-.425.287-.713Q5.575 11 6 11h5V6q0-.425.287-.713Q11.575 5 12 5q.425 0 .713.287Q13 5.575 13 6v5h5q.425 0 .713.287.287.288.287.713 0 .425-.287.713Q18.425 13 18 13h-5v5q0 .425-.287.712Q12.425 19 12 19q-.425 0-.713-.288Q11 18.425 11 18z"/></svg>,
+  warnSm:        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.725 21q-.275 0-.5-.137-.225-.138-.35-.363-.125-.225-.137-.488-.013-.262.137-.512l9.275-16q.15-.25.388-.375Q11.775 3 12 3q.225 0 .463.125.237.125.387.375l9.275 16q.15.25.137.512-.012.263-.137.488-.125.225-.35.363-.225.137-.5.137zM12 10q-.425 0-.712.287Q11 10.575 11 11v3q0 .425.288.712.287.288.712.288.425 0 .713-.288Q13 14.425 13 14v-3q0-.425-.287-.713Q12.425 10 12 10zm0 8q.425 0 .713-.288Q13 17.425 13 17q0-.425-.287-.712Q12.425 16 12 16q-.425 0-.712.288Q11 16.575 11 17q0 .425.288.712.287.288.712.288z"/></svg>,
+  play:          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M9.525 18.025q-.5.325-1.012.038Q8 17.775 8 17.175V6.825q0-.6.513-.888.512-.287 1.012.038l8.15 5.175q.45.3.45.85t-.45.85z"/></svg>,
+  shuffle:       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14 20q-.425 0-.712-.288Q13 19.425 13 19q0-.425.288-.712.287-.288.712-.288h2.6L4.7 6.4q-.275-.275-.275-.7 0-.425.275-.7.275-.275.7-.275.425 0 .7.275L18 16.6V14q0-.425.287-.713.288-.287.713-.287.425 0 .713.287.287.288.287.713v5q0 .425-.287.712Q19.425 20 19 20zM5.4 19.6q-.275.275-.7.275-.425 0-.7-.275-.275-.275-.275-.7 0-.425.275-.7l3-3q.275-.275.7-.275.425 0 .7.275.275.275.275.7 0 .425-.275.7zm9.2-9.2-3-3q-.275-.275-.275-.7 0-.425.275-.7.275-.275.7-.275.425 0 .7.275l3 3q.275.275.275.7 0 .425-.275.7-.275.275-.7.275-.425 0-.7-.275z"/></svg>,
+};
+
+// ─── COMMON CHROME ─────────────────────────────────────────────────────
+
+function IosStatusBar() {
+  return (
+    <>
+      <div className="island"/>
+      <div className="statusbar">
+        <span>9:41</span>
+        <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.6"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.8"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" strokeOpacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function AndroidStatusBar() {
+  return (
+    <>
+      <div className="punch"/>
+      <div className="statusbar">
+        <span style={{fontVariantNumeric:'tabular-nums'}}>9:41</span>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          <svg width="14" height="10" viewBox="0 0 14 10" fill="white"><path d="M0 8h2v2H0zM4 5h2v5H4zM8 2h2v8H8zM12 0h2v10h-2z"/></svg>
+          <svg width="14" height="10" viewBox="0 0 14 10" fill="white"><path d="M7 0L0 6.5h2.5V10h9V6.5H14L7 0z"/></svg>
+          <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><rect x="1" y="1" width="18" height="8" rx="2" stroke="white" strokeOpacity="0.7"/><rect x="2" y="2" width="14" height="6" rx="1" fill="white"/></svg>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function IosTabBar({ active = 'search' }) {
+  const tabs = [
+    { id:'search',   label:'Search',   icon: SF.searchSm },
+    { id:'library',  label:'Library',  icon: SF.librarySm },
+    { id:'settings', label:'Settings', icon: SF.settingsSm },
+  ];
+  return (
+    <div style={{position:'absolute', left:0, right:0, bottom:0, height:83,
+      background:'rgba(28,28,30,0.92)', backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)',
+      borderTop:`0.5px solid ${C.hairline}`, display:'flex', alignItems:'flex-start', paddingTop:8}}>
+      {tabs.map(t => (
+        <div key={t.id} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:3,
+          color: t.id === active ? C.accent : C.fg2}}>
+          {t.icon}
+          <div style={{fontSize:10, fontWeight:500, letterSpacing:0.1}}>{t.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AndroidNavBar({ active = 'search' }) {
+  const tabs = [
+    { id:'search',   label:'Search',   icon: MS.searchSm },
+    { id:'library',  label:'Library',  icon: MS.librarySm },
+    { id:'settings', label:'Settings', icon: MS.settingsSm },
+  ];
+  return (
+    <div style={{position:'absolute', left:0, right:0, bottom:0, height:80,
+      background:'#1F1B22', display:'flex', alignItems:'center', paddingTop:0}}>
+      {tabs.map(t => {
+        const isActive = t.id === active;
+        return (
+          <div key={t.id} style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4, height:'100%', justifyContent:'center'}}>
+            <div style={{
+              width:64, height:32, borderRadius:16,
+              background: isActive ? 'rgba(208,188,255,0.25)' : 'transparent',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              color: isActive ? '#D0BCFF' : '#CAC4D0'}}>
+              {t.icon}
+            </div>
+            <div style={{fontSize:11, fontWeight: isActive ? 600 : 500, color: isActive ? '#E6E1E5' : '#CAC4D0', letterSpacing:0.1}}>{t.label}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Reusable: device frame
+function IosPhone({ children }) {
+  return (
+    <div className="ios-phone">
+      <IosStatusBar/>
+      <div style={{position:'absolute', inset:0}}>{children}</div>
+    </div>
+  );
+}
+function AndroidPhone({ children }) {
+  return (
+    <div className="android-phone">
+      <AndroidStatusBar/>
+      <div style={{position:'absolute', inset:0}}>{children}</div>
+    </div>
+  );
+}
+
+// ─── SKELETON ATOMS ────────────────────────────────────────────────────
+
+function SkelTrackRow({ delay = 0, padH = 16 }) {
+  return (
+    <div style={{display:'flex', alignItems:'center', gap:12, padding:`14px ${padH}px`,
+      borderBottom: `0.5px solid ${C.hairline}`}}>
+      <div className="skel" style={{width:56, height:56, borderRadius:8, animationDelay:`${delay}ms`}}/>
+      <div style={{flex:1, display:'flex', flexDirection:'column', gap:8}}>
+        <div className="skel" style={{width:'62%', height:14, borderRadius:4}}/>
+        <div className="skel" style={{width:'34%', height:11, borderRadius:4}}/>
+      </div>
+    </div>
+  );
+}
+
+function SkelPlaylistRowAndroid({ delay = 0 }) {
+  return (
+    <div style={{display:'flex', alignItems:'center', gap:16, padding:'12px 16px'}}>
+      <div className="skel" style={{width:56, height:56, borderRadius:8}}/>
+      <div style={{flex:1, display:'flex', flexDirection:'column', gap:8}}>
+        <div className="skel" style={{width:'52%', height:14, borderRadius:4}}/>
+        <div className="skel" style={{width:'24%', height:11, borderRadius:4}}/>
+      </div>
+    </div>
+  );
+}
+
+function SkelPlaylistRowIos({ delay = 0 }) {
+  return (
+    <div style={{display:'flex', alignItems:'center', gap:14, padding:'10px 16px',
+      borderBottom: `0.5px solid ${C.hairline}`}}>
+      <div className="skel" style={{width:40, height:40, borderRadius:6}}/>
+      <div style={{flex:1, display:'flex', flexDirection:'column', gap:8}}>
+        <div className="skel" style={{width:'50%', height:14, borderRadius:4}}/>
+        <div className="skel" style={{width:'22%', height:11, borderRadius:4}}/>
+      </div>
+    </div>
+  );
+}
+
+// Apply staggered shimmer offsets via inline animationDelay on the ::after isn't possible from React,
+// so we use opacity animation on the row itself as a proxy of "alive" — visually equivalent enough.
+
+// ─── EMPTY / ERROR PRIMITIVE ──────────────────────────────────────────
+
+function StateView({ icon, title, body, action, secondary, accent = C.accent, platform = 'ios' }) {
+  const titleSize = 22;
+  return (
+    <div style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+      padding:'0 32px', textAlign:'center', gap:0}}>
+      <div style={{color: C.fg3, marginBottom:16}}>{icon}</div>
+      <div style={{fontSize: titleSize, fontWeight:600, color: C.fg1, letterSpacing:-0.2, lineHeight:1.2}}>{title}</div>
+      <div style={{fontSize:14, color: C.fg2, lineHeight:1.45, maxWidth:280, marginTop:8}}>{body}</div>
+      {action && (
+        <button style={{
+          marginTop:24, height:52, padding:'0 24px', border:'none', borderRadius:12,
+          background: accent, color:'#fff', fontWeight:600, fontSize:15,
+          fontFamily:'inherit', cursor:'pointer'}}>
+          {action}
+        </button>
+      )}
+      {secondary && (
+        <button style={{
+          marginTop:12, height:44, padding:'0 16px', border:'none', background:'transparent',
+          color: accent, fontWeight:600, fontSize:15, fontFamily:'inherit', cursor:'pointer'}}>
+          {secondary}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ─── SEARCH SCREEN STATES ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+
+// iOS Search header (Large title + search field below)
+function IosSearchHeader({ query = '' }) {
+  return (
+    <>
+      <div style={{paddingTop:54, padding:'54px 20px 6px'}}>
+        <h1 style={{fontSize:34, fontWeight:700, letterSpacing:-0.4, color: C.fg1, lineHeight:1.1}}>Search</h1>
+      </div>
+      <div style={{padding:'8px 16px 12px'}}>
+        <div style={{height:36, background: C.surface2, borderRadius:10, display:'flex',
+          alignItems:'center', gap:8, padding:'0 10px'}}>
+          <span style={{color: C.fg3, display:'flex'}}>{SF.searchSm}</span>
+          {query
+            ? <span style={{flex:1, fontSize:15, color: C.fg1}}>{query}</span>
+            : <span style={{flex:1, fontSize:15, color: C.fg3}}>Search</span>}
+          {query && <span style={{color: C.fg3, fontSize:13}}>✕</span>}
+        </div>
+      </div>
+    </>
+  );
+}
+// Android Search header (M3 search bar pill 56dp)
+function AndroidSearchHeader({ query = '' }) {
+  return (
+    <div style={{padding:'40px 16px 8px'}}>
+      <div style={{height:56, background:'#36343B', borderRadius:28, display:'flex',
+        alignItems:'center', gap:12, padding:'0 16px'}}>
+        <span style={{color:'#CAC4D0', display:'flex'}}>{MS.searchSm}</span>
+        {query
+          ? <span style={{flex:1, fontSize:16, color:'#E6E1E5'}}>{query}</span>
+          : <span style={{flex:1, fontSize:16, color:'#938F99'}}>Search YourTube</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─── C1 LOADING ───────────
+function SearchLoadingIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosSearchHeader query="lofi focus"/>
+        <div style={{flex:1, overflow:'hidden'}}>
+          {[0,1,2,3,4,5].map(i => <SkelTrackRow key={i} delay={i*80}/>)}
+        </div>
+        <IosTabBar active="search"/>
+      </div>
+    </IosPhone>
+  );
+}
+function SearchLoadingAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidSearchHeader query="lofi focus"/>
+        <div style={{flex:1, overflow:'hidden'}}>
+          {[0,1,2,3,4,5].map(i => <SkelTrackRow key={i} delay={i*80}/>)}
+        </div>
+        <AndroidNavBar active="search"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ─── C2 EMPTY (idle, suggestion chips) ───────────
+const SUGGESTIONS = ['lofi', 'focus', 'ambient', 'podcasts'];
+
+function SearchIdleIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosSearchHeader/>
+        <div style={{padding:'4px 16px 12px', display:'flex', flexWrap:'wrap', gap:8}}>
+          {SUGGESTIONS.map(s => (
+            <div key={s} style={{height:36, padding:'0 14px', borderRadius:18,
+              background: C.surface2, color: C.fg1, fontSize:14, fontWeight:500,
+              display:'flex', alignItems:'center'}}>{s}</div>
+          ))}
+        </div>
+        <StateView
+          icon={SF.search}
+          title="Search YourTube"
+          body="Find tracks, channels, and topics from your subscriptions."
+        />
+        <IosTabBar active="search"/>
+      </div>
+    </IosPhone>
+  );
+}
+function SearchIdleAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidSearchHeader/>
+        <div style={{padding:'4px 16px 12px', display:'flex', flexWrap:'wrap', gap:8}}>
+          {SUGGESTIONS.map(s => (
+            <div key={s} style={{height:32, padding:'0 14px', borderRadius:8,
+              background:'transparent', border:'1px solid #938F99',
+              color:'#E6E1E5', fontSize:14, fontWeight:500,
+              display:'flex', alignItems:'center'}}>{s}</div>
+          ))}
+        </div>
+        <StateView
+          icon={MS.search}
+          title="Search YourTube"
+          body="Find tracks, channels, and topics from your subscriptions."
+          accent="#D0BCFF"
+        />
+        <AndroidNavBar active="search"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ─── C3 EMPTY (no results) ───────────
+function SearchNoResultsIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosSearchHeader query="lofi xyzzy"/>
+        <StateView
+          icon={SF.search}
+          title={'No results for "lofi xyzzy"'}
+          body="Check your spelling or try a different search."
+          action="Clear search"
+        />
+        <IosTabBar active="search"/>
+      </div>
+    </IosPhone>
+  );
+}
+function SearchNoResultsAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidSearchHeader query="lofi xyzzy"/>
+        <StateView
+          icon={MS.searchOff}
+          title={'No results for "lofi xyzzy"'}
+          body="Check your spelling or try a different search."
+          action="Clear search"
+          accent="#D0BCFF"
+        />
+        <AndroidNavBar active="search"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ─── C4 ERROR (generic) ───────────
+function SearchErrorIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosSearchHeader query="lofi focus"/>
+        <StateView
+          icon={SF.warnTriLg}
+          title="Couldn't search"
+          body="Something went wrong on our end. Try again in a moment."
+          action="Try again"
+        />
+        <IosTabBar active="search"/>
+      </div>
+    </IosPhone>
+  );
+}
+function SearchErrorAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidSearchHeader query="lofi focus"/>
+        <StateView
+          icon={MS.errorOut}
+          title="Couldn't search"
+          body="Something went wrong on our end. Try again in a moment."
+          action="Try again"
+          accent="#D0BCFF"
+        />
+        <AndroidNavBar active="search"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ─── C5 ERROR (offline) ───────────
+function SearchOfflineIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosSearchHeader query="lofi focus"/>
+        <StateView
+          icon={SF.wifiOffLg}
+          title="You're offline"
+          body="Connect to the internet to search. Your saved playlists are still available in Library."
+          action="Try again"
+          secondary="Go to Library"
+        />
+        <IosTabBar active="search"/>
+      </div>
+    </IosPhone>
+  );
+}
+function SearchOfflineAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidSearchHeader query="lofi focus"/>
+        <StateView
+          icon={MS.wifiOff}
+          title="You're offline"
+          body="Connect to the internet to search. Your saved playlists are still available in Library."
+          action="Try again"
+          secondary="Go to Library"
+          accent="#D0BCFF"
+        />
+        <AndroidNavBar active="search"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ─── LIBRARY SCREEN STATES ────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+
+function IosLibraryHeader() {
+  return (
+    <>
+      <div style={{paddingTop:54, height:56, padding:'54px 16px 0',
+        display:'flex', alignItems:'center', justifyContent:'flex-end'}}>
+        <button aria-label="Create playlist" style={{
+          width:44, height:44, border:'none', background:'transparent',
+          color: C.accent, display:'flex', alignItems:'center', justifyContent:'center'}}>{MS.add}</button>
+      </div>
+      <div style={{padding:'4px 20px 10px'}}>
+        <h1 style={{fontSize:34, fontWeight:700, letterSpacing:-0.4, color: C.fg1, lineHeight:1.1}}>Library</h1>
+      </div>
+    </>
+  );
+}
+
+function IosRecentlyPlayedRow() {
+  return (
+    <div style={{margin:'8px 16px 0', background: C.surface, borderRadius:12}}>
+      <div style={{display:'flex', alignItems:'center', gap:14, padding:'14px 16px'}}>
+        <div style={{width:32, height:32, borderRadius:8, background: C.surface2,
+          display:'flex', alignItems:'center', justifyContent:'center', color: C.accent}}>{SF.clock}</div>
+        <div style={{flex:1, fontSize:17, fontWeight:500, color: C.fg1}}>Recently Played</div>
+        <span style={{color: C.fg3}}>{SF.chev}</span>
+      </div>
+    </div>
+  );
+}
+
+function AndroidLibraryHeader() {
+  return (
+    <>
+      <div style={{paddingTop:32, height:64, padding:'32px 4px 0',
+        display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+        <div style={{flex:1, padding:'0 16px', fontSize:22, fontWeight:500, color:'#E6E1E5', letterSpacing:0}}>Your library</div>
+        <button aria-label="Create playlist" style={{
+          width:48, height:48, border:'none', background:'transparent',
+          color:'#E6E1E5', display:'flex', alignItems:'center', justifyContent:'center', marginRight:4}}>{MS.add}</button>
+      </div>
+    </>
+  );
+}
+
+function AndroidRecentlyPlayedRow() {
+  return (
+    <div style={{margin:'4px 8px 0'}}>
+      <div style={{display:'flex', alignItems:'center', gap:16, padding:'12px 16px',
+        borderRadius:12}}>
+        <div style={{width:40, height:40, borderRadius:8, background:'#36343B',
+          display:'flex', alignItems:'center', justifyContent:'center', color:'#D0BCFF'}}>{SF.clock}</div>
+        <div style={{flex:1, fontSize:16, fontWeight:500, color:'#E6E1E5'}}>Recently played</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── C6 LOADING ───────────
+function LibraryLoadingIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosLibraryHeader/>
+        <IosRecentlyPlayedRow/>
+        <div style={{padding:'18px 32px 6px', fontSize:13, color: C.fg2,
+          textTransform:'uppercase', letterSpacing:0.4}}>Playlists</div>
+        <div style={{flex:1, margin:'0 16px', background: C.surface, borderRadius:12, overflow:'hidden'}}>
+          {[0,1,2,3].map(i => <SkelPlaylistRowIos key={i} delay={i*80}/>)}
+        </div>
+        <IosTabBar active="library"/>
+      </div>
+    </IosPhone>
+  );
+}
+function LibraryLoadingAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidLibraryHeader/>
+        <AndroidRecentlyPlayedRow/>
+        <div style={{padding:'18px 24px 6px', fontSize:14, fontWeight:500, color:'#CAC4D0', letterSpacing:0.1}}>Playlists</div>
+        <div style={{flex:1}}>
+          {[0,1,2,3].map(i => <SkelPlaylistRowAndroid key={i} delay={i*80}/>)}
+        </div>
+        <AndroidNavBar active="library"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ─── C7 EMPTY ───────────
+function LibraryEmptyIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosLibraryHeader/>
+        <IosRecentlyPlayedRow/>
+        <StateView
+          icon={SF.musicListLg}
+          title="No playlists yet"
+          body="Create one to organize tracks for offline listening."
+          action="Create playlist"
+        />
+        <IosTabBar active="library"/>
+      </div>
+    </IosPhone>
+  );
+}
+function LibraryEmptyAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidLibraryHeader/>
+        <AndroidRecentlyPlayedRow/>
+        <StateView
+          icon={MS.libraryMusic}
+          title="No playlists yet"
+          body="Create one to organize tracks for offline listening."
+          action="Create playlist"
+          accent="#D0BCFF"
+        />
+        <AndroidNavBar active="library"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ─── C8 ERROR ───────────
+function LibraryErrorIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosLibraryHeader/>
+        <StateView
+          icon={SF.warnTriLg}
+          title="Couldn't load your library"
+          body="Check your connection and try again."
+          action="Try again"
+        />
+        <IosTabBar active="library"/>
+      </div>
+    </IosPhone>
+  );
+}
+function LibraryErrorAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidLibraryHeader/>
+        <StateView
+          icon={MS.errorOut}
+          title="Couldn't load your library"
+          body="Check your connection and try again."
+          action="Try again"
+          accent="#D0BCFF"
+        />
+        <AndroidNavBar active="library"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ─── PLAYLIST DETAIL SCREEN STATES ────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+
+function IosPlaylistNav({ title }) {
+  return (
+    <div style={{paddingTop:54, height:56, padding:'54px 8px 0',
+      display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+      <button style={{width:44, height:44, border:'none', background:'transparent', color: C.accent,
+        display:'flex', alignItems:'center', justifyContent:'center'}}>{SF.chevBack}</button>
+      <div style={{flex:1, textAlign:'center', fontSize:17, fontWeight:600, color: C.fg1}}>{title}</div>
+      <div style={{width:44}}/>
+    </div>
+  );
+}
+
+function AndroidPlaylistNav({ title }) {
+  return (
+    <div style={{paddingTop:32, height:64, padding:'32px 4px 0',
+      display:'flex', alignItems:'center', gap:8}}>
+      <button style={{width:48, height:48, border:'none', background:'transparent', color:'#E6E1E5',
+        display:'flex', alignItems:'center', justifyContent:'center'}}>{MS.back}</button>
+      <div style={{flex:1, fontSize:22, fontWeight:500, color:'#E6E1E5'}}>{title}</div>
+    </div>
+  );
+}
+
+// ─── C9 LOADING ───────────
+function PlaylistDetailLoadingIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosPlaylistNav title=""/>
+        <div style={{padding:'12px 20px 16px', display:'flex', flexDirection:'column', alignItems:'center', gap:16}}>
+          <div className="skel" style={{width:140, height:140, borderRadius:12}}/>
+          <div className="skel" style={{width:160, height:22, borderRadius:4}}/>
+          <div className="skel" style={{width:80, height:13, borderRadius:4, marginTop:-8}}/>
+          <div style={{display:'flex', gap:12, marginTop:4}}>
+            <div className="skel" style={{width:120, height:44, borderRadius:999}}/>
+            <div className="skel" style={{width:120, height:44, borderRadius:999}}/>
+          </div>
+        </div>
+        <div style={{flex:1, overflow:'hidden'}}>
+          {[0,1,2,3,4,5].map(i => <SkelTrackRow key={i} delay={i*80}/>)}
+        </div>
+        <IosTabBar active="library"/>
+      </div>
+    </IosPhone>
+  );
+}
+function PlaylistDetailLoadingAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidPlaylistNav title=""/>
+        <div style={{padding:'12px 20px 16px', display:'flex', flexDirection:'column', alignItems:'center', gap:16}}>
+          <div className="skel" style={{width:140, height:140, borderRadius:12}}/>
+          <div className="skel" style={{width:160, height:22, borderRadius:4}}/>
+          <div className="skel" style={{width:80, height:13, borderRadius:4, marginTop:-8}}/>
+          <div style={{display:'flex', gap:12, marginTop:4}}>
+            <div className="skel" style={{width:120, height:44, borderRadius:999}}/>
+            <div className="skel" style={{width:120, height:44, borderRadius:999}}/>
+          </div>
+        </div>
+        <div style={{flex:1, overflow:'hidden'}}>
+          {[0,1,2,3,4,5].map(i => <SkelTrackRow key={i} delay={i*80}/>)}
+        </div>
+        <AndroidNavBar active="library"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ─── C10 EMPTY ───────────
+function FourUpCover({ size = 140 }) {
+  return (
+    <div style={{width:size, height:size, borderRadius:12, overflow:'hidden',
+      display:'grid', gridTemplateColumns:'1fr 1fr', gridTemplateRows:'1fr 1fr', gap:1, background:'#000'}}>
+      {[0,1,2,3].map(i => (
+        <div key={i} style={{background: C.surface2, display:'flex',
+          alignItems:'center', justifyContent:'center', color: C.fg4}}>
+          {SF.musicNoteLg && <span style={{transform:'scale(0.4)'}}>{SF.musicNoteLg}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PlaylistDetailEmptyIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosPlaylistNav title="Deep Focus"/>
+        <div style={{padding:'12px 20px 8px', display:'flex', flexDirection:'column', alignItems:'center', gap:8}}>
+          <FourUpCover size={140}/>
+          <div style={{textAlign:'center', marginTop:8, fontSize:22, fontWeight:700, color: C.fg1}}>Deep Focus</div>
+          <div style={{textAlign:'center', fontSize:13, color: C.fg2}}>0 tracks · 0 min</div>
+        </div>
+        <StateView
+          icon={SF.musicNoteLg}
+          title="This playlist is empty"
+          body="Add tracks from search or your history."
+          action="Find tracks"
+        />
+        <IosTabBar active="library"/>
+      </div>
+    </IosPhone>
+  );
+}
+function PlaylistDetailEmptyAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidPlaylistNav title="Deep Focus"/>
+        <div style={{padding:'12px 20px 8px', display:'flex', flexDirection:'column', alignItems:'center', gap:8}}>
+          <FourUpCover size={140}/>
+          <div style={{textAlign:'center', marginTop:8, fontSize:22, fontWeight:500, color:'#E6E1E5'}}>Deep Focus</div>
+          <div style={{textAlign:'center', fontSize:13, color:'#CAC4D0'}}>0 tracks · 0 min</div>
+        </div>
+        <StateView
+          icon={MS.musicNote}
+          title="This playlist is empty"
+          body="Add tracks from search or your history."
+          action="Find tracks"
+          accent="#D0BCFF"
+        />
+        <AndroidNavBar active="library"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ─── C11 ERROR ───────────
+function PlaylistDetailErrorIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosPlaylistNav title=""/>
+        <StateView
+          icon={SF.warnTriLg}
+          title="Couldn't load this playlist"
+          body="Check your connection and try again."
+          action="Try again"
+        />
+        <IosTabBar active="library"/>
+      </div>
+    </IosPhone>
+  );
+}
+function PlaylistDetailErrorAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidPlaylistNav title=""/>
+        <StateView
+          icon={MS.errorOut}
+          title="Couldn't load this playlist"
+          body="Check your connection and try again."
+          action="Try again"
+          accent="#D0BCFF"
+        />
+        <AndroidNavBar active="library"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ─── HISTORY SCREEN STATES ────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+
+function IosHistoryNav({ withClear = false }) {
+  return (
+    <div style={{paddingTop:54, height:56, padding:'54px 8px 0',
+      display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+      <button style={{height:44, padding:'0 8px', display:'flex', alignItems:'center', gap:2, border:'none', background:'transparent', color: C.accent}}>
+        {SF.chevBack}<span style={{fontSize:17, fontWeight:400, fontFamily:'inherit'}}>Library</span>
+      </button>
+      <div style={{flex:1, textAlign:'center', fontSize:17, fontWeight:600, color: C.fg1}}>Recently Played</div>
+      {withClear
+        ? <button style={{height:44, padding:'0 12px', border:'none', background:'transparent', color: C.accent, fontSize:17, fontWeight:400, fontFamily:'inherit'}}>Clear</button>
+        : <div style={{width:60}}/>}
+    </div>
+  );
+}
+function AndroidHistoryNav({ withClear = false }) {
+  return (
+    <div style={{paddingTop:32, height:64, padding:'32px 4px 0',
+      display:'flex', alignItems:'center', gap:8}}>
+      <button style={{width:48, height:48, border:'none', background:'transparent', color:'#E6E1E5',
+        display:'flex', alignItems:'center', justifyContent:'center'}}>{MS.back}</button>
+      <div style={{flex:1, fontSize:22, fontWeight:500, color:'#E6E1E5'}}>Recently played</div>
+      {withClear && (
+        <button style={{height:48, padding:'0 16px', border:'none', background:'transparent',
+          color:'#D0BCFF', fontSize:14, fontWeight:500, fontFamily:'inherit', textTransform:'uppercase', letterSpacing:0.5}}>Clear all</button>
+      )}
+    </div>
+  );
+}
+
+// ─── C12 LOADING ───────────
+function HistoryLoadingIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosHistoryNav/>
+        <div style={{flex:1, overflow:'hidden', marginTop:8}}>
+          {[0,1,2,3,4,5].map(i => <SkelTrackRow key={i} delay={i*80}/>)}
+        </div>
+        <IosTabBar active="library"/>
+      </div>
+    </IosPhone>
+  );
+}
+function HistoryLoadingAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidHistoryNav/>
+        <div style={{flex:1, overflow:'hidden', marginTop:4}}>
+          {[0,1,2,3,4,5].map(i => <SkelTrackRow key={i} delay={i*80}/>)}
+        </div>
+        <AndroidNavBar active="library"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ─── C13 EMPTY ───────────
+function HistoryEmptyIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosHistoryNav/>
+        <StateView
+          icon={SF.clockHistLg}
+          title="Nothing played yet"
+          body="Tracks you play will show up here."
+          action="Browse search"
+        />
+        <IosTabBar active="library"/>
+      </div>
+    </IosPhone>
+  );
+}
+function HistoryEmptyAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidHistoryNav/>
+        <StateView
+          icon={MS.history}
+          title="Nothing played yet"
+          body="Tracks you play will show up here."
+          action="Browse search"
+          accent="#D0BCFF"
+        />
+        <AndroidNavBar active="library"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ─── C14 ERROR ───────────
+function HistoryErrorIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosHistoryNav/>
+        <StateView
+          icon={SF.warnTriLg}
+          title="Couldn't load history"
+          body="Try again in a moment."
+          action="Try again"
+        />
+        <IosTabBar active="library"/>
+      </div>
+    </IosPhone>
+  );
+}
+function HistoryErrorAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidHistoryNav/>
+        <StateView
+          icon={MS.errorOut}
+          title="Couldn't load history"
+          body="Try again in a moment."
+          action="Try again"
+          accent="#D0BCFF"
+        />
+        <AndroidNavBar active="library"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ─── SETTINGS OPS STATES ──────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+
+function Spinner({ size = 22, color = '#fff' }) {
+  return (
+    <div style={{width:size, height:size, position:'relative'}}>
+      <div style={{
+        position:'absolute', inset:0, borderRadius:'50%',
+        border:`2px solid ${color}`, borderTopColor:'transparent',
+        animation:'spin 0.9s linear infinite'}}/>
+    </div>
+  );
+}
+
+function IosSettingsHeader() {
+  return (
+    <>
+      <div style={{paddingTop:54, padding:'54px 20px 6px'}}>
+        <h1 style={{fontSize:34, fontWeight:700, letterSpacing:-0.4, color: C.fg1, lineHeight:1.1}}>Settings</h1>
+      </div>
+    </>
+  );
+}
+function AndroidSettingsHeader() {
+  return (
+    <div style={{paddingTop:32, height:64, padding:'32px 4px 0',
+      display:'flex', alignItems:'center', gap:8}}>
+      <button style={{width:48, height:48, border:'none', background:'transparent', color:'#E6E1E5',
+        display:'flex', alignItems:'center', justifyContent:'center'}}>{MS.back}</button>
+      <div style={{flex:1, fontSize:22, fontWeight:500, color:'#E6E1E5'}}>Settings</div>
+    </div>
+  );
+}
+
+const IOS_SETTINGS_GROUPS = [
+  {
+    title: 'Data',
+    rows: [
+      { label: 'Export playlists', key: 'export', state: 'loading' },
+      { label: 'Import playlists', key: 'import' },
+      { label: 'Clear cache', key: 'clear_cache', subtitle: '128 MB' },
+    ],
+  },
+  {
+    title: 'About',
+    rows: [
+      { label: 'Version', key: 'version', subtitle: '1.0.0 (build 142)' },
+    ],
+  },
+];
+
+function IosSettingsRow({ row, isLast, showError }) {
+  const subtitle =
+    row.state === 'loading' ? 'Preparing playlists…' : row.subtitle;
+  return (
+    <>
+      <div style={{display:'flex', alignItems:'center', gap:14, padding:'12px 16px',
+        borderBottom: isLast ? 'none' : `0.5px solid ${C.hairline}`}}>
+        <div style={{flex:1, minWidth:0}}>
+          <div style={{fontSize:16, fontWeight:400, color: C.fg1}}>{row.label}</div>
+          {subtitle && (
+            <div style={{fontSize:13, color: row.state === 'loading' ? C.accent : C.fg2, marginTop:2}}>{subtitle}</div>
+          )}
+        </div>
+        {row.state === 'loading'
+          ? <Spinner size={20} color={C.accent}/>
+          : <span style={{color: C.fg3}}>{SF.chev}</span>}
+      </div>
+      {showError === row.key && <SettingsErrorBanner kind={row.key} platform="ios"/>}
+    </>
+  );
+}
+
+function SettingsErrorBanner({ kind, platform }) {
+  const COPY = {
+    export: { title: "Couldn't export playlists.", body: "The file couldn't be created. Check available storage and try again." },
+    import: { title: "Couldn't import that file.", body: "This file may be corrupted or made with a newer version." },
+    clear_cache: { title: "Couldn't clear cache.", body: "The app couldn't clear the cache. Try again, or restart the app." },
+    clear_history: { title: "Couldn't clear history.", body: "History stays as-is. Try again." },
+  }[kind] || { title: 'Operation failed.', body: 'Try again.' };
+  const accent = platform === 'android' ? '#D0BCFF' : C.accent;
+  return (
+    <div style={{margin: platform === 'ios' ? '0' : '4px 8px',
+      padding:'12px 14px', background: C.redSurf,
+      borderLeft: `3px solid ${C.red}`,
+      borderRadius: platform === 'ios' ? 0 : 8,
+      display:'flex', alignItems:'flex-start', gap:12}}>
+      <div style={{color: C.red, marginTop:2, flexShrink:0}}>{platform === 'ios' ? SF.warnSm : MS.warnSm}</div>
+      <div style={{flex:1, minWidth:0}}>
+        <div style={{fontSize:14, fontWeight:600, color: C.fg1, lineHeight:1.3}}>{COPY.title}</div>
+        <div style={{fontSize:13, color: C.fg2, marginTop:2, lineHeight:1.4}}>{COPY.body}</div>
+      </div>
+      <div style={{display:'flex', flexDirection:'column', gap:4, flexShrink:0}}>
+        <button style={{height:32, padding:'0 12px', border:'none', background:'transparent',
+          color: accent, fontSize:13, fontWeight:600, fontFamily:'inherit'}}>Try again</button>
+        <button style={{height:28, padding:'0 12px', border:'none', background:'transparent',
+          color: C.fg2, fontSize:12, fontWeight:500, fontFamily:'inherit'}}>Dismiss</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── C15 LOADING (operation in progress) ───────────
+function SettingsLoadingIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosSettingsHeader/>
+        <div style={{flex:1, padding:'8px 0 0'}}>
+          {IOS_SETTINGS_GROUPS.map(g => (
+            <div key={g.title}>
+              <div style={{padding:'18px 32px 6px', fontSize:13, color: C.fg2, textTransform:'uppercase', letterSpacing:0.4}}>
+                {g.title}
+              </div>
+              <div style={{margin:'0 16px', background: C.surface, borderRadius:12, overflow:'hidden'}}>
+                {g.rows.map((r, i) => <IosSettingsRow key={r.key} row={r} isLast={i === g.rows.length - 1}/>)}
+              </div>
+            </div>
+          ))}
+        </div>
+        <IosTabBar active="settings"/>
+      </div>
+    </IosPhone>
+  );
+}
+function SettingsLoadingAndroid() {
+  const rows = [
+    { label: 'Export playlists', key: 'export', state: 'loading' },
+    { label: 'Import playlists', key: 'import' },
+    { label: 'Clear cache', key: 'clear_cache', subtitle: '128 MB' },
+  ];
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidSettingsHeader/>
+        <div style={{flex:1, padding:'8px 0'}}>
+          <div style={{padding:'12px 24px 6px', fontSize:14, fontWeight:500, color:'#D0BCFF', letterSpacing:0.1}}>Data</div>
+          {rows.map(r => {
+            const subtitle = r.state === 'loading' ? 'Preparing playlists…' : r.subtitle;
+            return (
+              <div key={r.key} style={{display:'flex', alignItems:'center', gap:16, padding:'12px 16px'}}>
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{fontSize:16, fontWeight:400, color:'#E6E1E5'}}>{r.label}</div>
+                  {subtitle && (
+                    <div style={{fontSize:14, color: r.state === 'loading' ? '#D0BCFF' : '#CAC4D0', marginTop:2}}>{subtitle}</div>
+                  )}
+                </div>
+                {r.state === 'loading' ? <Spinner size={20} color="#D0BCFF"/> : null}
+              </div>
+            );
+          })}
+        </div>
+        <AndroidNavBar active="settings"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ─── C16 ERROR (inline banner) ───────────
+function SettingsErrorIos() {
+  return (
+    <IosPhone>
+      <div style={{position:'absolute', inset:0, background: C.bg, display:'flex', flexDirection:'column'}}>
+        <IosSettingsHeader/>
+        <div style={{flex:1, padding:'8px 0 0'}}>
+          <div style={{padding:'18px 32px 6px', fontSize:13, color: C.fg2, textTransform:'uppercase', letterSpacing:0.4}}>Data</div>
+          <div style={{margin:'0 16px', background: C.surface, borderRadius:12, overflow:'hidden'}}>
+            <IosSettingsRow row={{label:'Export playlists', key:'export'}} isLast={false} showError="export"/>
+            <IosSettingsRow row={{label:'Import playlists', key:'import'}} isLast={false}/>
+            <IosSettingsRow row={{label:'Clear cache', key:'clear_cache', subtitle:'128 MB'}} isLast={true}/>
+          </div>
+        </div>
+        <IosTabBar active="settings"/>
+      </div>
+    </IosPhone>
+  );
+}
+function SettingsErrorAndroid() {
+  return (
+    <AndroidPhone>
+      <div style={{position:'absolute', inset:0, background:'#141218', display:'flex', flexDirection:'column'}}>
+        <AndroidSettingsHeader/>
+        <div style={{flex:1, padding:'8px 0'}}>
+          <div style={{padding:'12px 24px 6px', fontSize:14, fontWeight:500, color:'#D0BCFF', letterSpacing:0.1}}>Data</div>
+          <div style={{display:'flex', alignItems:'center', gap:16, padding:'12px 16px'}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:16, fontWeight:400, color:'#E6E1E5'}}>Export playlists</div>
+            </div>
+          </div>
+          <SettingsErrorBanner kind="export" platform="android"/>
+          <div style={{display:'flex', alignItems:'center', gap:16, padding:'12px 16px'}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:16, fontWeight:400, color:'#E6E1E5'}}>Import playlists</div>
+            </div>
+          </div>
+          <div style={{display:'flex', alignItems:'center', gap:16, padding:'12px 16px'}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:16, fontWeight:400, color:'#E6E1E5'}}>Clear cache</div>
+              <div style={{fontSize:14, color:'#CAC4D0', marginTop:2}}>128 MB</div>
+            </div>
+          </div>
+        </div>
+        <AndroidNavBar active="settings"/>
+      </div>
+    </AndroidPhone>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ─── PAGE LAYOUT ──────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+
+function Cell({ id, platform, title, desc, children }) {
+  return (
+    <div className="cell">
+      {children}
+      <div className="meta">
+        <div className="row1">
+          <span className="id">{id}</span>
+          <span className="platform">{platform}</span>
+        </div>
+        <div className="title">{title}</div>
+        <div className="desc">{desc}</div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, lede, children }) {
+  return (
+    <>
+      <div className="section-head">
+        <h2>{title}</h2>
+        <div className="lede">{lede}</div>
+      </div>
+      <div className="grid">{children}</div>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <Section
+        title="Search"
+        lede="Five state cells. Search is the only screen with an offline-specific error variant."
+      >
+        <Cell id="C1" platform="iOS" title="Loading — skeleton ×6"
+          desc="6 SkeletonRows, 80ms stagger. Suggestion chips disappear when loading begins.">
+          <SearchLoadingIos/>
+        </Cell>
+        <Cell id="C2" platform="iOS" title="Empty — idle"
+          desc="No CTA — the search input is the affordance. Suggestion chips above are accelerators.">
+          <SearchIdleIos/>
+        </Cell>
+        <Cell id="C3" platform="iOS" title="Empty — no results"
+          desc='Title quotes the query verbatim. Polite live-region announce on appear.'>
+          <SearchNoResultsIos/>
+        </Cell>
+        <Cell id="C1" platform="Android" title="Loading — skeleton ×6"
+          desc="Same template, M3 search bar pill (56dp). Skeleton geometry shared across platforms.">
+          <SearchLoadingAndroid/>
+        </Cell>
+        <Cell id="C2" platform="Android" title="Empty — idle"
+          desc="M3 outlined chips (32dp) per platform convention. Same copy as iOS verbatim.">
+          <SearchIdleAndroid/>
+        </Cell>
+        <Cell id="C3" platform="Android" title="Empty — no results"
+          desc="search_off rounded glyph (Material Symbols). iOS reuses search glyph — copy carries the meaning.">
+          <SearchNoResultsAndroid/>
+        </Cell>
+        <Cell id="C4" platform="iOS" title="Error — generic"
+          desc="exclamationmark.triangle, fg-tertiary. NOT red — recoverable failure.">
+          <SearchErrorIos/>
+        </Cell>
+        <Cell id="C5" platform="iOS" title="Error — offline"
+          desc="Two actions — primary retry, secondary 'Go to Library'. Only cell with a secondary action.">
+          <SearchOfflineIos/>
+        </Cell>
+        <Cell id="C5" platform="Android" title="Error — offline"
+          desc="wifi_off rounded. Secondary text button uses M3 dynamic accent (D0BCFF).">
+          <SearchOfflineAndroid/>
+        </Cell>
+        <Cell id="C4" platform="Android" title="Error — generic"
+          desc="error rounded. Same copy as iOS — error variants are platform-symmetric.">
+          <SearchErrorAndroid/>
+        </Cell>
+      </Section>
+
+      <Section
+        title="Library"
+        lede="Three cells. Recently Played row stays visible above empty/loading because it's a separate destination."
+      >
+        <Cell id="C6" platform="iOS" title="Loading — skeleton ×4"
+          desc="4 playlist rows in inset-grouped style. Recently Played stays above (local-first).">
+          <LibraryLoadingIos/>
+        </Cell>
+        <Cell id="C7" platform="iOS" title="Empty — no playlists"
+          desc="music.note.list. CTA opens new-playlist alert (.alert + TextField).">
+          <LibraryEmptyIos/>
+        </Cell>
+        <Cell id="C8" platform="iOS" title="Error"
+          desc="Local-first failure. Generic copy on purpose — user doesn't need to know it's a SQLite failure.">
+          <LibraryErrorIos/>
+        </Cell>
+        <Cell id="C6" platform="Android" title="Loading — skeleton ×4"
+          desc="4 rows in flat list. M3 'Your library' top app bar.">
+          <LibraryLoadingAndroid/>
+        </Cell>
+        <Cell id="C7" platform="Android" title="Empty — no playlists"
+          desc="library_music rounded. CTA opens M3 dialog with TextField.">
+          <LibraryEmptyAndroid/>
+        </Cell>
+        <Cell id="C8" platform="Android" title="Error"
+          desc="error rounded. Tip: same icon + copy across platforms means one ErrorState() composable, parameterized.">
+          <LibraryErrorAndroid/>
+        </Cell>
+      </Section>
+
+      <Section
+        title="Playlist detail"
+        lede="Three cells. Empty state KEEPS the playlist header visible (the playlist exists, body is empty). Error REPLACES the header (we don't know if it exists)."
+      >
+        <Cell id="C9" platform="iOS" title="Loading — skeleton header + ×6"
+          desc="140pt cover skeleton, title placeholder, two pill skeletons (Play/Shuffle), 6 row skeletons.">
+          <PlaylistDetailLoadingIos/>
+        </Cell>
+        <Cell id="C10" platform="iOS" title="Empty — playlist has 0 tracks"
+          desc="Header rendered above (cover, '0 tracks · 0 min'). State view fills the body region.">
+          <PlaylistDetailEmptyIos/>
+        </Cell>
+        <Cell id="C11" platform="iOS" title="Error"
+          desc="Header NOT rendered — we don't have the playlist data. Full screen error.">
+          <PlaylistDetailErrorIos/>
+        </Cell>
+        <Cell id="C9" platform="Android" title="Loading — skeleton header + ×6"
+          desc="Same geometry. Compose: Box + Modifier.placeholder() (Accompanist) shimmer.">
+          <PlaylistDetailLoadingAndroid/>
+        </Cell>
+        <Cell id="C10" platform="Android" title="Empty — playlist has 0 tracks"
+          desc="music_note rounded. CTA switches to Search tab + focuses input.">
+          <PlaylistDetailEmptyAndroid/>
+        </Cell>
+        <Cell id="C11" platform="Android" title="Error"
+          desc="Same retry contract as iOS: re-fetch by playlist ID, 8s timeout.">
+          <PlaylistDetailErrorAndroid/>
+        </Cell>
+      </Section>
+
+      <Section
+        title="History"
+        lede="Three cells. 'Clear' toolbar button is hidden whenever history is empty or loading — it only renders on non-empty content."
+      >
+        <Cell id="C12" platform="iOS" title="Loading — skeleton ×6"
+          desc="Identical to C1 (Search). Reuses the same TrackRow skeleton.">
+          <HistoryLoadingIos/>
+        </Cell>
+        <Cell id="C13" platform="iOS" title="Empty — nothing played yet"
+          desc="clock.arrow.circlepath. CTA switches to Search tab. No 'Clear' button visible.">
+          <HistoryEmptyIos/>
+        </Cell>
+        <Cell id="C14" platform="iOS" title="Error"
+          desc='Body is short ("Try again in a moment.") — no actionable detail to add.'>
+          <HistoryErrorIos/>
+        </Cell>
+        <Cell id="C12" platform="Android" title="Loading — skeleton ×6"
+          desc="M3 top app bar 'Recently played'.">
+          <HistoryLoadingAndroid/>
+        </Cell>
+        <Cell id="C13" platform="Android" title="Empty — nothing played yet"
+          desc="history rounded. 'Clear all' button hidden in this state.">
+          <HistoryEmptyAndroid/>
+        </Cell>
+        <Cell id="C14" platform="Android" title="Error"
+          desc="Symmetric with iOS. Polite live-region announce on appear.">
+          <HistoryErrorAndroid/>
+        </Cell>
+      </Section>
+
+      <Section
+        title="Settings — operations"
+        lede="Settings is a static form. The only async surface is operations (export, import, clear cache, clear history). No screen takeover — inline only."
+      >
+        <Cell id="C15" platform="iOS" title="Loading — operation in progress"
+          desc="Spinner replaces row chevron. Subtitle becomes the in-progress copy. Other rows stay tappable.">
+          <SettingsLoadingIos/>
+        </Cell>
+        <Cell id="C16" platform="iOS" title="Error — operation failed (banner)"
+          desc="Banner under the failed row. 3dp red strip is the only place red appears — icon + text stay neutral.">
+          <SettingsErrorIos/>
+        </Cell>
+        <Cell id="—" platform="iOS" title="Settings has no empty state"
+          desc="Form rows render synchronously from local state. There is no 'empty Settings'. Cell intentionally omitted.">
+          <div style={{width:393, height:670, display:'flex', alignItems:'center', justifyContent:'center',
+            border:'1px dashed rgba(255,255,255,0.18)', borderRadius:24, transform:'scale(0.7)', transformOrigin:'top center', marginBottom:-205,
+            background:'rgba(255,255,255,0.02)', color:'rgba(235,235,245,0.4)', fontSize:14, padding:'0 32px', textAlign:'center'}}>
+            n/a — Settings is a static form. No async data, no empty state.
+          </div>
+        </Cell>
+        <Cell id="C15" platform="Android" title="Loading — operation in progress"
+          desc="Same pattern: inline spinner replaces row trailing icon. M3 dynamic accent.">
+          <SettingsLoadingAndroid/>
+        </Cell>
+        <Cell id="C16" platform="Android" title="Error — operation failed (banner)"
+          desc="Material 3 inline banner (rounded card under the row). Same content as iOS, M3 chrome.">
+          <SettingsErrorAndroid/>
+        </Cell>
+        <Cell id="—" platform="Android" title="Settings has no empty state"
+          desc="Same reasoning as iOS. Listed for catalog completeness; no implementation needed.">
+          <div style={{width:360, height:670, display:'flex', alignItems:'center', justifyContent:'center',
+            border:'1px dashed rgba(255,255,255,0.18)', borderRadius:18, transform:'scale(0.7)', transformOrigin:'top center', marginBottom:-205,
+            background:'rgba(255,255,255,0.02)', color:'rgba(235,235,245,0.4)', fontSize:14, padding:'0 32px', textAlign:'center'}}>
+            n/a — Settings is a static form. No async data, no empty state.
+          </div>
+        </Cell>
+      </Section>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+
+</body>
+</html>

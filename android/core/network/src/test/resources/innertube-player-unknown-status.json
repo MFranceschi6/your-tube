@@ -1,0 +1,6 @@
+{
+  "playabilityStatus": {
+    "status": "UNKNOWN_NEW_STATUS",
+    "reason": "Reserved for future bot detection logic"
+  }
+}

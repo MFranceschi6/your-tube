@@ -1,0 +1,36 @@
+{
+  "alpha123": [
+    {
+      "url": "https://cdn.example.com/alpha-96.webm",
+      "bitrateKbps": 96,
+      "codec": "opus",
+      "container": "webm"
+    },
+    {
+      "url": "https://cdn.example.com/alpha-128.m4a",
+      "bitrateKbps": 128,
+      "codec": "mp4a.40.2",
+      "container": "m4a"
+    },
+    {
+      "url": "https://cdn.example.com/alpha-192.webm",
+      "bitrateKbps": 192,
+      "codec": "opus",
+      "container": "webm"
+    }
+  ],
+  "gamma789": [
+    {
+      "url": "https://cdn.example.com/gamma-160.webm",
+      "bitrateKbps": 160,
+      "codec": "opus",
+      "container": "webm"
+    },
+    {
+      "url": "https://cdn.example.com/gamma-256.m4a",
+      "bitrateKbps": 256,
+      "codec": "mp4a.40.2",
+      "container": "m4a"
+    }
+  ]
+}

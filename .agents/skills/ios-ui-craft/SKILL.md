@@ -167,7 +167,7 @@ Before considering UI complete:
 
 ## The Mandate
 
-Remember: Codex is capable of extraordinary creative work. Don't settle for "working." Push for **memorable**.
+Remember: Claude is capable of extraordinary creative work. Don't settle for "working." Push for **memorable**.
 
 Every interface should have:
 1. **A point of view** - A clear aesthetic direction

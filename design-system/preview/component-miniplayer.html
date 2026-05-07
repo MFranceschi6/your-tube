@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { background: var(--color-bg); padding: 16px; }
+.label { font-family: var(--font-mono); font-size: 10px; color: var(--color-fg-tertiary); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+.gap { height: 20px; }
+
+/* MiniPlayer */
+.miniplayer {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+}
+.mp-thumb { width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0; background: var(--color-surface-variant); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.mp-info { flex: 1; min-width: 0; }
+.mp-title { font-size: 14px; font-weight: 500; color: var(--color-fg-primary); font-family: var(--font-sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mp-channel { font-size: 12px; color: var(--color-fg-secondary); font-family: var(--font-sans); }
+.mp-controls { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.mp-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer; transition: background var(--transition-fast); border: none; background: transparent; color: var(--color-fg-primary); }
+.mp-btn:hover { background: var(--color-surface-variant); }
+.mp-btn svg { width: 22px; height: 22px; }
+.mp-progress { position: absolute; bottom: 0; left: 12px; right: 12px; height: 2px; background: var(--color-border); border-radius: 1px; overflow: hidden; }
+.mp-progress-fill { height: 100%; background: var(--color-accent); border-radius: 1px; }
+.mp-wrap { position: relative; }
+
+/* Blur variant */
+.miniplayer-blur {
+  background: rgba(28,28,30,0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+</style>
+</head>
+<body>
+<div class="label">MiniPlayer — default</div>
+<div class="mp-wrap">
+  <div class="miniplayer">
+    <div class="mp-thumb">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.3)" stroke-width="1.5"><polygon points="5,3 19,12 5,21"/></svg>
+    </div>
+    <div class="mp-info">
+      <div class="mp-title">Bohemian Rhapsody</div>
+      <div class="mp-channel">Queen</div>
+    </div>
+    <div class="mp-controls">
+      <button class="mp-btn" aria-label="Previous">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+      </button>
+      <button class="mp-btn" aria-label="Pause" style="color:var(--color-accent)">
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+      </button>
+      <button class="mp-btn" aria-label="Next">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="mp-progress"><div class="mp-progress-fill" style="width:38%"></div></div>
+</div>
+
+<div class="gap"></div>
+<div class="label">MiniPlayer — blur/frosted (iOS style)</div>
+<div style="background: linear-gradient(135deg,#2C1B4E,#0F0F0F); border-radius:16px; padding:16px;">
+  <div class="mp-wrap">
+    <div class="miniplayer miniplayer-blur" style="border-color: rgba(255,255,255,0.12);">
+      <div class="mp-thumb" style="background:rgba(139,92,246,0.2)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="color:var(--color-accent)"><polygon points="5,3 19,12 5,21"/></svg>
+      </div>
+      <div class="mp-info">
+        <div class="mp-title">Stairway to Heaven</div>
+        <div class="mp-channel">Led Zeppelin</div>
+      </div>
+      <div class="mp-controls">
+        <button class="mp-btn" aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="19" x2="5" y2="5"/></svg></button>
+        <button class="mp-btn" aria-label="Pause" style="color:var(--color-accent)"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></button>
+        <button class="mp-btn" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19"/></svg></button>
+      </div>
+    </div>
+    <div class="mp-progress"><div class="mp-progress-fill" style="width:62%"></div></div>
+  </div>
+</div>
+</body>
+</html>

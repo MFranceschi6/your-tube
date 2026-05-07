@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YourTube — App UI Kit</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #111; display: flex; align-items: center; justify-content: center; font-family: var(--font-sans); }
+
+  /* Phone frame */
+  .phone-frame {
+    width: 390px;
+    height: 844px;
+    background: #0F0F0F;
+    border-radius: 48px;
+    box-shadow: 0 0 0 2px #3A3A3C, 0 32px 80px rgba(0,0,0,0.8), inset 0 0 0 1px #2C2C2E;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Status bar */
+  .status-bar {
+    height: 54px;
+    background: #0F0F0F;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 28px 10px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+  .status-time { font-size: 15px; font-weight: 600; color: #FFF; font-family: var(--font-sans); }
+  .status-icons { display: flex; align-items: center; gap: 6px; color: #FFF; }
+
+  /* Dynamic island */
+  .dynamic-island {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 34px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 20;
+  }
+
+  /* Screen container */
+  .screen-container {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Tab bar */
+  .tab-bar {
+    height: 82px;
+    background: rgba(28,28,30,0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid #3A3A3C;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 10px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+  .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: opacity 150ms ease;
+    border: none;
+    background: transparent;
+  }
+  .tab-label {
+    font-size: 10px;
+    font-weight: 500;
+    font-family: var(--font-sans);
+    transition: color 150ms ease;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 0; }
+</style>
+</head>
+<body>
+
+<div class="phone-frame" id="phone">
+  <div class="dynamic-island"></div>
+  <div class="status-bar">
+    <span class="status-time">9:41</span>
+    <div class="status-icons">
+      <svg width="17" height="12" viewBox="0 0 17 12" fill="white"><rect x="0" y="3" width="3" height="9" rx="1" opacity="0.4"/><rect x="4.5" y="2" width="3" height="10" rx="1" opacity="0.6"/><rect x="9" y="0" width="3" height="12" rx="1"/><rect x="14" y="1" width="2.5" height="10" rx="1" opacity="0.3"/></svg>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="white"><path d="M8 2.4C10.8 2.4 13.3 3.6 15 5.5L16 4.4C14 2.2 11.2 0.8 8 0.8C4.8 0.8 2 2.2 0 4.4L1 5.5C2.7 3.6 5.2 2.4 8 2.4Z" opacity="0.4"/><path d="M8 5.6C9.8 5.6 11.4 6.4 12.5 7.6L13.5 6.5C12.1 5 10.2 4 8 4C5.8 4 3.9 5 2.5 6.5L3.5 7.6C4.6 6.4 6.2 5.6 8 5.6Z" opacity="0.6"/><circle cx="8" cy="11" r="1.5"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" strokeOpacity="0.35"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6C24.5 5.5 23.8 4.8 23 4.5Z" fill="white" opacity="0.4"/></svg>
+    </div>
+  </div>
+
+  <div class="screen-container" id="screen-root"></div>
+
+  <div class="tab-bar" id="tab-bar"></div>
+</div>
+
+<script type="text/babel" src="TrackRow.jsx"></script>
+<script type="text/babel" src="MiniPlayer.jsx"></script>
+<script type="text/babel" src="NowPlaying.jsx"></script>
+<script type="text/babel" src="SearchScreen.jsx"></script>
+<script type="text/babel" src="LibraryScreen.jsx"></script>
+<script type="text/babel" src="HistoryScreen.jsx"></script>
+
+<script type="text/babel">
+const TABS = [
+  {
+    id: 'search', label: 'Search',
+    icon: (active) => (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    )
+  },
+  {
+    id: 'library', label: 'Library',
+    icon: (active) => (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+      </svg>
+    )
+  },
+  {
+    id: 'settings', label: 'Settings',
+    icon: (active) => (
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    )
+  },
+];
+
+const DEMO_QUEUE = [
+  { videoId: 'q1', title: 'Hotel California', channel: 'Eagles', durationSec: 438 },
+  { videoId: 'q2', title: 'Comfortably Numb', channel: 'Pink Floyd', durationSec: 382 },
+  { videoId: 'q3', title: 'November Rain', channel: "Guns N' Roses", durationSec: 537 },
+];
+
+const App = () => {
+  const [activeTab, setActiveTab] = React.useState('search');
+  const [subScreen, setSubScreen] = React.useState(null); // 'history'
+  const [currentTrack, setCurrentTrack] = React.useState(null);
+  const [isPlaying, setIsPlaying] = React.useState(false);
+  const [progress, setProgress] = React.useState(0);
+  const [showNowPlaying, setShowNowPlaying] = React.useState(false);
+  const [darkMode, setDarkMode] = React.useState(true);
+  const progressRef = React.useRef(null);
+
+  // Simulate playback progress
+  React.useEffect(() => {
+    if (isPlaying) {
+      progressRef.current = setInterval(() => {
+        setProgress(p => {
+          if (p >= 1) { setIsPlaying(false); return 0; }
+          return p + 1 / (currentTrack?.durationSec || 300);
+        });
+      }, 1000);
+    } else {
+      clearInterval(progressRef.current);
+    }
+    return () => clearInterval(progressRef.current);
+  }, [isPlaying, currentTrack]);
+
+  const handlePlayTrack = (track) => {
+    if (currentTrack?.videoId === track.videoId) {
+      setIsPlaying(p => !p);
+    } else {
+      setCurrentTrack(track);
+      setProgress(0);
+      setIsPlaying(true);
+    }
+  };
+
+  const handleNext = () => {
+    const idx = DEMO_QUEUE.findIndex(t => t.videoId === currentTrack?.videoId);
+    const next = DEMO_QUEUE[(idx + 1) % DEMO_QUEUE.length];
+    setCurrentTrack(next); setProgress(0); setIsPlaying(true);
+  };
+
+  const handlePrev = () => {
+    setProgress(0);
+  };
+
+  const hasMiniPlayer = !!currentTrack;
+
+  const renderScreen = () => {
+    if (showNowPlaying && currentTrack) {
+      return (
+        <NowPlaying
+          track={currentTrack}
+          isPlaying={isPlaying}
+          progress={progress}
+          onTogglePlay={() => setIsPlaying(p => !p)}
+          onClose={() => setShowNowPlaying(false)}
+          onNext={handleNext}
+          onPrev={handlePrev}
+          queue={DEMO_QUEUE}
+        />
+      );
+    }
+
+    if (subScreen === 'history') {
+      return (
+        <HistoryScreen
+          currentTrack={currentTrack}
+          onPlayTrack={handlePlayTrack}
+          onBack={() => setSubScreen(null)}
+        />
+      );
+    }
+
+    switch (activeTab) {
+      case 'search':
+        return <SearchScreen currentTrack={currentTrack} onPlayTrack={handlePlayTrack} />;
+      case 'library':
+        return <LibraryScreen currentTrack={currentTrack} onPlayTrack={handlePlayTrack} onNavigateHistory={() => setSubScreen('history')} />;
+      case 'settings':
+        return <SettingsScreen darkMode={darkMode} onToggleDark={setDarkMode} />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0F0F0F' }}>
+      {/* Screen */}
+      <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+        {renderScreen()}
+      </div>
+
+      {/* MiniPlayer */}
+      {hasMiniPlayer && !showNowPlaying && (
+        <MiniPlayer
+          track={currentTrack}
+          isPlaying={isPlaying}
+          progress={progress}
+          onTogglePlay={() => setIsPlaying(p => !p)}
+          onExpand={() => setShowNowPlaying(true)}
+          onNext={handleNext}
+          onPrev={handlePrev}
+        />
+      )}
+
+      {/* Tab Bar (hidden when now playing is open) */}
+      {!showNowPlaying && (
+        <div style={{
+          height: 82, background: 'rgba(28,28,30,0.95)',
+          backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+          borderTop: '1px solid #3A3A3C',
+          display: 'flex', alignItems: 'flex-start', paddingTop: 10,
+          flexShrink: 0, zIndex: 10,
+        }}>
+          {TABS.map(tab => {
+            const active = activeTab === tab.id && !subScreen;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); setSubScreen(null); }}
+                style={{
+                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                  cursor: 'pointer', padding: '4px 0', border: 'none', background: 'transparent',
+                  color: active ? '#8B5CF6' : 'rgba(235,235,245,0.45)',
+                  transition: 'color 150ms ease',
+                }}
+                aria-label={tab.label}
+              >
+                {tab.icon(active)}
+                <span style={{ fontSize: 10, fontWeight: 500, fontFamily: 'var(--font-sans)', color: 'inherit' }}>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('screen-root')).render(<App />);
+</script>
+</body>
+</html>

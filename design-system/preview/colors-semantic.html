@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { background: var(--color-bg); padding: 20px; }
+.grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.swatch { border-radius: 8px; overflow: hidden; width: 120px; }
+.swatch-color { height: 52px; }
+.swatch-label { padding: 6px 8px; background: #1C1C1E; }
+.swatch-name { font-size: 11px; font-weight: 500; color: #fff; font-family: var(--font-sans); }
+.swatch-val { font-size: 10px; color: rgba(235,235,245,0.5); font-family: var(--font-mono); margin-top: 2px; }
+.section-title { font-family: var(--font-sans); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(235,235,245,0.4); margin: 16px 0 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; font-family: var(--font-sans); }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="section-title">Semantic States</div>
+<div class="grid">
+  <div class="swatch"><div class="swatch-color" style="background:#FF453A"></div><div class="swatch-label"><div class="swatch-name">error</div><div class="swatch-val">#FF453A</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:rgba(255,69,58,0.12); border:1px solid #3A3A3C"></div><div class="swatch-label"><div class="swatch-name">error-surface</div><div class="swatch-val">12% error</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#30D158"></div><div class="swatch-label"><div class="swatch-name">success</div><div class="swatch-val">#30D158</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:rgba(48,209,88,0.12); border:1px solid #3A3A3C"></div><div class="swatch-label"><div class="swatch-name">success-surface</div><div class="swatch-val">12% success</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#FFD60A"></div><div class="swatch-label"><div class="swatch-name">warning</div><div class="swatch-val">#FFD60A</div></div></div>
+  <div class="swatch"><div class="swatch-color" style="background:#3A3A3C"></div><div class="swatch-label"><div class="swatch-name">border</div><div class="swatch-val">#3A3A3C</div></div></div>
+</div>
+<div class="section-title">State Chips</div>
+<div class="chips">
+  <span class="chip" style="background:rgba(255,69,58,0.12); color:#FF453A;">✕ Error</span>
+  <span class="chip" style="background:rgba(48,209,88,0.12); color:#30D158;">✓ Downloaded</span>
+  <span class="chip" style="background:rgba(139,92,246,0.12); color:#8B5CF6;">▶ Playing</span>
+  <span class="chip" style="background:#2C2C2E; color:rgba(235,235,245,0.4);">Disabled</span>
+</div>
+</body>
+</html>

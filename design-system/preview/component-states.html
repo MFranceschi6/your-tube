@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+body { background: var(--color-bg); padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.label { font-family: var(--font-mono); font-size: 10px; color: var(--color-fg-tertiary); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 20px; border-radius: 999px; border: none; cursor: pointer; font-family: var(--font-sans); font-size: 15px; font-weight: 500; transition: all var(--transition-fast); }
+.btn-primary { background: var(--color-accent); color: white; }
+.btn-primary:hover { background: var(--color-accent-dim); }
+.btn-secondary { background: var(--color-surface-variant); color: var(--color-fg-primary); }
+.btn-secondary:hover { background: var(--color-surface-high); }
+.btn-ghost { background: transparent; color: var(--color-accent); border: 1.5px solid var(--color-accent); }
+.btn-ghost:hover { background: var(--color-accent-subtle); }
+.btn-destructive { background: var(--color-error-surface); color: var(--color-error); }
+.btn-sm { height: 32px; padding: 0 14px; font-size: 13px; }
+.btn-disabled { opacity: 0.38; pointer-events: none; }
+
+/* Empty state */
+.empty-state { background: var(--color-surface); border-radius: 12px; padding: 24px 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.empty-icon { width: 48px; height: 48px; background: var(--color-surface-variant); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.empty-title { font-size: 16px; font-weight: 600; font-family: var(--font-sans); color: var(--color-fg-primary); }
+.empty-body { font-size: 14px; color: var(--color-fg-secondary); font-family: var(--font-sans); }
+
+/* Error state */
+.error-state { background: var(--color-error-surface); border-radius: 12px; padding: 20px 16px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; border: 1px solid rgba(255,69,58,0.2); }
+.error-title { font-size: 15px; font-weight: 600; font-family: var(--font-sans); color: var(--color-error); }
+.error-body { font-size: 13px; color: var(--color-fg-secondary); font-family: var(--font-sans); }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="label">Buttons</div>
+  <div class="row">
+    <button class="btn btn-primary">Play all</button>
+    <button class="btn btn-secondary">Add to queue</button>
+    <button class="btn btn-ghost">Import playlist</button>
+    <button class="btn btn-destructive btn-sm">Remove</button>
+    <button class="btn btn-primary btn-disabled">Download</button>
+  </div>
+</div>
+
+<div>
+  <div class="label">Empty state</div>
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+    <div class="empty-title">Nothing here yet</div>
+    <div class="empty-body">Search for something to start listening</div>
+    <button class="btn btn-primary btn-sm">Search</button>
+  </div>
+</div>
+
+<div>
+  <div class="label">Error state</div>
+  <div class="error-state">
+    <div class="error-title">Couldn't load results</div>
+    <div class="error-body">Check your connection and try again</div>
+    <button class="btn btn-secondary btn-sm">Retry</button>
+  </div>
+</div>
+
+</body>
+</html>

@@ -20,7 +20,7 @@ xcrun simctl io booted screenshot /path/to/screenshot.png && sips --resampleHeig
 ### Why Resize?
 
 - iPhone 17 simulator screenshots exceed 2000px
-- Codex API rejects images >2000px in multi-image requests
+- Claude API rejects images >2000px in multi-image requests
 - `sips --resampleHeightWidthMax 1800` keeps images under limit
 
 ### Resize Existing Screenshots

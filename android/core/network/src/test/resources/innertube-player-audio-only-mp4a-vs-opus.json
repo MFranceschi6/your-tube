@@ -1,0 +1,21 @@
+{
+  "playabilityStatus": { "status": "OK" },
+  "streamingData": {
+    "adaptiveFormats": [
+      {
+        "itag": 251,
+        "url": "https://rr5---sn-example.googlevideo.com/videoplayback?itag=251",
+        "mimeType": "audio/webm; codecs=\"opus\"",
+        "bitrate": 160000,
+        "averageBitrate": 152000
+      },
+      {
+        "itag": 140,
+        "url": "https://rr5---sn-example.googlevideo.com/videoplayback?itag=140",
+        "mimeType": "audio/mp4; codecs=\"mp4a.40.2\"",
+        "bitrate": 130000,
+        "averageBitrate": 129748
+      }
+    ]
+  }
+}

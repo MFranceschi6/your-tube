@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YT-0027 — iOS Now Playing (handoff)</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  min-height: 100%;
+  background: #0a0a0a;
+  font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  color: #EBEBF5;
+}
+body { padding: 32px 24px 64px; }
+
+.page-head {
+  max-width: 1180px; margin: 0 auto 28px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 18px;
+}
+.page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #fff; }
+.page-head .meta { font-size: 12px; color: rgba(235,235,245,0.5); font-family: 'Geist Mono', 'SF Mono', monospace; }
+.page-head .badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  background: rgba(139,92,246,0.18); color: #B794F6;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-right: 8px;
+}
+
+.layout {
+  max-width: 1180px; margin: 0 auto;
+  display: grid; grid-template-columns: 393px 1fr; gap: 36px;
+  align-items: start;
+}
+
+/* Phone shell */
+.phone-wrap { position: sticky; top: 24px; }
+.phone {
+  width: 393px; height: 852px;
+  background: #000;
+  border-radius: 52px;
+  box-shadow: 0 0 0 2px #2a2a2a, 0 30px 80px rgba(0,0,0,0.7), inset 0 0 0 1px #444;
+  position: relative; overflow: hidden;
+  font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+}
+.island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 124px; height: 36px; background: #000; border-radius: 20px; z-index: 30;
+}
+.statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 54px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 28px 10px; z-index: 20; pointer-events: none;
+  font-size: 15px; font-weight: 600; color: #fff;
+}
+
+/* Controls panel */
+.panel {
+  background: #141416; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 20px; margin-bottom: 16px;
+}
+.panel h2 {
+  font-size: 11px; font-weight: 600; color: rgba(235,235,245,0.5);
+  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px;
+}
+.row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.row:last-child { margin-bottom: 0; }
+.row label { font-size: 12px; color: rgba(235,235,245,0.55); min-width: 110px; }
+.seg {
+  display: inline-flex; background: #1f1f22; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px; padding: 2px; gap: 2px;
+}
+.seg button {
+  background: transparent; border: none; color: rgba(235,235,245,0.6);
+  font-size: 12px; font-weight: 500; padding: 5px 10px; border-radius: 6px;
+  cursor: pointer; font-family: inherit; transition: all 120ms ease;
+}
+.seg button.on { background: #2c2c2e; color: #fff; box-shadow: 0 1px 0 rgba(0,0,0,0.3); }
+.seg button:hover:not(.on) { color: #fff; }
+
+.note {
+  font-size: 12px; color: rgba(235,235,245,0.55); line-height: 1.55;
+  border-left: 2px solid rgba(139,92,246,0.5); padding: 4px 0 4px 12px;
+  margin-top: 8px;
+}
+.kv { display: grid; grid-template-columns: 130px 1fr; gap: 6px 16px; font-size: 12px; }
+.kv .k { color: rgba(235,235,245,0.45); font-family: 'Geist Mono', monospace; }
+.kv .v { color: #EBEBF5; font-family: 'Geist Mono', monospace; }
+
+::-webkit-scrollbar { width: 0; height: 0; }
+.np-scroll::-webkit-scrollbar { width: 0; }
+
+@keyframes haptic-flash { 0% { transform: scale(1); } 30% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.haptic-pulse { animation: haptic-flash 320ms ease-out; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div>
+    <span class="badge">YT-0027</span>
+    <h1 style="display:inline-block;">iOS Now Playing — handoff mockup</h1>
+  </div>
+  <div class="meta">YourTube · iOS 17+ · SwiftUI · #8B5CF6</div>
+</div>
+
+<div class="layout">
+  <div class="phone-wrap">
+    <div class="phone" id="phone">
+      <div class="island"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.5"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.7"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" strokeOpacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+      <div id="np-root" style="position:absolute;inset:0;"></div>
+    </div>
+  </div>
+
+  <div id="ctrls"></div>
+</div>
+
+<script type="text/babel">
+const C = {
+  bg: '#0F0F0F', bg2: '#1C1C1E', bg3: '#2C2C2E', bg4: '#3A3A3C',
+  fg1: '#FFFFFF', fg2: 'rgba(235,235,245,0.6)', fg3: 'rgba(235,235,245,0.4)', fg4: 'rgba(235,235,245,0.25)',
+  accent: '#8B5CF6', accentDim: '#7C3AED', accentTint: 'rgba(139,92,246,0.18)',
+};
+
+const TRACK = {
+  title: 'Chill Lofi Mix — Deep Focus',
+  channel: 'ChillHop Music',
+  duration: 3612,
+  artworkGrad: 'linear-gradient(135deg, #5B2A86 0%, #2B6CB0 60%, #1A365D 100%)',
+};
+const fmt = s => { const m = Math.floor(s/60), x = String(s%60).padStart(2,'0'); return `${m}:${x}`; };
+
+// ─── SF symbol-ish glyphs ────────────────────────────────────────────────
+const I = {
+  chevDown: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><polyline points="6,9 12,15 18,9"/></svg>,
+  ellipsis: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>,
+  play: <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 21,12 6,21"/></svg>,
+  pause: <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4.2" height="16" rx="1.2"/><rect x="13.8" y="4" width="4.2" height="16" rx="1.2"/></svg>,
+  back: <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><polygon points="20,4 9,12 20,20"/><rect x="4.5" y="4" width="2.4" height="16" rx="0.6"/></svg>,
+  fwd: <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><polygon points="4,4 15,12 4,20"/><rect x="17.1" y="4" width="2.4" height="16" rx="0.6"/></svg>,
+  shuffle: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16,3 21,3 21,8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21,16 21,21 16,21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>,
+  repeat: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17,1 21,5 17,9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7,23 3,19 7,15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>,
+  airplay: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2"/><polygon points="12,15 17,21 7,21"/></svg>,
+  queue: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
+  share: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v12"/><polyline points="7,9 12,4 17,9"/><path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>,
+  add: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  speakerLow: <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19"/></svg>,
+  speakerHigh: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11,5 6,9 2,9 2,15 6,15 11,19" fill="currentColor" stroke="none"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
+};
+
+// ─── Background variants ────────────────────────────────────────────────
+function Background({ kind, isPlaying }) {
+  if (kind === 'solid') return <div style={{position:'absolute',inset:0,background:'#1C1C1E'}}/>;
+  if (kind === 'radial') return <div style={{position:'absolute',inset:0,background:'radial-gradient(120% 80% at 50% 0%, #2A2A2D 0%, #1C1C1E 60%, #141416 100%)'}}/>;
+  // extracted (v1.1)
+  return (
+    <div style={{position:'absolute',inset:0,overflow:'hidden'}}>
+      <div style={{position:'absolute',inset:'-10%',background:'linear-gradient(160deg, #4A2670 0%, #1F2A55 55%, #0E1024 100%)', filter:'blur(40px)', transform:'scale(1.1)'}}/>
+      <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.45) 100%)'}}/>
+    </div>
+  );
+}
+
+// ─── Transport button ──────────────────────────────────────────────────
+function Tbtn({ children, label, size=44, onClick, active, dim, fillCircle }) {
+  const [hot, setHot] = React.useState(false);
+  const baseColor = dim ? C.fg3 : (active ? C.accent : C.fg1);
+  const bg = fillCircle ? C.accent : 'transparent';
+  return (
+    <button onClick={onClick} aria-label={label}
+      onMouseDown={()=>setHot(true)} onMouseUp={()=>setHot(false)} onMouseLeave={()=>setHot(false)}
+      style={{
+        width: size, height: size, borderRadius: '50%',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        background: bg, border:'none', cursor:'pointer',
+        color: fillCircle ? '#fff' : baseColor,
+        transform: hot ? 'scale(0.92)' : 'scale(1)',
+        transition: 'transform 120ms ease, background 150ms ease',
+        boxShadow: fillCircle ? '0 6px 18px rgba(139,92,246,0.35)' : 'none',
+        opacity: dim ? 0.85 : 1,
+      }}>
+      {children}
+    </button>
+  );
+}
+
+// ─── Scrubber ─────────────────────────────────────────────────────────
+function Scrubber({ progress, setProgress, onScrubStart, onScrubEnd, dragging, setDragging }) {
+  const trackRef = React.useRef(null);
+  const onDown = (e) => {
+    setDragging(true); onScrubStart && onScrubStart();
+    move(e);
+    const mv = (ev) => move(ev);
+    const up = (ev) => { setDragging(false); onScrubEnd && onScrubEnd(); window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  };
+  const move = (e) => {
+    const r = trackRef.current.getBoundingClientRect();
+    const x = (e.clientX ?? e.touches?.[0]?.clientX ?? 0) - r.left;
+    const p = Math.max(0, Math.min(1, x / r.width));
+    setProgress(p);
+  };
+  const trackH = dragging ? 8 : 4;
+  const thumbS = dragging ? 18 : 12;
+  const elapsed = fmt(Math.floor(TRACK.duration * progress));
+  const total = fmt(TRACK.duration);
+  return (
+    <div>
+      <div ref={trackRef} onPointerDown={onDown}
+        style={{position:'relative', height: 20, display:'flex', alignItems:'center', cursor:'pointer'}}>
+        <div style={{position:'absolute', left:0, right:0, height: trackH, background: C.bg4, borderRadius: 4, transition:'height 180ms ease'}}/>
+        <div style={{position:'absolute', left:0, height: trackH, width: `${progress*100}%`, background:'#fff', borderRadius: 4, transition:'height 180ms ease'}}/>
+        <div style={{position:'absolute', left: `${progress*100}%`, transform:'translateX(-50%)',
+          width: thumbS, height: thumbS, borderRadius:'50%', background:'#fff',
+          boxShadow:'0 1px 3px rgba(0,0,0,0.4)', transition:'width 180ms ease, height 180ms ease'}}/>
+      </div>
+      <div style={{display:'flex', justifyContent:'space-between', marginTop: 6,
+        fontSize: dragging ? 14 : 12, color: dragging ? C.fg1 : C.fg3,
+        fontVariantNumeric:'tabular-nums', transition:'all 180ms ease', fontWeight: 500}}>
+        <span>{elapsed}</span><span>-{fmt(TRACK.duration - Math.floor(TRACK.duration*progress))}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Volume slider ────────────────────────────────────────────────────
+function VolumeSlider({ vol, setVol }) {
+  const ref = React.useRef(null);
+  const onDown = (e) => {
+    move(e);
+    const mv = ev => move(ev);
+    const up = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+  };
+  const move = (e) => {
+    const r = ref.current.getBoundingClientRect();
+    const x = (e.clientX ?? e.touches?.[0]?.clientX ?? 0) - r.left;
+    setVol(Math.max(0, Math.min(1, x / r.width)));
+  };
+  return (
+    <div style={{display:'flex', alignItems:'center', gap: 12}}>
+      <span style={{color: C.fg3}}>{I.speakerLow}</span>
+      <div ref={ref} onPointerDown={onDown}
+        style={{flex:1, position:'relative', height: 18, display:'flex', alignItems:'center', cursor:'pointer'}}>
+        <div style={{position:'absolute', left:0, right:0, height: 4, background: C.bg4, borderRadius: 4}}/>
+        <div style={{position:'absolute', left:0, height: 4, width: `${vol*100}%`, background:'#fff', borderRadius: 4}}/>
+        <div style={{position:'absolute', left: `${vol*100}%`, transform:'translateX(-50%)',
+          width: 10, height: 10, borderRadius:'50%', background:'#fff'}}/>
+      </div>
+      <span style={{color: C.fg3}}>{I.speakerHigh}</span>
+    </div>
+  );
+}
+
+// ─── Haptic indicator (visual hint) ───────────────────────────────────
+function HapticBadge({ event }) {
+  if (!event) return null;
+  return (
+    <div key={event.id} className="haptic-pulse"
+      style={{position:'absolute', top: 84, left:'50%', transform:'translateX(-50%)',
+        background:'rgba(139,92,246,0.2)', border:'1px solid rgba(139,92,246,0.5)',
+        color:'#D6BCFA', borderRadius: 999, padding:'4px 12px',
+        fontSize: 11, fontWeight: 600, letterSpacing: 0.5, fontFamily:'Geist Mono, monospace',
+        zIndex: 25, pointerEvents:'none', whiteSpace:'nowrap'}}>
+      {event.label}
+    </div>
+  );
+}
+
+// ─── Now Playing screen ──────────────────────────────────────────────
+function NowPlaying({ tweaks }) {
+  const [isPlaying, setPlaying] = React.useState(true);
+  const [progress, setProgress] = React.useState(0.34);
+  const [dragging, setDragging] = React.useState(false);
+  const [vol, setVol] = React.useState(0.55);
+  const [shuffle, setShuffle] = React.useState(false);
+  const [repeat, setRepeat] = React.useState(false);
+  const [showQueue, setShowQueue] = React.useState(tweaks.queueOpen);
+  const [haptic, setHaptic] = React.useState(null);
+  const [dragOffset, setDragOffset] = React.useState(0); // for drag-to-dismiss demo
+
+  React.useEffect(() => setShowQueue(tweaks.queueOpen), [tweaks.queueOpen]);
+
+  const fireHaptic = (label) => {
+    setHaptic({ id: Math.random(), label });
+    setTimeout(() => setHaptic(null), 320);
+  };
+
+  const reduceMotion = tweaks.reduceMotion;
+  const transitionScale = reduceMotion ? 'none' : 'transform 380ms cubic-bezier(0.34, 1.2, 0.64, 1)';
+  const artScale = isPlaying ? 1 : 0.85;
+  const artRadius = isPlaying ? 12 : 20;
+
+  return (
+    <div className="np-scroll" style={{
+      position:'absolute', inset: 0, overflow:'hidden',
+      transform: `translateY(${dragOffset}px)`,
+      transition: dragOffset === 0 ? 'transform 280ms cubic-bezier(0.32,0.72,0,1)' : 'none',
+    }}>
+      <Background kind={tweaks.background} isPlaying={isPlaying}/>
+      <HapticBadge event={haptic}/>
+
+      {/* Drag handle */}
+      <div onPointerDown={(e)=>{
+        const startY = e.clientY;
+        const mv = (ev) => setDragOffset(Math.max(0, ev.clientY - startY));
+        const up = (ev) => {
+          window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', up);
+          setDragOffset(0);
+        };
+        window.addEventListener('pointermove', mv); window.addEventListener('pointerup', up);
+      }} style={{
+        position:'absolute', top: 60, left:'50%', transform:'translateX(-50%)',
+        width: 36, height: 5, borderRadius: 3, background:'rgba(255,255,255,0.35)', zIndex: 15,
+        cursor:'grab',
+      }}/>
+
+      {/* Top bar */}
+      <div style={{position:'absolute', top: 76, left: 16, right: 16, display:'flex',
+        alignItems:'center', justifyContent:'space-between', zIndex: 12}}>
+        <Tbtn label="Dismiss" size={40}>{I.chevDown}</Tbtn>
+        <div style={{fontSize: 11, fontWeight: 600, color: C.fg3, letterSpacing: '0.1em', textTransform:'uppercase'}}>From queue · ChillHop</div>
+        <Tbtn label="More" size={40}>{I.ellipsis}</Tbtn>
+      </div>
+
+      {/* Content */}
+      <div style={{position:'absolute', top: 130, left: 0, right: 0, bottom: 0,
+        display:'flex', flexDirection:'column', padding:'0 24px 24px', gap: 0}}>
+
+        {/* Artwork */}
+        <div style={{flex: showQueue ? 0 : 1, display:'flex', alignItems:'center', justifyContent:'center', minHeight: showQueue ? 0 : 280, padding: '8px 0 24px'}}>
+          <div style={{
+            width: showQueue ? 80 : '100%', maxWidth: 320, aspectRatio: '1',
+            borderRadius: showQueue ? 8 : artRadius,
+            background: TRACK.artworkGrad,
+            transform: showQueue ? 'scale(1)' : `scale(${artScale})`,
+            transition: transitionScale + ', border-radius 380ms ease, width 320ms ease',
+            boxShadow: '0 12px 36px rgba(0,0,0,0.45)',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            color:'rgba(255,255,255,0.18)', fontSize: 64, fontWeight: 700, letterSpacing:'-0.05em',
+            fontFamily:'Geist, sans-serif', userSelect:'none',
+          }}>♪</div>
+        </div>
+
+        {/* Title + channel + add */}
+        <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap: 12, marginBottom: 18}}>
+          <div style={{minWidth: 0, flex: 1}}>
+            <div style={{fontSize: 22, fontWeight: 600, color: C.fg1, letterSpacing:'-0.02em', lineHeight: 1.2}}>{TRACK.title}</div>
+            <div style={{fontSize: 15, color: C.fg2, marginTop: 4}}>{TRACK.channel}</div>
+          </div>
+          <Tbtn label="Add to playlist" size={36}>{I.add}</Tbtn>
+        </div>
+
+        {/* Scrubber */}
+        <div style={{marginBottom: 24}}>
+          <Scrubber progress={progress} setProgress={setProgress}
+            dragging={dragging} setDragging={setDragging}
+            onScrubStart={()=>fireHaptic('SCRUB START · .selection')}
+            onScrubEnd={()=>fireHaptic('SCRUB END · .impact(medium)')}/>
+        </div>
+
+        {/* Transport row */}
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 24}}>
+          <Tbtn label="Shuffle" size={44} active={shuffle} dim={!shuffle}
+            onClick={()=>{ setShuffle(s=>!s); fireHaptic(shuffle ? 'SHUFFLE OFF · .selection' : 'SHUFFLE ON · .success'); }}>
+            {I.shuffle}
+          </Tbtn>
+          <Tbtn label="Previous" size={56}
+            onClick={()=>{ setProgress(0); fireHaptic('SKIP BACK · .impact(light)'); }}>
+            {I.back}
+          </Tbtn>
+          <button aria-label={isPlaying ? 'Pause' : 'Play'}
+            onClick={()=>{ setPlaying(p=>!p); fireHaptic(isPlaying ? 'PAUSE · .impact(light)' : 'PLAY · .impact(medium)'); }}
+            style={{
+              width: 72, height: 72, borderRadius: '50%',
+              background:'#fff', border:'none', cursor:'pointer',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              color: '#1C1C1E',
+              boxShadow: '0 6px 22px rgba(0,0,0,0.5)',
+              transition:'transform 140ms ease',
+            }}
+            onMouseDown={e=>e.currentTarget.style.transform='scale(0.94)'}
+            onMouseUp={e=>e.currentTarget.style.transform='scale(1)'}
+            onMouseLeave={e=>e.currentTarget.style.transform='scale(1)'}
+          >
+            {isPlaying ? I.pause : I.play}
+          </button>
+          <Tbtn label="Next" size={56}
+            onClick={()=>fireHaptic('SKIP FWD · .impact(light)')}>
+            {I.fwd}
+          </Tbtn>
+          <Tbtn label="Repeat" size={44} active={repeat} dim={!repeat}
+            onClick={()=>{ setRepeat(r=>!r); fireHaptic(repeat ? 'REPEAT OFF · .selection' : 'REPEAT ON · .success'); }}>
+            {I.repeat}
+          </Tbtn>
+        </div>
+
+        {/* Volume */}
+        <div style={{marginBottom: 28}}>
+          <VolumeSlider vol={vol} setVol={setVol}/>
+        </div>
+
+        {/* Action row */}
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding: '0 16px'}}>
+          <Tbtn label="AirPlay" size={40}>{I.airplay}</Tbtn>
+          <Tbtn label="Queue" size={40} active={showQueue}
+            onClick={()=>{ setShowQueue(q=>!q); fireHaptic('QUEUE · .impact(light)'); }}>
+            {I.queue}
+          </Tbtn>
+          <Tbtn label="Share" size={40}>{I.share}</Tbtn>
+          <Tbtn label="Add" size={40}>{I.add}</Tbtn>
+        </div>
+
+        {/* Up Next inline preview */}
+        {showQueue && (
+          <div style={{
+            position:'absolute', left: 16, right: 16, bottom: 16,
+            background:'rgba(28,28,30,0.92)',
+            backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)',
+            borderRadius: 14, padding: 12,
+            border:'1px solid rgba(255,255,255,0.06)',
+            boxShadow:'0 -8px 32px rgba(0,0,0,0.5)',
+          }}>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 10, padding:'0 4px'}}>
+              <div style={{fontSize: 12, fontWeight: 600, color: C.fg3, letterSpacing:'0.08em', textTransform:'uppercase'}}>Up Next · 3</div>
+              <button style={{background:'none', border:'none', color: C.accent, fontSize: 13, fontWeight: 500, cursor:'pointer', fontFamily:'inherit'}}>See all</button>
+            </div>
+            {[
+              {t:'Hotel California', c:'Eagles'},
+              {t:'Comfortably Numb', c:'Pink Floyd'},
+              {t:'November Rain', c:"Guns N' Roses"},
+            ].map((q,i)=>(
+              <div key={i} style={{display:'flex', alignItems:'center', gap: 10, padding: '6px 4px', borderTop: i===0?'none':'0.5px solid rgba(84,84,88,0.4)'}}>
+                <div style={{width: 36, height: 36, borderRadius: 6, background: TRACK.artworkGrad, opacity: 0.7, flexShrink: 0}}/>
+                <div style={{flex: 1, minWidth: 0}}>
+                  <div style={{fontSize: 13, fontWeight: 500, color: C.fg1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{q.t}</div>
+                  <div style={{fontSize: 11, color: C.fg3}}>{q.c}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Controls panel ──────────────────────────────────────────────────
+function Seg({ value, set, options }) {
+  return (
+    <div className="seg">
+      {options.map(o => (
+        <button key={o.value} className={value === o.value ? 'on' : ''}
+          onClick={()=>set(o.value)}>{o.label}</button>
+      ))}
+    </div>
+  );
+}
+
+function Controls({ tweaks, setTweaks }) {
+  const set = (k, v) => setTweaks(t => ({...t, [k]: v}));
+  return (
+    <div>
+      <div className="panel">
+        <h2>Decisions explored in this mockup</h2>
+        <div style={{fontSize: 13, lineHeight: 1.6, color: 'rgba(235,235,245,0.7)'}}>
+          Toggle the variants below to see each decision in context. The full
+          rationale lives in <code style={{color:'#D6BCFA'}}>handoff/YT-0027/decision-log.md</code>.
+        </div>
+      </div>
+
+      <div className="panel">
+        <h2>Q3 · Background atmosphere</h2>
+        <div className="row">
+          <Seg value={tweaks.background} set={v=>set('background', v)} options={[
+            {value:'solid', label:'Solid #1C1C1E (v1 ship)'},
+            {value:'radial', label:'Radial · subtle depth'},
+            {value:'extracted', label:'Extracted blur (v1.1, flagged)'},
+          ]}/>
+        </div>
+        <div className="note">
+          <strong>Recommendation:</strong> ship <code>solid #1C1C1E</code> in v1.
+          <code>radial</code> is a safe middle if "solid feels flat" feedback comes back.
+          <code>extracted</code> stays behind a feature flag until palette extraction +
+          luminance clamp + WCAG AA contrast check are all in place.
+        </div>
+      </div>
+
+      <div className="panel">
+        <h2>Q2 · Artwork pause-scale</h2>
+        <div className="row">
+          <label>Playback state</label>
+          <Seg value={tweaks.playbackDemo ?? 'live'} set={v=>set('playbackDemo', v)} options={[
+            {value:'live', label:'Live (tap play/pause in mock)'},
+          ]}/>
+        </div>
+        <div className="kv" style={{marginTop: 8}}>
+          <span className="k">play scale</span><span className="v">1.00 · radius 12pt</span>
+          <span className="k">pause scale</span><span className="v">0.85 · radius 20pt</span>
+          <span className="k">spring</span><span className="v">.spring(response: 0.45, dampingFraction: 0.78)</span>
+          <span className="k">anchor</span><span className="v">.center</span>
+        </div>
+      </div>
+
+      <div className="panel">
+        <h2>Q4 · Scrubber behavior</h2>
+        <div className="kv">
+          <span className="k">track rest / drag</span><span className="v">4pt → 8pt</span>
+          <span className="k">thumb rest / drag</span><span className="v">12pt → 18pt</span>
+          <span className="k">labels rest / drag</span><span className="v">12pt secondary → 14pt primary</span>
+          <span className="k">haptic ticks</span><span className="v">.selection every 10s scrubbed</span>
+          <span className="k">commit</span><span className="v">on .onEnded only — never per-frame</span>
+        </div>
+        <div className="note">Drag the scrubber in the mock — track + thumb expand, labels grow, haptic markers fire as toasts.</div>
+      </div>
+
+      <div className="panel">
+        <h2>Q5 · Transport row</h2>
+        <div className="kv">
+          <span className="k">layout</span><span className="v">single row · no capsule</span>
+          <span className="k">play-pause</span><span className="v">72pt filled white circle</span>
+          <span className="k">skip</span><span className="v">26pt SF Symbol · 56pt hit target</span>
+          <span className="k">shuffle/repeat</span><span className="v">20pt · 44pt hit · accent when on</span>
+        </div>
+        <div className="note">Size hierarchy carries the visual weight — no glass row, no Liquid Glass.</div>
+      </div>
+
+      <div className="panel">
+        <h2>Q6 · Queue access</h2>
+        <div className="row">
+          <Seg value={tweaks.queueOpen ? 'inline' : 'closed'} set={v=>set('queueOpen', v === 'inline')} options={[
+            {value:'closed', label:'Closed'},
+            {value:'inline', label:'Up Next preview (recommended)'},
+          ]}/>
+        </div>
+        <div className="note">
+          Inline <strong>Up Next</strong> shows next 3 tracks; "See all" pushes a full
+          <code>NavigationStack</code> destination. Compromise between the mockup's panel
+          and a separate sheet — preserves audio focus, gives the queue a real screen for
+          edit mode + swipe actions.
+        </div>
+      </div>
+
+      <div className="panel">
+        <h2>Q7 · Action row</h2>
+        <div className="kv">
+          <span className="k">order (left → right)</span><span className="v">AirPlay · Queue · Share · Add</span>
+          <span className="k">labels</span><span className="v">icon-only (SF Symbols)</span>
+          <span className="k">AirPlay</span><span className="v">first slot · AVRoutePickerView bridged</span>
+        </div>
+      </div>
+
+      <div className="panel">
+        <h2>Q8 · Haptics — fire to test</h2>
+        <div className="row" style={{gap:8}}>
+          {[
+            ['PLAY', '.impact(medium)'],
+            ['PAUSE', '.impact(light)'],
+            ['SKIP', '.impact(light) intensity 0.7'],
+            ['SCRUB END', '.impact(medium)'],
+            ['SCRUB TICK', '.selection'],
+            ['SHUFFLE ON', '.success'],
+          ].map(([k, v]) => (
+            <div key={k} style={{fontSize: 11, fontFamily:'Geist Mono, monospace', color:'rgba(235,235,245,0.65)'}}>
+              <span style={{color:'#D6BCFA'}}>{k}</span> · {v}
+            </div>
+          ))}
+        </div>
+        <div className="note">Tap the transport in the mock to see haptic markers as toasts. Volume slider drag <strong>does not</strong> trigger haptics — iOS owns that via the system HUD.</div>
+      </div>
+
+      <div className="panel">
+        <h2>Q9 · Reduce motion</h2>
+        <div className="row">
+          <label>Simulate</label>
+          <Seg value={tweaks.reduceMotion ? 'on' : 'off'} set={v=>set('reduceMotion', v==='on')} options={[
+            {value:'off', label:'Off'},
+            {value:'on', label:'On (cross-fades, no spring)'},
+          ]}/>
+        </div>
+        <div className="note">When on, artwork pause-scale becomes instant; queue + sheet entries cross-fade. Progress bar advance, color states, and user-driven drag-to-dismiss <strong>stay</strong> — they convey information, not motion.</div>
+      </div>
+
+      <div className="panel">
+        <h2>Q1 · Presentation pattern (SwiftUI)</h2>
+        <div className="kv">
+          <span className="k">container</span><span className="v">.fullScreenCover</span>
+          <span className="k">dismiss</span><span className="v">interactive DragGesture, velocity commit</span>
+          <span className="k">hero</span><span className="v">matchedGeometryEffect on artwork ↔ MiniPlayer</span>
+          <span className="k">corners at rest</span><span className="v">0pt (edge-to-edge)</span>
+        </div>
+        <div className="note">Drag from the handle at the top of the phone — the screen tracks the finger. In SwiftUI this is a <code>DragGesture</code> wired to a translation offset + velocity-threshold dismiss.</div>
+      </div>
+
+      <div className="panel">
+        <h2>Q10 · System parity (must mirror)</h2>
+        <div className="kv">
+          <span className="k">MPNowPlayingInfoCenter</span><span className="v">title, channel, artwork (closure-resolved), elapsed, duration, rate</span>
+          <span className="k">MPRemoteCommandCenter</span><span className="v">play, pause, skipFwd, skipBack, changeShuffleMode, changeRepeatMode</span>
+          <span className="k">Live Activity</span><span className="v">artwork (proportional 16% radius), 2-bar waveform that pauses on .pause</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [tweaks, setTweaks] = React.useState({
+    background: 'solid',
+    queueOpen: false,
+    reduceMotion: false,
+  });
+  React.useEffect(() => {
+    ReactDOM.createRoot(document.getElementById('ctrls')).render(
+      <Controls tweaks={tweaks} setTweaks={setTweaks}/>
+    );
+  }, []);
+  // Re-render controls panel on tweak change
+  React.useEffect(() => {
+    const root = document.getElementById('ctrls');
+    if (root && root._reactRootContainer) {
+      // we already created root above; React state propagates via re-render of NowPlaying
+    }
+  }, [tweaks]);
+  return <NowPlaying tweaks={tweaks}/>;
+}
+
+// Single root + manual sync of controls
+const npRoot = ReactDOM.createRoot(document.getElementById('np-root'));
+const ctrlsRoot = ReactDOM.createRoot(document.getElementById('ctrls'));
+function Mount() {
+  const [tweaks, setTweaks] = React.useState({
+    background: 'solid',
+    queueOpen: false,
+    reduceMotion: false,
+  });
+  React.useEffect(() => {
+    ctrlsRoot.render(<Controls tweaks={tweaks} setTweaks={setTweaks}/>);
+    npRoot.render(<NowPlaying tweaks={tweaks}/>);
+  }, [tweaks]);
+  return null;
+}
+ReactDOM.createRoot(document.createElement('div')).render(<Mount/>);
+</script>
+
+</body>
+</html>

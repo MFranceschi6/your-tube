@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>YT-0013 — Mockup pointer</title>
+<style>
+  body {
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #141218;
+    color: #E6E1E5;
+    padding: 48px;
+    max-width: 720px;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+  h1 { font-weight: 700; letter-spacing: -0.02em; margin: 0 0 24px; }
+  h2 { color: #D0BCFF; font-size: 18px; margin: 32px 0 12px; letter-spacing: 0.02em; text-transform: uppercase; }
+  code { background: #1C1B1F; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+  a { color: #D0BCFF; }
+  .pill { display: inline-block; background: #4F378B; color: #EADDFF; padding: 4px 12px; border-radius: 999px; font-size: 12px; letter-spacing: 0.04em; }
+  .precedence { background: #2A1F4A; border-left: 3px solid #D0BCFF; padding: 16px 20px; border-radius: 8px; margin: 24px 0; }
+</style>
+</head>
+<body>
+  <span class="pill">YT-0013 · Now Playing · Android</span>
+  <h1>Mockup pointer</h1>
+
+  <p>This handoff folder does not own a fresh interactive mockup. The legacy combined mockup remains the layout reference:</p>
+
+  <p><a href="../../mockups/android/YT-0011-0012-0013-shell-search-player.html"><code>design-system/mockups/android/YT-0011-0012-0013-shell-search-player.html</code></a></p>
+
+  <div class="precedence">
+    <strong>Precedence:</strong> the markdown in this folder (<code>decision-log.md</code>, <code>compose-spec.md</code>, <code>haptics-and-a11y.md</code>, <code>media3-parity.md</code>) <em>overrides</em> the combined HTML mockup wherever they disagree. The mockup predates the Q1–Q12 decisions and the post-implementation audit at <code>design-system/handoff/YT-0011/audit.md</code>.
+  </div>
+
+  <h2>Known mockup drift (do not port)</h2>
+  <ul>
+    <li><strong>Background:</strong> mockup uses <code>pal.bg</code>; production uses <code>colorScheme.surface</code> (decision Q3).</li>
+    <li><strong>Scrubber thumb:</strong> mockup uses accent purple; production uses white (decision Q4).</li>
+    <li><strong>Play button:</strong> mockup uses 64 dp accent circle; production uses 72 dp <code>FilledIconButton</code> with <code>onSurface</code> container / <code>surface</code> content (decision Q5).</li>
+    <li><strong>Queue:</strong> mockup is a collapsible inline panel; production is <code>ModalBottomSheet</code> with hand-rolled reorder + <code>SwipeToDismissBox</code> removal (decision Q6).</li>
+    <li><strong>Cast:</strong> missing in mockup; production puts <code>MediaRouteButton</code> as the leftmost icon in the action row (decision Q7).</li>
+    <li><strong>MiniPlayer ↔ NowPlaying:</strong> mockup has no transition; production uses <code>SharedTransitionLayout</code> + <code>sharedBounds</code> keyed by <code>videoId</code> (decision Q12).</li>
+  </ul>
+
+  <h2>Read order</h2>
+  <ol>
+    <li><a href="README.md"><code>README.md</code></a> — entry point, tokens, build order.</li>
+    <li><a href="decision-log.md"><code>decision-log.md</code></a> — Q1–Q12 with rationale.</li>
+    <li><a href="compose-spec.md"><code>compose-spec.md</code></a> — view hierarchy, snippets, file layout.</li>
+    <li><a href="haptics-and-a11y.md"><code>haptics-and-a11y.md</code></a> — haptics table, fontScale, reduce-motion, TalkBack.</li>
+    <li><a href="media3-parity.md"><code>media3-parity.md</code></a> — <code>MediaSession</code>, lock-screen / notification mirror.</li>
+  </ol>
+</body>
+</html>
