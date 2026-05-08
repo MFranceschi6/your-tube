@@ -203,6 +203,56 @@ class PlayerOverlayStateTest {
     }
 
     @Test
+    fun tap_drag_handle_without_movement_stays_expanded() = runTest(UnconfinedTestDispatcher()) {
+        // YT-0229: tap with zero displacement, zero velocity. Sub-threshold path runs
+        // animateTo(1f) with initialVelocity=0 — no movement, no settle callback.
+        var settledCount = 0
+        val state = PlayerOverlayState(
+            coroutineScope = backgroundScope + VirtualMonotonicFrameClock(),
+            onCloseSettled = { settledCount++ },
+            isReducedMotionProvider = { false },
+            screenHeightPxProvider = { screenHeightPx },
+            velocityThresholdPxPerSecProvider = { velocityThresholdPxPerSec },
+            initialExpanded = true,
+        )
+
+        state.onDragStopped(velocityPxPerSec = 0f)
+        advanceTimeBy(1000)
+        advanceUntilIdle()
+
+        assertEquals(1f, state.expandProgress.value, 0.001f)
+        assertEquals(0, settledCount)
+    }
+
+    @Test
+    fun fast_downward_flick_collapses_with_velocity_carry() = runTest(UnconfinedTestDispatcher()) {
+        // YT-0229: fast downward flick (positive px velocity) past distance threshold.
+        // The post-release spring receives non-zero initial velocity so the artwork
+        // continues fluidly toward 0f without a frame-freeze. Asserting the spring
+        // settles at 0f within the same window the prior tween used proves the new
+        // physics still meet the latency budget.
+        var settledCount = 0
+        val state = PlayerOverlayState(
+            coroutineScope = backgroundScope + VirtualMonotonicFrameClock(),
+            onCloseSettled = { settledCount++ },
+            isReducedMotionProvider = { false },
+            screenHeightPxProvider = { screenHeightPx },
+            velocityThresholdPxPerSecProvider = { velocityThresholdPxPerSec },
+            initialExpanded = true,
+        )
+        state.onDragDelta(screenHeightPx * 0.5f)
+        advanceUntilIdle()
+
+        // Fast downward release — multiple times the velocity threshold.
+        state.onDragStopped(velocityPxPerSec = velocityThresholdPxPerSec * 2f)
+        advanceTimeBy(MotionSpec.DURATION_COLLAPSE_MS.toLong() + 500)
+        advanceUntilIdle()
+
+        assertEquals(0f, state.expandProgress.value, 0.01f)
+        assertEquals(1, settledCount)
+    }
+
+    @Test
     fun reduce_motion_drag_is_no_op() = runTest(UnconfinedTestDispatcher()) {
         val state = PlayerOverlayState(
             coroutineScope = backgroundScope + VirtualMonotonicFrameClock(),

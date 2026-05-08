@@ -1,6 +1,7 @@
 package com.yourtube.core.player
 
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
@@ -31,6 +32,8 @@ internal class ExoPlayerMediaItemQueueing(
     private val player: ExoPlayer,
 ) : MediaItemQueueing {
     override fun setMediaItem(mediaItem: MediaItem) = player.setMediaItem(mediaItem)
+
+    @androidx.annotation.OptIn(UnstableApi::class)
     override fun setMediaSource(mediaSource: MediaSource) = player.setMediaSource(mediaSource)
     override fun prepare() = player.prepare()
     override fun play() = player.play()
@@ -42,6 +45,7 @@ class PlaybackPlayerAdapter internal constructor(
 ) : PlaybackEngine {
 
     @Inject
+    @androidx.annotation.OptIn(UnstableApi::class)
     constructor(perfTracer: PlaybackPerfTracer) : this(
         hlsMediaSourceFactory = { mediaItem ->
             HlsMediaSource.Factory(DefaultHttpDataSource.Factory())

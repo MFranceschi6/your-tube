@@ -47,6 +47,13 @@ object MotionSpec {
     const val DRAG_COLLAPSE_VELOCITY_DP_PER_S = 800f
     const val DRAG_SPRING_BACK_MAX_MS = 200
 
+    // §3 — drag-release physics. Past-threshold collapse uses a NoBouncy spring with
+    // hard target 0f so finger velocity carries through without a frame-freeze
+    // (YT-0229). Sub-threshold spring-back uses a MediumBouncy spring so the rebound
+    // visibly reflects release velocity.
+    const val DRAG_RELEASE_COLLAPSE_DAMPING_RATIO = 1.0f
+    const val DRAG_RELEASE_COLLAPSE_STIFFNESS = 1500f // Spring.StiffnessMedium
+
     // §6 — track-switch + artwork-failure cross-fade durations.
     const val TRACK_SWITCH_CROSSFADE_MS = 200
     const val ARTWORK_FAILURE_CROSSFADE_MS = 160

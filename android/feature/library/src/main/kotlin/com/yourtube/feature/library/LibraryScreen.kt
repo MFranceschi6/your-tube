@@ -166,6 +166,7 @@ fun LibraryScreen(
                         body = "Check your connection and try again.",
                         onRetry = viewModel::retry,
                         assertive = true,
+                        scrollable = true,
                     )
                 }
             }

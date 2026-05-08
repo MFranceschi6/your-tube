@@ -171,6 +171,7 @@ fun PlaylistDetailScreen(
                         body = "Add tracks from search or your history.",
                         actionLabel = "Find tracks",
                         onAction = onGoToSearch,
+                        scrollable = true,
                     )
                 }
             }
@@ -240,6 +241,7 @@ fun PlaylistDetailScreen(
                         title = "Couldn't load this playlist",
                         body = "Check your connection and try again.",
                         onRetry = viewModel::retry,
+                        scrollable = true,
                     )
                 }
             }

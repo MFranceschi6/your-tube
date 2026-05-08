@@ -42,6 +42,7 @@ fun ErrorState(
     secondaryActionLabel: String? = null,
     onSecondaryAction: (() -> Unit)? = null,
     assertive: Boolean = false,
+    scrollable: Boolean = false,
 ) {
     val regionMode = if (assertive) LiveRegionMode.Assertive else LiveRegionMode.Polite
     EmptyState(
@@ -57,6 +58,7 @@ fun ErrorState(
         secondaryActionLabel = secondaryActionLabel,
         onSecondaryAction = onSecondaryAction,
         primaryButtonStyle = EmptyStatePrimaryStyle.FILLED,
+        scrollable = scrollable,
     )
 }
 

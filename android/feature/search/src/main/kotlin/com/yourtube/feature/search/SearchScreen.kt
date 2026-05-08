@@ -179,6 +179,7 @@ fun SearchScreen(
                         body = "Check your spelling or try a different search.",
                         actionLabel = "Clear search",
                         onAction = viewModel::clearQuery,
+                        scrollable = true,
                     )
                 }
             }
@@ -269,12 +270,14 @@ fun SearchScreen(
                             onRetry = viewModel::retry,
                             secondaryActionLabel = "Go to Library",
                             onSecondaryAction = onGoToLibrary,
+                            scrollable = true,
                         )
                     } else {
                         ErrorState(
                             title = "Couldn't search",
                             body = "Something went wrong on our end. Try again in a moment.",
                             onRetry = viewModel::retry,
+                            scrollable = true,
                         )
                     }
                 }

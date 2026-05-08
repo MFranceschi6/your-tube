@@ -142,6 +142,7 @@ fun RecentlyPlayedScreen(
                         title = "Couldn't load history",
                         body = "Try again in a moment.",
                         onRetry = viewModel::retry,
+                        scrollable = true,
                     )
                 }
             }

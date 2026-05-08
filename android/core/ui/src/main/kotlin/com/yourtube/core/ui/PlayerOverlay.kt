@@ -174,14 +174,22 @@ class PlayerOverlayState(
         val draggedFraction = 1f - expandProgress.value
         val triggerByDistance = draggedFraction >= MotionSpec.DRAG_COLLAPSE_DISTANCE_FRACTION
         val triggerByVelocity = velocityPxPerSec >= velocityThreshold
+        // YT-0229: convert finger px/sec to progress/sec. Positive Y velocity = downward
+        // = progress decreasing, so the progress-space initial velocity is NEGATED. The
+        // post-release animation continues from this velocity instead of restarting from
+        // rest, removing the visible frame-freeze at drag-end.
+        val screenH = screenHeightPxProvider()
+        val initialVelocityProgressPerSec =
+            if (screenH > 0f) -velocityPxPerSec / screenH else 0f
         activeJob = coroutineScope.launch {
             if (triggerByDistance || triggerByVelocity) {
                 expandProgress.animateTo(
                     targetValue = 0f,
-                    animationSpec = tween(
-                        durationMillis = MotionSpec.DURATION_COLLAPSE_MS,
-                        easing = MotionSpec.Exit,
+                    animationSpec = spring(
+                        dampingRatio = MotionSpec.DRAG_RELEASE_COLLAPSE_DAMPING_RATIO,
+                        stiffness = MotionSpec.DRAG_RELEASE_COLLAPSE_STIFFNESS,
                     ),
+                    initialVelocity = initialVelocityProgressPerSec,
                 )
                 onCloseSettled()
             } else {
@@ -191,6 +199,7 @@ class PlayerOverlayState(
                         dampingRatio = Spring.DampingRatioMediumBouncy,
                         stiffness = Spring.StiffnessMediumLow,
                     ),
+                    initialVelocity = initialVelocityProgressPerSec,
                 )
             }
         }
