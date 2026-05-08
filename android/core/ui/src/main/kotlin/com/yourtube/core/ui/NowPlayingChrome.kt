@@ -121,6 +121,21 @@ internal fun NowPlayingChrome(
         onDragDelta(delta)
     }
 
+    // YT-0152 — vertical drag-to-dismiss covers the upper "header" region of the
+    // NowPlaying surface: top bar, artwork slot, and track-info row. Below this
+    // region the scrubber, transport row, and queue button MUST stay tap-only so
+    // a horizontal scrub or play-tap is never stolen by the dismiss gesture, and
+    // the LazyColumn inside the queue sheet keeps its own scroll. We attach the
+    // same `Modifier.draggable` (sharing one `dragState` + one onDragStopped
+    // callback) to each header child rather than to the root Column to preserve
+    // those carve-outs. Threshold and velocity decisions live in
+    // PlayerOverlayState (30% distance / 800 dp/s) — see MotionSpec.
+    val headerDragModifier = Modifier.draggable(
+        state = dragState,
+        orientation = Orientation.Vertical,
+        onDragStopped = { velocity -> onDragStopped(velocity) },
+    )
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -142,11 +157,7 @@ internal fun NowPlayingChrome(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag(NowPlayingDragHandleTestTag)
-                    .draggable(
-                        state = dragState,
-                        orientation = Orientation.Vertical,
-                        onDragStopped = { velocity -> onDragStopped(velocity) },
-                    )
+                    .then(headerDragModifier)
                     .padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -187,11 +198,15 @@ internal fun NowPlayingChrome(
             // fills the chrome width minus 24dp gutters; reports its window-relative
             // rect via [onArtworkSlotPositioned] so the overlay's ArtworkBox can
             // morph into THIS exact rect at progress=1 with zero hardcoded constants.
+            // Carries the dismiss drag — `draggable` on this Box never fights with
+            // taps because nothing inside it is interactive (the artwork is rendered
+            // by the overlay above this chrome).
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp)
                     .aspectRatio(1f)
+                    .then(headerDragModifier)
                     .onGloballyPositioned { coords ->
                         onArtworkSlotPositioned(coords.boundsInWindow())
                     },
@@ -199,10 +214,14 @@ internal fun NowPlayingChrome(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Track info + heart
+            // Track info + heart. The Row itself takes the drag, but the
+            // FavoriteBorder IconButton inside still receives taps because
+            // `draggable` only intercepts gestures that begin as a drag — a
+            // direct ACTION_DOWN/UP on the IconButton hit-tests through.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .then(headerDragModifier)
                     .padding(horizontal = 24.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

@@ -2,6 +2,7 @@ package com.yourtube.core.player
 
 import android.content.ComponentName
 import android.content.Context
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionResult
@@ -75,13 +76,21 @@ class MediaControllerPlaybackClient @Inject constructor(
         val mediaController = controllerMutex.withLock {
             controller ?: buildController().also { controller = it }
         }
-        // Run on the main dispatcher: MediaController APIs are main-thread bound
-        // and updating the active MediaSession metadata triggers a system
+        // YT-0238 — pause + reset position, but keep the MediaItem on the
+        // timeline. Issuing `clearMediaItems()` here used to (a) drop
+        // `mediaItemCount` to 0, which made `MediaSessionService` cancel the
+        // foreground notification (lock-screen card flicker), and (b) drive
+        // ExoPlayer through `STATE_ENDED`, which fed back into
+        // `transportListener.onTrackEnded()` and made `skipNext` cascade to the
+        // last queue item. `pause()` alone halts audio output during the
+        // stream-resolve window; the follow-up `playTrack` call replaces the
+        // current item in place without ever passing through `count == 0`.
+        // Run on the main dispatcher: MediaController APIs are main-thread
+        // bound and updating the active MediaSession metadata triggers a system
         // notification refresh which must happen on the main thread.
         withContext(Dispatchers.Main.immediate) {
             mediaController.pause()
             mediaController.seekTo(0L)
-            mediaController.clearMediaItems()
         }
     }
 
@@ -140,6 +149,44 @@ class MediaControllerPlaybackClient @Inject constructor(
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 transportListener?.onIsPlayingChanged(isPlaying)
+            }
+
+            // YT-0150 — surface lock-screen / notification skip-next/prev (and any
+            // other player-driven media transition) to the controller so it can
+            // resync `PlayerState.currentQueueIndex` + `currentTrack`. We forward
+            // the `mediaId` (= `Track.videoId`) rather than the timeline index;
+            // the controller's queue can be reordered while the underlying
+            // timeline lags, so a mediaId match is the only reliable correlation.
+            //
+            // `REASON_PLAYLIST_CHANGED` is intentionally dropped: it echoes back
+            // from in-app `setMediaItem(...)` writes that already mutated
+            // PlayerState synchronously, and re-applying would clobber a fresh
+            // state that the controller scope has already advanced beyond.
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) return
+                transportListener?.onMediaItemTransition(mediaItem?.mediaId)
+            }
+
+            // YT-0150 — surface external (lock-screen / system shell / Auto)
+            // seeks to the controller so `PlayerState.positionMs` re-syncs with
+            // the engine. Filter on SEEK reasons only: `AUTO_TRANSITION` is
+            // already covered by `onMediaItemTransition` (position resets to
+            // zero on the new media item) and `INTERNAL` discontinuities are
+            // engine bookkeeping that should not propagate. The in-app
+            // `seekTo(...)` echo is suppressed downstream by the controller's
+            // idempotency check, so we forward both seek-flavoured reasons
+            // unconditionally here.
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int,
+            ) {
+                if (reason != Player.DISCONTINUITY_REASON_SEEK &&
+                    reason != Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
+                ) {
+                    return
+                }
+                transportListener?.onPositionChanged(newPosition.positionMs)
             }
         }
         mediaController.addListener(listener)

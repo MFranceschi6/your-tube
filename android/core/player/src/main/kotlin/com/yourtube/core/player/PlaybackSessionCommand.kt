@@ -26,6 +26,17 @@ object PlaybackSessionCommand {
     const val SKIP_TO_NEXT_QUEUE_ACTION = "com.yourtube.action.SKIP_TO_NEXT_QUEUE"
 
     /**
+     * YT-0239 — symmetric skip-to-previous action for the lock-screen / notification card.
+     * Media3's `DefaultMediaNotificationProvider` maps the prev button to
+     * `Player.seekToPrevious()`, which on our single-item ExoPlayer timeline always
+     * collapses to `seekTo(0)`. The custom command routes back into
+     * [PlayerController.skipPrevious] so the existing `RESTART_THRESHOLD_MS` policy
+     * (rewind-to-0 when position > threshold, advance to previous queue entry when
+     * <= threshold) drives both UI and system-control taps.
+     */
+    const val SKIP_TO_PREV_QUEUE_ACTION = "com.yourtube.action.SKIP_TO_PREV_QUEUE"
+
+    /**
      * `MediaMetadata.extras` key that stashes the YouTube video ID alongside the lock-screen
      * metadata (YT-0062a Q11). Useful for any controller that wants to round-trip back to the
      * source without re-parsing the artwork URI.
@@ -49,6 +60,13 @@ object PlaybackSessionCommand {
     val skipToNextQueue: SessionCommand = SessionCommand(SKIP_TO_NEXT_QUEUE_ACTION, Bundle.EMPTY)
 
     /**
+     * YT-0239 — `SessionCommand` paired with [playbackSkipPrevButton] so the
+     * `MediaSession.Callback` can route lock-screen prev taps back into
+     * [PlayerController.skipPrevious].
+     */
+    val skipToPrevQueue: SessionCommand = SessionCommand(SKIP_TO_PREV_QUEUE_ACTION, Bundle.EMPTY)
+
+    /**
      * YT-0183 — builds the `CommandButton` published via `MediaSession.setCustomLayout(...)`
      * to surface a skip-next control on the lock-screen / notification card whenever the
      * controller's queue has a next item. Re-uses Media3's built-in `media3_icon_next`
@@ -64,6 +82,20 @@ object PlaybackSessionCommand {
         .setSessionCommand(skipToNextQueue)
         .setIconResId(androidx.media3.session.R.drawable.media3_icon_next)
         .setDisplayName("Skip to next")
+        .setEnabled(true)
+        .build()
+
+    /**
+     * YT-0239 — builds the `CommandButton` published via `MediaSession.setCustomLayout(...)`
+     * for the lock-screen / notification skip-prev control whenever the controller's queue
+     * has a previous item. Mirrors [playbackSkipNextButton] line-for-line so the buttons
+     * sit on the same visual axis; uses Media3's bundled `media3_icon_previous` drawable.
+     */
+    @OptIn(UnstableApi::class)
+    fun playbackSkipPrevButton(): CommandButton = CommandButton.Builder()
+        .setSessionCommand(skipToPrevQueue)
+        .setIconResId(androidx.media3.session.R.drawable.media3_icon_previous)
+        .setDisplayName("Skip to previous")
         .setEnabled(true)
         .build()
 

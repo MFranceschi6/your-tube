@@ -19,6 +19,8 @@ import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
+import com.yourtube.core.common.model.PlayerState
+import com.yourtube.core.common.model.Track
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -26,7 +28,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.launchIn
@@ -70,6 +74,10 @@ class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var perfPlayerListener: Player.Listener? = null
     private var customLayoutJob: Job? = null
+    private var prewarmJob: Job? = null
+    private var currentPrewarmJob: Job? = null
+    private var notificationProvider: ColorizedMediaNotificationProvider? = null
+    private val paletteColorCache = PaletteColorCache()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @OptIn(UnstableApi::class)
@@ -132,7 +140,14 @@ class PlaybackService : MediaSessionService() {
         }
         exoPlayer.addListener(listener)
         perfPlayerListener = listener
-        mediaSession = MediaSession.Builder(this, exoPlayer)
+        // YT-0239 (review change-request, 2026-05-08) — hand the session a
+        // [PrevCommandMaskingPlayer] so `DefaultMediaNotificationProvider` no longer renders
+        // its built-in skip-prev arrow alongside our custom `SKIP_TO_PREV_QUEUE` button. The
+        // masking only affects the commands surface the session exposes; the unwrapped
+        // `exoPlayer` is still attached to `playbackPlayerAdapter` above so the in-process
+        // audio path (timeline, listeners, perf tracer) is unchanged.
+        val sessionPlayer = PrevCommandMaskingPlayer(exoPlayer)
+        mediaSession = MediaSession.Builder(this, sessionPlayer)
             .setCallback(PlaybackSessionCallback())
             .setSessionActivity(nowPlayingPendingIntent())
             .build()
@@ -145,45 +160,121 @@ class PlaybackService : MediaSessionService() {
         // `setMediaNotificationProvider` and `DefaultMediaNotificationProvider` are still
         // marked `@UnstableApi` in Media3 1.4.1; opting in at the call site is the
         // standard pattern recommended in the Media3 samples.
-        setMediaNotificationProvider(
-            DefaultMediaNotificationProvider.Builder(this).build()
+        //
+        // YT-0076 — wrap the default provider in [ColorizedMediaNotificationProvider] so the
+        // shade / lock-screen notification picks up a palette-extracted dominant color from
+        // the current track's artwork. Both `createNotification` and `handleCustomCommand` are
+        // `final` on `DefaultMediaNotificationProvider` in Media3 1.4.1, so subclassing cannot
+        // post-process the assembled `Notification`; the wrapper delegates to the default for
+        // layout work and only mutates the resulting builder via `recoverBuilder`.
+        val provider = ColorizedMediaNotificationProvider(
+            context = this,
+            delegate = DefaultMediaNotificationProvider.Builder(this).build(),
+            cache = paletteColorCache,
+            logger = logger,
         )
+        notificationProvider = provider
+        setMediaNotificationProvider(provider)
         observeQueueBoundaryForCustomLayout()
+        observeNextTrackForArtworkPrewarm()
+        observeCurrentTrackForArtworkPrewarm()
     }
 
     /**
-     * YT-0183 — toggles a custom skip-next `CommandButton` on the lock-screen / notification
-     * card whenever the controller's queue boundary changes. The button is only published
-     * when `playerState.queue.size > currentQueueIndex + 1`, mirroring the in-app NowPlaying
-     * skip-next visibility rule.
+     * YT-0183 / YT-0239 — toggles custom skip-prev / skip-next `CommandButton`s on the
+     * lock-screen / notification card whenever the controller's queue boundary changes.
+     * Buttons are only published when the relevant boundary has a neighbour, mirroring the
+     * in-app NowPlaying skip-prev / skip-next visibility rules.
      *
      * Background: [PlaybackPlayerAdapter] only ever calls `Player.setMediaItem(...)`
-     * (singular) per track, so ExoPlayer never has a "next" `MediaItem` and
-     * `Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM` stays unavailable. Media3's
-     * `DefaultMediaNotificationProvider` therefore hides its built-in skip-next icon. The
-     * custom button bridges that gap without restructuring queue ownership.
+     * (singular) per track, so ExoPlayer never has prev / next `MediaItem`s on the timeline
+     * and the `COMMAND_SEEK_TO_*_MEDIA_ITEM` commands stay unavailable. Media3's
+     * `DefaultMediaNotificationProvider` therefore (a) hides its built-in skip-next icon and
+     * (b) collapses the prev icon into a `seekTo(0)` rewind on the current item. The custom
+     * buttons bridge that gap without restructuring queue ownership: prev routes to
+     * [PlayerController.skipPrevious] (which keeps the `RESTART_THRESHOLD_MS` rewind-vs-step
+     * rule), next routes to [PlayerController.skipNext].
      *
      * Implementation choice: `MediaSession.setCustomLayout(List<CommandButton>)` is the only
      * layout API on Media3 1.4.1. (The newer `setMediaButtonPreferences(...)` mentioned in
-     * YT-0183's brief is a 1.7+ API and is not available here.) Default skip-prev and
-     * play-pause are still rendered by the provider from the player's available
-     * `Player.Commands`, so the custom layout only needs to publish the missing skip-next
-     * entry; we publish an empty layout when no next item exists so the icon disappears.
+     * YT-0183's brief is a 1.7+ API and is not available here.) Both directions are emitted
+     * in a single `setCustomLayout` call so the layout never flickers between partial
+     * states. Default play/pause is still rendered by the provider from the player's
+     * available `Player.Commands`; we publish an empty layout when the queue has neither a
+     * prev nor a next entry so the custom icons disappear.
      */
     @OptIn(UnstableApi::class)
     private fun observeQueueBoundaryForCustomLayout() {
         customLayoutJob?.cancel()
         customLayoutJob = playerController.playerState
-            .map { state -> state.queue.size > state.currentQueueIndex + 1 }
+            .map { state ->
+                // YT-0239 (round-3 spec amendment, 2026-05-08T23:30) — `hasPrev` is now gated
+                // on `currentTrack != null`, NOT on `currentQueueIndex > 0`. The button stays
+                // visible whenever there is a track to operate on; at idx=0 the controller's
+                // `skipPrevious()` falls through to `seekTo(0L)` so the user can rewind the
+                // first track from the lock-screen / notification card. Single source of
+                // truth: both surfaces (NowPlaying skip-prev, lock-screen prev) route through
+                // `playerController.skipPrevious()`, so widening visibility here propagates
+                // automatically.
+                QueueBoundary(
+                    hasPrev = state.currentTrack != null,
+                    hasNext = state.queue.size > state.currentQueueIndex + 1,
+                )
+            }
             .distinctUntilChanged()
-            .onEach { hasNext ->
+            .onEach { boundary ->
                 val session = mediaSession ?: return@onEach
-                val buttons: List<CommandButton> = if (hasNext) {
-                    listOf(PlaybackSessionCommand.playbackSkipNextButton())
-                } else {
-                    emptyList()
-                }
-                session.setCustomLayout(buttons)
+                session.setCustomLayout(buildCustomLayoutButtons(boundary))
+            }
+            .launchIn(serviceScope)
+    }
+
+    /**
+     * YT-0076 — pre-warm the next track's artwork bitmap + palette color whenever
+     * `currentQueueIndex` advances. Best-effort: failures are swallowed inside the provider's
+     * `prewarm` path. Runs on the service scope (Main.immediate) but the actual bitmap load is
+     * dispatched through Media3's [androidx.media3.common.util.BitmapLoader], which executes
+     * on its own background executor.
+     */
+    private fun observeNextTrackForArtworkPrewarm() {
+        prewarmJob?.cancel()
+        prewarmJob = playerController.playerState
+            .map { state ->
+                val nextIndex = state.currentQueueIndex + 1
+                state.queue.getOrNull(nextIndex)?.track
+            }
+            .distinctUntilChanged { old, new -> old?.videoId == new?.videoId }
+            .onEach { nextTrack ->
+                val track = nextTrack ?: return@onEach
+                val provider = notificationProvider ?: return@onEach
+                val session = mediaSession ?: return@onEach
+                runCatching { provider.prewarm(track, session.bitmapLoader) }
+            }
+            .launchIn(serviceScope)
+    }
+
+    /**
+     * YT-0076 review change-request (2026-05-08) — pre-warm the CURRENT track's artwork +
+     * palette color whenever it changes. Mirrors [observeNextTrackForArtworkPrewarm] but keys
+     * on `state.currentTrack?.videoId` so cold-launch / fresh `playNow` paths populate the
+     * cache before Media3 issues its first `createNotification` cycle for the track.
+     *
+     * Without this observer, [observeNextTrackForArtworkPrewarm] only covers
+     * `currentQueueIndex + 1`; on cold-launch the current track was never prewarmed and the
+     * first lock-screen frame rendered with a grey thumbnail until the user interacted with
+     * playback (the "first-lock cold-start grey thumbnail" gap surfaced in the manual smoke).
+     *
+     * Pre-warm is best-effort: failures are swallowed inside the provider's `prewarm` path.
+     * Distinct-by `videoId` avoids re-warming on every position update; track changes are the
+     * only meaningful trigger.
+     */
+    private fun observeCurrentTrackForArtworkPrewarm() {
+        currentPrewarmJob?.cancel()
+        currentPrewarmJob = currentTrackPrewarmFlow(playerController.playerState)
+            .onEach { currentTrack ->
+                val provider = notificationProvider ?: return@onEach
+                val session = mediaSession ?: return@onEach
+                runCatching { provider.prewarm(currentTrack, session.bitmapLoader) }
             }
             .launchIn(serviceScope)
     }
@@ -228,6 +319,11 @@ class PlaybackService : MediaSessionService() {
     override fun onDestroy() {
         customLayoutJob?.cancel()
         customLayoutJob = null
+        prewarmJob?.cancel()
+        prewarmJob = null
+        currentPrewarmJob?.cancel()
+        currentPrewarmJob = null
+        notificationProvider = null
         serviceScope.cancel()
         playbackPlayerAdapter.detach()
         val currentListener = perfPlayerListener
@@ -257,6 +353,8 @@ class PlaybackService : MediaSessionService() {
                     // notification button (and any other connected controller) can
                     // dispatch it back into the session callback.
                     .add(PlaybackSessionCommand.skipToNextQueue)
+                    // YT-0239 — same plumbing for the symmetric skip-prev action.
+                    .add(PlaybackSessionCommand.skipToPrevQueue)
                     .build(),
             )
             .build()
@@ -270,6 +368,7 @@ class PlaybackService : MediaSessionService() {
             return when (customCommand.customAction) {
                 PlaybackSessionCommand.PLAY_TRACK_ACTION -> handlePlayTrack(args)
                 PlaybackSessionCommand.SKIP_TO_NEXT_QUEUE_ACTION -> handleSkipToNextQueue()
+                PlaybackSessionCommand.SKIP_TO_PREV_QUEUE_ACTION -> handleSkipToPrevQueue()
                 else -> Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
             }
         }
@@ -319,6 +418,31 @@ class PlaybackService : MediaSessionService() {
             }
             return resultFuture
         }
+
+        /**
+         * YT-0239 — delegate the lock-screen / notification skip-prev tap to
+         * [PlayerController.skipPrevious]. Routing through the controller (rather than
+         * `Player.seekToPrevious()` directly) keeps the `RESTART_THRESHOLD_MS` rewind-vs-step
+         * policy in one place: positions above the threshold seek the current item to 0,
+         * positions at or below the threshold advance `currentQueueIndex` backward and
+         * trigger the standard stream-resolve + `playTrack` pipeline used by in-app
+         * NowPlaying skip-prev. Same suspending pattern as [handleSkipToNextQueue].
+         */
+        private fun handleSkipToPrevQueue(): ListenableFuture<SessionResult> {
+            val resultFuture = SettableFuture.create<SessionResult>()
+            serviceScope.launch {
+                runCatching {
+                    playerController.skipPrevious()
+                }.onSuccess {
+                    logger.debug(TAG, "skipPrevious from session callback ok")
+                    resultFuture.set(SessionResult(SessionResult.RESULT_SUCCESS))
+                }.onFailure { error ->
+                    logger.error(TAG, "skipPrevious from session callback failed", error)
+                    resultFuture.set(SessionResult(SessionError.ERROR_UNKNOWN))
+                }
+            }
+            return resultFuture
+        }
     }
 
     companion object {
@@ -334,3 +458,52 @@ class PlaybackService : MediaSessionService() {
         private const val MAIN_ACTIVITY_CLASS_NAME = "com.yourtube.app.MainActivity"
     }
 }
+
+/**
+ * YT-0239 — pure value type capturing whether the current queue position has a previous
+ * and/or next neighbour. Extracted so the layout-emission rule
+ * (`(hasPrev, hasNext) -> List<CommandButton>`) is unit-testable without instantiating a
+ * `MediaSession` — the wiring inside [PlaybackService.observeQueueBoundaryForCustomLayout]
+ * delegates to [buildCustomLayoutButtons].
+ */
+internal data class QueueBoundary(
+    val hasPrev: Boolean,
+    val hasNext: Boolean,
+)
+
+/**
+ * YT-0239 — builds the `setCustomLayout(...)` button list for a given [boundary].
+ *
+ * The list always orders prev before next so the lock-screen layout placement is stable
+ * across emissions; when neither direction is available the list is empty and the
+ * provider falls back to the default play/pause-only layout. Computing both sides in a
+ * single emission avoids the double-`setCustomLayout` call that would otherwise flicker
+ * the icon row when both boundaries change at once (e.g. moving from idx=0 to idx=1).
+ *
+ * `CommandButton.Builder` is `@UnstableApi` in Media3 1.4.x — opt-in is contained at the
+ * factory call sites in [PlaybackSessionCommand].
+ */
+@OptIn(UnstableApi::class)
+internal fun buildCustomLayoutButtons(boundary: QueueBoundary): List<CommandButton> = buildList {
+    if (boundary.hasPrev) add(PlaybackSessionCommand.playbackSkipPrevButton())
+    if (boundary.hasNext) add(PlaybackSessionCommand.playbackSkipNextButton())
+}
+
+/**
+ * YT-0076 review change-request (2026-05-08) — extracts the `PlayerState` → `Track` flow
+ * transformation used by [PlaybackService.observeCurrentTrackForArtworkPrewarm] so the
+ * "fires once per distinct videoId" rule is unit-testable without spinning up a service.
+ *
+ * The flow:
+ *  - Maps each [PlayerState] to its `currentTrack`.
+ *  - Drops null entries (no track playing — nothing to prewarm).
+ *  - De-duplicates by `videoId` so position / playback-status updates do not re-trigger
+ *    the prewarm side effect; only a real track change emits.
+ *
+ * Tested by [PlaybackServiceLayoutTest].
+ */
+internal fun currentTrackPrewarmFlow(source: Flow<PlayerState>): Flow<Track> =
+    source
+        .map { state -> state.currentTrack }
+        .filterNotNull()
+        .distinctUntilChanged { old, new -> old.videoId == new.videoId }

@@ -67,4 +67,48 @@ class PlaybackSessionCommandTest {
         // `setCustomLayout` call site (empty list when no next item exists).
         assertTrue(button.isEnabled, "Skip-next button must be enabled when published.")
     }
+
+    // YT-0239 — symmetric coverage for the lock-screen / notification skip-prev custom command.
+    @Test
+    fun `skip to prev queue action string is stable across releases`() {
+        // Wire-protocol contract — controllers (notification, future external clients) match
+        // on this exact string. Lock the literal, not a referential equality check.
+        assertEquals(
+            "com.yourtube.action.SKIP_TO_PREV_QUEUE",
+            PlaybackSessionCommand.SKIP_TO_PREV_QUEUE_ACTION,
+        )
+    }
+
+    @Test
+    fun `skipToPrevQueue session command is distinct from skipToNextQueue and playTrack`() {
+        val skipPrev: SessionCommand = PlaybackSessionCommand.skipToPrevQueue
+        assertEquals(
+            PlaybackSessionCommand.SKIP_TO_PREV_QUEUE_ACTION,
+            skipPrev.customAction,
+        )
+        assertNotEquals(
+            PlaybackSessionCommand.SKIP_TO_NEXT_QUEUE_ACTION,
+            skipPrev.customAction,
+            "skipToPrevQueue and skipToNextQueue must not collide on customAction.",
+        )
+        assertNotEquals(
+            PlaybackSessionCommand.PLAY_TRACK_ACTION,
+            skipPrev.customAction,
+            "skipToPrevQueue and playTrack must not collide on customAction.",
+        )
+    }
+
+    @Test
+    fun `playbackSkipPrevButton binds the skipToPrevQueue session command`() {
+        val button = PlaybackSessionCommand.playbackSkipPrevButton()
+        val sessionCommand = button.sessionCommand
+        assertNotNull(sessionCommand, "Skip-prev button must carry a SessionCommand.")
+        assertEquals(
+            PlaybackSessionCommand.SKIP_TO_PREV_QUEUE_ACTION,
+            sessionCommand.customAction,
+        )
+        // Mirror of the skip-next contract — the button is enabled when published; visibility
+        // is gated by the `setCustomLayout` call site (empty list when no prev item exists).
+        assertTrue(button.isEnabled, "Skip-prev button must be enabled when published.")
+    }
 }

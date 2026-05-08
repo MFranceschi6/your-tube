@@ -68,6 +68,14 @@ class DefaultPlayerController @Inject constructor(
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 handleIsPlayingChanged(isPlaying)
             }
+
+            override fun onMediaItemTransition(mediaId: String?) {
+                handleMediaItemTransition(mediaId)
+            }
+
+            override fun onPositionChanged(positionMs: Long) {
+                handlePositionChanged(positionMs)
+            }
         })
     }
 
@@ -95,6 +103,70 @@ class DefaultPlayerController @Inject constructor(
                 isPlaying = false,
                 positionMs = it.durationMs,
             )
+        }
+    }
+
+    /**
+     * YT-0150 — reconcile [PlayerState.currentQueueIndex] with the underlying
+     * player after a `Player.Listener.onMediaItemTransition`. Lock-screen and
+     * notification skip-next / skip-prev taps drive `MediaController` directly
+     * and bypass [skipNext] / [skipPrevious]; without this hook the in-memory
+     * queue index drifts from the audio actually playing, so reopening the app
+     * shows the wrong MiniPlayer entry.
+     *
+     * Match by `mediaId == videoId`. The controller's timeline index is NOT
+     * trusted — the queue can be re-ordered (move / remove) while the
+     * underlying timeline lags those writes.
+     *
+     * Idempotent: a transition that resolves to the same index already in state
+     * is a no-op so in-app skip-next/prev (which already updated state via
+     * [playQueueItemAt] and will receive a feedback echo here) does not double-
+     * apply.
+     */
+    private fun handleMediaItemTransition(mediaId: String?) {
+        if (mediaId.isNullOrEmpty()) return
+        mutablePlayerState.update { state ->
+            val matchedIndex = state.queue.indexOfFirst { it.track.videoId == mediaId }
+            if (matchedIndex == -1 || matchedIndex == state.currentQueueIndex) {
+                state
+            } else {
+                val matchedTrack = state.queue[matchedIndex].track
+                state.copy(
+                    currentTrack = matchedTrack,
+                    currentQueueIndex = matchedIndex,
+                    positionMs = 0L,
+                    durationMs = matchedTrack.durationSec.coerceAtLeast(0) * 1000L,
+                    errorMessage = null,
+                )
+            }
+        }
+    }
+
+    /**
+     * YT-0150 — reconcile [PlayerState.positionMs] with the engine after a
+     * `Player.Listener.onPositionDiscontinuity` triggered by an external seek
+     * (lock-screen slider, system shell, future Auto / Wear). Without this hook
+     * the in-memory position drifts from the audio actually playing, so the
+     * NowPlaying scrubber stays frozen at the previous position when the user
+     * unlocks the device.
+     *
+     * The new value is clamped to `[0, durationMs]` to defend against the engine
+     * reporting a position past the end of the resolved track (e.g. during the
+     * reconcile window of a fresh stream URL).
+     *
+     * Idempotent for the current value: the in-app `seekTo(...)` path also
+     * triggers an engine-side seek which echoes back through the listener, and
+     * that echo must be a no-op (otherwise it would clobber the synchronously-
+     * written scrubber position from a still-active drag).
+     */
+    private fun handlePositionChanged(positionMs: Long) {
+        mutablePlayerState.update { state ->
+            val clamped = positionMs.coerceIn(0L, state.durationMs.coerceAtLeast(0L))
+            if (clamped == state.positionMs) {
+                state
+            } else {
+                state.copy(positionMs = clamped)
+            }
         }
     }
 
@@ -129,6 +201,7 @@ class DefaultPlayerController @Inject constructor(
         val queue = tracks.map { it.toQueueItem() }
         val starting = queue[safeIndex]
         // Single atomic replacement so collectors never observe a half-applied queue.
+        // YT-0236 — `engineLoaded = false` until `playQueueItem(...)` returns Success below.
         mutablePlayerState.value = PlayerState(
             currentTrack = starting.track,
             queue = queue,
@@ -138,12 +211,14 @@ class DefaultPlayerController @Inject constructor(
             positionMs = 0L,
             durationMs = starting.track.durationMs,
             errorMessage = null,
+            engineLoaded = false,
         )
         playQueueItem(starting)
     }
 
     override suspend fun playNow(track: Track) {
         val queueItem = track.toQueueItem()
+        // YT-0236 — `engineLoaded = false` until `playQueueItem(...)` returns Success below.
         mutablePlayerState.value = PlayerState(
             currentTrack = track,
             queue = listOf(queueItem),
@@ -153,27 +228,75 @@ class DefaultPlayerController @Inject constructor(
             positionMs = 0L,
             durationMs = track.durationMs,
             errorMessage = null,
+            engineLoaded = false,
         )
         playQueueItem(queueItem)
     }
 
     override suspend fun addToQueue(track: Track) {
+        // YT-0236 — when "Add to Queue" is invoked from a fully empty controller
+        // (no current track AND empty queue) we surface the queued entry as the
+        // current PAUSED track so the MiniPlayer (gated on currentTrack != null)
+        // appears with the user's selection at queue index 0, ready for an
+        // explicit play tap. We deliberately do NOT call playbackTransport.playTrack
+        // / stopAndClearCurrent / startProgressUpdates: the semantic of "Add to
+        // Queue" is "queue this, don't play it now."
+        //
+        // YT-0236 (re-fix 2026-05-08T22:35) — pin `engineLoaded = false` on the
+        // empty-state branch so [resume] knows to bootstrap engine playback via
+        // `playQueueItem(...)` instead of forwarding to `playbackTransport.resume()`.
+        // Without this, `MediaController.play()` runs against an empty ExoPlayer
+        // timeline → STATE_ENDED → `handleTrackEnded()` → IDLE with
+        // `positionMs = durationMs` (audio never starts, slider jumps to end).
         mutablePlayerState.update { state ->
-            state.copy(queue = state.queue + track.toQueueItem())
+            val queueItem = track.toQueueItem()
+            val updatedQueue = state.queue + queueItem
+            if (state.currentTrack == null && state.queue.isEmpty()) {
+                state.copy(
+                    queue = updatedQueue,
+                    currentTrack = track,
+                    currentQueueIndex = 0,
+                    playbackStatus = PlaybackStatus.PAUSED,
+                    isPlaying = false,
+                    durationMs = track.durationMs,
+                    positionMs = 0L,
+                    engineLoaded = false,
+                )
+            } else {
+                state.copy(queue = updatedQueue)
+            }
         }
     }
 
     override suspend fun playNext(track: Track) {
+        // YT-0236 — same empty-controller edge case as `addToQueue`: surface the
+        // inserted entry as the current PAUSED track so the MiniPlayer appears.
+        // No transport play / clear / progress side-effects.
+        // See `addToQueue` for the `engineLoaded = false` rationale.
         mutablePlayerState.update { state ->
-            val insertIndex = if (state.currentQueueIndex in state.queue.indices) {
-                state.currentQueueIndex + 1
+            val queueItem = track.toQueueItem()
+            if (state.currentTrack == null && state.queue.isEmpty()) {
+                state.copy(
+                    queue = listOf(queueItem),
+                    currentTrack = track,
+                    currentQueueIndex = 0,
+                    playbackStatus = PlaybackStatus.PAUSED,
+                    isPlaying = false,
+                    durationMs = track.durationMs,
+                    positionMs = 0L,
+                    engineLoaded = false,
+                )
             } else {
-                state.queue.size
+                val insertIndex = if (state.currentQueueIndex in state.queue.indices) {
+                    state.currentQueueIndex + 1
+                } else {
+                    state.queue.size
+                }
+                state.copy(
+                    queue = state.queue.toMutableList()
+                        .apply { add(insertIndex.coerceIn(0, size), queueItem) },
+                )
             }
-            state.copy(
-                queue = state.queue.toMutableList()
-                    .apply { add(insertIndex.coerceIn(0, size), track.toQueueItem()) },
-            )
         }
     }
 
@@ -183,12 +306,31 @@ class DefaultPlayerController @Inject constructor(
     }
 
     override suspend fun skipPrevious() {
+        // YT-0239 (round-3 spec amendment, 2026-05-08T23:30) — behaviour table:
+        //  - idx > 0  + position >  RESTART_THRESHOLD_MS → seekTo(0) of current.
+        //  - idx > 0  + position <= RESTART_THRESHOLD_MS → playQueueItemAt(idx - 1).
+        //  - idx == 0 + position >  RESTART_THRESHOLD_MS → seekTo(0) of current.
+        //  - idx == 0 + position <= RESTART_THRESHOLD_MS → seekTo(0) of current (NEW).
+        // The idx=0 branch previously routed to `playQueueItemAt(-1)` which silently
+        // returned (no queue item at -1), making the lock-screen prev button a no-op
+        // at the head of the queue. Reviewer-led smoke surfaced that the user expects
+        // to be able to rewind the first track from the lock-screen, so the idx=0
+        // sub-threshold case now falls through to the same `seekTo(0L)` rewind as the
+        // super-threshold case. The custom-layout `hasPrev` derivation in
+        // `PlaybackService` is widened in lockstep so the button stays visible at
+        // every queue position. See `PlaybackServiceLayoutTest`.
         val state = mutablePlayerState.value
         if (state.positionMs > RESTART_THRESHOLD_MS) {
             seekTo(0L)
             return
         }
         val previousIndex = state.currentQueueIndex - 1
+        if (previousIndex < 0) {
+            // Already at the head of the queue with position <= threshold — rewind the
+            // current track instead of returning a silent no-op.
+            seekTo(0L)
+            return
+        }
         playQueueItemAt(previousIndex)
     }
 
@@ -207,6 +349,31 @@ class DefaultPlayerController @Inject constructor(
     override suspend fun resume() {
         val state = mutablePlayerState.value
         val track = state.currentTrack ?: return
+        // YT-0236 (re-fix 2026-05-08T22:35) — when the current track was surfaced via
+        // `addToQueue` / `playNext` from an empty controller, the underlying engine has
+        // NO MediaItem loaded for it. Forwarding to `playbackTransport.resume()` here
+        // would run `MediaController.play()` against an empty timeline, which ExoPlayer
+        // resolves as STATE_ENDED → `handleTrackEnded()` → IDLE with
+        // `positionMs = durationMs` (audio never starts, slider jumps to end). Bootstrap
+        // engine playback via `playQueueItem(...)` instead so the staged paused track
+        // becomes a real, audible play on first tap.
+        if (!state.engineLoaded) {
+            val queueItem = state.queue.getOrNull(state.currentQueueIndex)
+            if (queueItem != null) {
+                mutablePlayerState.update {
+                    it.copy(
+                        playbackStatus = PlaybackStatus.LOADING,
+                        isPlaying = false,
+                        errorMessage = null,
+                    )
+                }
+                playQueueItem(queueItem)
+                return
+            }
+            // No queue item to bootstrap with — fall through to the normal resume path
+            // so we at least mirror state. This is defensive; in practice `currentTrack`
+            // != null implies a queue entry exists at `currentQueueIndex`.
+        }
         playbackTransport.resume()
         mutablePlayerState.update {
             it.copy(
@@ -347,6 +514,9 @@ class DefaultPlayerController @Inject constructor(
             PlaybackRequest(track = queueItem.track, preferredMaxBitrateKbps = bitrate)
         )) {
             is PlaybackResult.Success -> {
+                // YT-0236 — engine timeline now holds a MediaItem for [queueItem]; flip the
+                // flag so subsequent `resume()` calls forward to `playbackTransport.resume()`
+                // instead of re-bootstrapping via `playQueueItem(...)`.
                 mutablePlayerState.update {
                     it.copy(
                         currentTrack = queueItem.track,
@@ -355,6 +525,7 @@ class DefaultPlayerController @Inject constructor(
                         positionMs = 0L,
                         durationMs = queueItem.track.durationMs,
                         errorMessage = null,
+                        engineLoaded = true,
                     )
                 }
                 startProgressUpdates()
@@ -366,12 +537,15 @@ class DefaultPlayerController @Inject constructor(
                     queueItem.track.videoId,
                     "stage=transport msg=\"${result.message}\"",
                 )
+                // YT-0236 — engine failed to load the MediaItem; keep `engineLoaded = false`
+                // so any later `resume()` re-attempts the load via `playQueueItem(...)`.
                 mutablePlayerState.update {
                     it.copy(
                         currentTrack = queueItem.track,
                         playbackStatus = PlaybackStatus.ERROR,
                         isPlaying = false,
                         errorMessage = result.message,
+                        engineLoaded = false,
                     )
                 }
             }

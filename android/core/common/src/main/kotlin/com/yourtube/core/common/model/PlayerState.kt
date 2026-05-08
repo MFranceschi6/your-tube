@@ -25,4 +25,17 @@ data class PlayerState(
     val errorMessage: String? = null,
     val shuffleOn: Boolean = false,
     val repeatMode: Int = 0,
+    /**
+     * YT-0236 — `true` once the underlying playback engine has a MediaItem loaded for
+     * [currentTrack] (i.e. `playQueueItem(...)` returned [com.yourtube.core.player.PlaybackResult.Success]).
+     *
+     * Distinguishes "paused-after-playing" (engine timeline populated) from
+     * "queued-never-played" (engine timeline empty — `addToQueue` / `playNext` from a
+     * fully empty controller surface a paused current track WITHOUT pushing a MediaItem
+     * onto the engine). Tap-play on the latter must bootstrap engine playback via
+     * `playQueueItem(...)` — calling `MediaController.play()` against an empty timeline
+     * pushes ExoPlayer to STATE_ENDED and routes through `handleTrackEnded()`, settling
+     * to IDLE with `positionMs = durationMs` (audio never starts, slider jumps to end).
+     */
+    val engineLoaded: Boolean = false,
 )

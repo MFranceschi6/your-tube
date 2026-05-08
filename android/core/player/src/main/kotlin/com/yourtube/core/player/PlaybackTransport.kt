@@ -24,6 +24,42 @@ interface PlaybackTransportListener {
 
     /** `Player.isPlaying` flipped to [isPlaying]; mirrors `Player.Listener.onIsPlayingChanged`. */
     fun onIsPlayingChanged(isPlaying: Boolean)
+
+    /**
+     * YT-0150 — the underlying player swapped its current `MediaItem`. The transport
+     * forwards `MediaItem.mediaId` (= `Track.videoId` per the [PlaybackPlayerAdapter]
+     * contract) so the controller can resync its in-memory queue index without trusting
+     * the controller-side timeline (which can lag re-orders).
+     *
+     * Transports filter by transition reason and only forward `REASON_AUTO`,
+     * `REASON_SEEK`, and `REASON_REPEAT`. `REASON_PLAYLIST_CHANGED` is suppressed
+     * because it echoes back from in-app `setMediaItem(...)` writes that already
+     * mutated `PlayerState` synchronously.
+     *
+     * Default body: most listeners (e.g. the unit-test fakes that pre-date this
+     * extension) do not need to react.
+     */
+    fun onMediaItemTransition(mediaId: String?) = Unit
+
+    /**
+     * YT-0150 — the underlying player's playback position jumped due to an
+     * external seek (lock-screen slider, system shell, future Auto / Wear
+     * surfaces). The transport forwards `newPosition.positionMs` so the
+     * controller can resync `PlayerState.positionMs` with the engine.
+     *
+     * Transports filter by discontinuity reason and only forward
+     * `DISCONTINUITY_REASON_SEEK` and `DISCONTINUITY_REASON_SEEK_ADJUSTMENT`.
+     * Auto-transition / internal reasons are suppressed — they are already
+     * handled by [onMediaItemTransition] / engine-internal bookkeeping and
+     * re-applying here would clobber freshly-written state.
+     *
+     * Implementations must be idempotent for the current [PlayerState.positionMs]
+     * so the feedback echo from in-app `seekTo(...)` is a no-op.
+     *
+     * Default body: most listeners (e.g. the unit-test fakes that pre-date this
+     * extension) do not need to react.
+     */
+    fun onPositionChanged(positionMs: Long) = Unit
 }
 
 interface PlaybackTransport {
@@ -44,17 +80,20 @@ interface PlaybackTransport {
     suspend fun seekTo(positionMs: Long)
 
     /**
-     * Stop any currently-playing audio and clear the underlying player's media items
-     * BEFORE a new stream URL has been resolved (YT-0050).
+     * Halt any currently-playing audio and reset playback position to 0 BEFORE a
+     * new stream URL has been resolved (YT-0050).
      *
      * Called by [PlayerController] the moment the user requests a new track so the
      * previous audio falls silent and the position/duration counters reset
      * immediately, instead of leaking through the several hundred milliseconds it
      * can take to resolve a new YouTube stream URL.
      *
-     * Implementations should pause the player, seek to 0, and clear queued media
-     * items. The follow-up [playTrack] call will queue the new media item once the
-     * stream URL is resolved.
+     * Implementations MUST pause the player and seek to 0. They MUST NOT clear the
+     * underlying timeline (YT-0238): dropping `mediaItemCount` to 0 tears down the
+     * foreground notification (lock-screen card flicker) and drives the player
+     * through `STATE_ENDED`, which feeds back into auto-advance and cascades
+     * `skipNext` to the last queue item. The follow-up [playTrack] call replaces
+     * the current media item in place once the stream URL is resolved.
      */
     suspend fun stopAndClearCurrent()
 
