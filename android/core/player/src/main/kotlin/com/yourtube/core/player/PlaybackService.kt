@@ -8,6 +8,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession.ConnectionResult
 import androidx.media3.session.MediaSession.ControllerInfo
@@ -22,8 +23,13 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.launch
 
 /**
@@ -52,9 +58,18 @@ class PlaybackService : MediaSessionService() {
     @Inject
     lateinit var perfTracer: PlaybackPerfTracer
 
+    /**
+     * YT-0183 — `PlayerController` is the single source of truth for the in-process queue.
+     * The session callback delegates skip-next taps from the lock-screen / notification to
+     * [PlayerController.skipNext] so UI taps and system-control taps share one code path.
+     */
+    @Inject
+    lateinit var playerController: PlayerController
+
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
     private var perfPlayerListener: Player.Listener? = null
+    private var customLayoutJob: Job? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @OptIn(UnstableApi::class)
@@ -133,6 +148,44 @@ class PlaybackService : MediaSessionService() {
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider.Builder(this).build()
         )
+        observeQueueBoundaryForCustomLayout()
+    }
+
+    /**
+     * YT-0183 — toggles a custom skip-next `CommandButton` on the lock-screen / notification
+     * card whenever the controller's queue boundary changes. The button is only published
+     * when `playerState.queue.size > currentQueueIndex + 1`, mirroring the in-app NowPlaying
+     * skip-next visibility rule.
+     *
+     * Background: [PlaybackPlayerAdapter] only ever calls `Player.setMediaItem(...)`
+     * (singular) per track, so ExoPlayer never has a "next" `MediaItem` and
+     * `Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM` stays unavailable. Media3's
+     * `DefaultMediaNotificationProvider` therefore hides its built-in skip-next icon. The
+     * custom button bridges that gap without restructuring queue ownership.
+     *
+     * Implementation choice: `MediaSession.setCustomLayout(List<CommandButton>)` is the only
+     * layout API on Media3 1.4.1. (The newer `setMediaButtonPreferences(...)` mentioned in
+     * YT-0183's brief is a 1.7+ API and is not available here.) Default skip-prev and
+     * play-pause are still rendered by the provider from the player's available
+     * `Player.Commands`, so the custom layout only needs to publish the missing skip-next
+     * entry; we publish an empty layout when no next item exists so the icon disappears.
+     */
+    @OptIn(UnstableApi::class)
+    private fun observeQueueBoundaryForCustomLayout() {
+        customLayoutJob?.cancel()
+        customLayoutJob = playerController.playerState
+            .map { state -> state.queue.size > state.currentQueueIndex + 1 }
+            .distinctUntilChanged()
+            .onEach { hasNext ->
+                val session = mediaSession ?: return@onEach
+                val buttons: List<CommandButton> = if (hasNext) {
+                    listOf(PlaybackSessionCommand.playbackSkipNextButton())
+                } else {
+                    emptyList()
+                }
+                session.setCustomLayout(buttons)
+            }
+            .launchIn(serviceScope)
     }
 
     /**
@@ -173,6 +226,8 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        customLayoutJob?.cancel()
+        customLayoutJob = null
         serviceScope.cancel()
         playbackPlayerAdapter.detach()
         val currentListener = perfPlayerListener
@@ -198,6 +253,10 @@ class PlaybackService : MediaSessionService() {
             .setAvailableSessionCommands(
                 ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
                     .add(PlaybackSessionCommand.playTrack)
+                    // YT-0183 — expose the custom skip-next action so the
+                    // notification button (and any other connected controller) can
+                    // dispatch it back into the session callback.
+                    .add(PlaybackSessionCommand.skipToNextQueue)
                     .build(),
             )
             .build()
@@ -208,10 +267,14 @@ class PlaybackService : MediaSessionService() {
             customCommand: androidx.media3.session.SessionCommand,
             args: android.os.Bundle,
         ): ListenableFuture<SessionResult> {
-            if (customCommand.customAction != PlaybackSessionCommand.PLAY_TRACK_ACTION) {
-                return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
+            return when (customCommand.customAction) {
+                PlaybackSessionCommand.PLAY_TRACK_ACTION -> handlePlayTrack(args)
+                PlaybackSessionCommand.SKIP_TO_NEXT_QUEUE_ACTION -> handleSkipToNextQueue()
+                else -> Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
             }
+        }
 
+        private fun handlePlayTrack(args: android.os.Bundle): ListenableFuture<SessionResult> {
             val request = PlaybackSessionCommand.fromBundle(args)
                 ?: return Futures.immediateFuture(SessionResult(SessionError.ERROR_BAD_VALUE))
 
@@ -224,6 +287,33 @@ class PlaybackService : MediaSessionService() {
                     resultFuture.set(SessionResult(SessionResult.RESULT_SUCCESS))
                 }.onFailure { error ->
                     logger.error(TAG, "playTrack failed videoId=${request.track.videoId}", error)
+                    resultFuture.set(SessionResult(SessionError.ERROR_UNKNOWN))
+                }
+            }
+            return resultFuture
+        }
+
+        /**
+         * YT-0183 — delegate the lock-screen / notification skip-next tap to
+         * [PlayerController.skipNext]. Routing through the controller (rather than
+         * `Player.seekToNextMediaItem()` directly) keeps a single source of truth: the
+         * controller advances `currentQueueIndex`, kicks the perf tracer with a synthetic
+         * tap, and triggers the standard stream-resolve + `playTrack` pipeline that
+         * powers in-app skip-next. `skipNext()` is `suspend` and will issue a
+         * `MediaController.sendCustomCommand(playTrack, ...)` that re-enters this
+         * callback for the next track — that re-entry is intentional and matches
+         * the existing path used by the in-app NowPlaying screen.
+         */
+        private fun handleSkipToNextQueue(): ListenableFuture<SessionResult> {
+            val resultFuture = SettableFuture.create<SessionResult>()
+            serviceScope.launch {
+                runCatching {
+                    playerController.skipNext()
+                }.onSuccess {
+                    logger.debug(TAG, "skipNext from session callback ok")
+                    resultFuture.set(SessionResult(SessionResult.RESULT_SUCCESS))
+                }.onFailure { error ->
+                    logger.error(TAG, "skipNext from session callback failed", error)
                     resultFuture.set(SessionResult(SessionError.ERROR_UNKNOWN))
                 }
             }

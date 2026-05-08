@@ -16,11 +16,10 @@ Personal-use only. YourTube streams audio from public YouTube videos to its owne
 
 These are filed as backlog tasks and will land in the v0.1.x patch series. None block personal-use scope.
 
-- **Lock-screen / notification skip-next button is hidden** even when the queue has a next item (YT-0183, P2). Skip-prev and play/pause work; skip-next must be done from the in-app Now Playing screen.
 - **Playback latency is higher than iOS** on cold-start (NewPipe extractor + Media3 ExoPlayer overhead vs YouTubeKit + AVPlayer). Documented as a known platform difference; track post-MVP if it impacts use.
 - **Drag-handle reorder and long-press contextual menu inside `PlaylistDetail`** are not implemented (tracked under YT-0063a v2 Q3 / Q6). The two-row simultaneous swipe-to-remove crash (YT-0184) was fixed pre-MVP.
 
-The following pre-MVP issues are now resolved and no longer apply: YT-0182 (auto-advance through queue), YT-0184 (PlaylistDetail multi-swipe crash), YT-0185 (in-app/MediaSession state desync after pause-from-notification), YT-0155 (tap a playlist track to start playback), YT-0153 (Library / search overflow-menu anchoring), YT-0156 (Share entry on Library playlist row).
+The following pre-MVP issues are now resolved and no longer apply: YT-0182 (auto-advance through queue), YT-0183 (lock-screen / notification skip-next button hidden when queue has a next item), YT-0184 (PlaylistDetail multi-swipe crash), YT-0185 (in-app/MediaSession state desync after pause-from-notification), YT-0155 (tap a playlist track to start playback), YT-0153 (Library / search overflow-menu anchoring), YT-0156 (Share entry on Library playlist row).
 
 ### Distribution
 

@@ -1,14 +1,29 @@
 package com.yourtube.core.player
 
 import android.os.Bundle
+import androidx.annotation.OptIn
 import androidx.core.os.bundleOf
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.CommandButton
 import androidx.media3.session.SessionCommand
 import com.yourtube.core.common.model.Track
 import com.yourtube.core.network.YoutubeService
 
 object PlaybackSessionCommand {
     const val PLAY_TRACK_ACTION = "com.yourtube.core.player.PLAY_TRACK"
+
+    /**
+     * YT-0183 — custom skip-to-next action exposed in the lock-screen / notification
+     * `MediaSession.setCustomLayout(...)`. Media3's `DefaultMediaNotificationProvider`
+     * hides its built-in skip-next icon when `Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM`
+     * is unavailable, and our [PlaybackPlayerAdapter] only ever queues a single
+     * `MediaItem` at a time, so the command never lights up. We side-step that with
+     * a custom `SessionCommand` that the service handles by delegating to
+     * [PlayerController.skipNext], keeping the in-process queue as the single
+     * source of truth.
+     */
+    const val SKIP_TO_NEXT_QUEUE_ACTION = "com.yourtube.action.SKIP_TO_NEXT_QUEUE"
 
     /**
      * `MediaMetadata.extras` key that stashes the YouTube video ID alongside the lock-screen
@@ -25,6 +40,32 @@ object PlaybackSessionCommand {
     private const val KEY_PREFERRED_MAX_BITRATE_KBPS = "preferred_max_bitrate_kbps"
 
     val playTrack: SessionCommand = SessionCommand(PLAY_TRACK_ACTION, Bundle.EMPTY)
+
+    /**
+     * YT-0183 — `SessionCommand` paired with [playbackSkipNextButton] so the
+     * `MediaSession.Callback` can route lock-screen taps back into
+     * [PlayerController.skipNext].
+     */
+    val skipToNextQueue: SessionCommand = SessionCommand(SKIP_TO_NEXT_QUEUE_ACTION, Bundle.EMPTY)
+
+    /**
+     * YT-0183 — builds the `CommandButton` published via `MediaSession.setCustomLayout(...)`
+     * to surface a skip-next control on the lock-screen / notification card whenever the
+     * controller's queue has a next item. Re-uses Media3's built-in `media3_icon_next`
+     * drawable so we don't ship our own asset; the icon constant `ICON_NEXT` keeps the
+     * button visually aligned with the system-styled provider's other transport icons.
+     *
+     * `CommandButton.Builder` is `@UnstableApi` in Media3 1.4.x — opt-in is contained at
+     * the call site, mirroring the pattern used by [PlaybackService] for
+     * `DefaultMediaNotificationProvider`.
+     */
+    @OptIn(UnstableApi::class)
+    fun playbackSkipNextButton(): CommandButton = CommandButton.Builder()
+        .setSessionCommand(skipToNextQueue)
+        .setIconResId(androidx.media3.session.R.drawable.media3_icon_next)
+        .setDisplayName("Skip to next")
+        .setEnabled(true)
+        .build()
 
     fun toBundle(request: PlaybackRequest): Bundle = bundleOf(
         KEY_VIDEO_ID to request.track.videoId,
