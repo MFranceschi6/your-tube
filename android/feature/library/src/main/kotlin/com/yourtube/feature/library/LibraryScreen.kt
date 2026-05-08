@@ -375,15 +375,25 @@ private fun DeletePlaylistDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    // YT-0063a v2 Q8: destructive-confirm copy and colour split per the v2 decision log.
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete \"$playlistName\"?") },
-        text = { Text("The tracks will stay in your library. This can't be undone.") },
+        title = { Text("Delete playlist?") },
+        text = {
+            Text(
+                "This permanently removes \"$playlistName\". " +
+                    "The tracks themselves stay in your library.",
+            )
+        },
         confirmButton = {
             TextButton(onClick = onConfirm) {
                 Text("Delete", color = MaterialTheme.colorScheme.error)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = MaterialTheme.colorScheme.primary)
+            }
+        },
     )
 }
