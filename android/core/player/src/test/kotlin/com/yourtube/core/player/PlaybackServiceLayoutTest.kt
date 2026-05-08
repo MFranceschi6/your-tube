@@ -147,4 +147,91 @@ class PlaybackServiceLayoutTest {
         durationSec = 120,
         thumbnailUrl = "https://example.com/$videoId.jpg",
     )
+
+    // ---------------------------------------------------------------------------------------
+    // YT-0241 — `decideOnTaskRemoved` covers the toggle-driven branch of `onTaskRemoved`.
+    //
+    // Toggle ON (`stopOnTaskRemoved = true`): the user has opted into a single-gesture kill,
+    // so the action must always be `StopPlayerAndService` regardless of `playWhenReady` or
+    // `mediaItemCount`. `PlaybackService.onTaskRemoved` translates this into
+    // `mediaSession.player.stop()` followed by `stopSelf()` so the foreground notification
+    // is dismissed and audio is silenced in one step.
+    //
+    // Toggle OFF (`stopOnTaskRemoved = false`): the existing YT-0076 AC#5 contract is
+    // preserved — `stopSelf()` only when there is no active playback (idle, paused, or
+    // empty queue), otherwise the foreground notification persists Spotify-style.
+    //
+    // Tests are pure (no Robolectric, no MediaSession). They run on the Robolectric runner
+    // only because the surrounding class already declares it; the assertions here would also
+    // pass on a plain JUnit runner.
+    // ---------------------------------------------------------------------------------------
+
+    @Test
+    fun `decideOnTaskRemoved with toggle ON stops player and service while playing`() {
+        // Toggle ON, currently playing audible audio. Must stop both regardless.
+        val action = decideOnTaskRemoved(
+            stopOnTaskRemoved = true,
+            playWhenReady = true,
+            mediaItemCount = 1,
+        )
+        assertEquals(OnTaskRemovedAction.StopPlayerAndService, action)
+    }
+
+    @Test
+    fun `decideOnTaskRemoved with toggle ON stops player and service while paused`() {
+        // Toggle ON, paused but with a track loaded. Spec: stop both regardless of
+        // playWhenReady — the user wants the app gone, not just paused.
+        val action = decideOnTaskRemoved(
+            stopOnTaskRemoved = true,
+            playWhenReady = false,
+            mediaItemCount = 1,
+        )
+        assertEquals(OnTaskRemovedAction.StopPlayerAndService, action)
+    }
+
+    @Test
+    fun `decideOnTaskRemoved with toggle ON stops player and service when queue empty`() {
+        // Toggle ON, empty queue. Still stop both — the toggle decision is dominant.
+        val action = decideOnTaskRemoved(
+            stopOnTaskRemoved = true,
+            playWhenReady = false,
+            mediaItemCount = 0,
+        )
+        assertEquals(OnTaskRemovedAction.StopPlayerAndService, action)
+    }
+
+    @Test
+    fun `decideOnTaskRemoved with toggle OFF preserves YT-0076 stopSelf when paused`() {
+        // Toggle OFF, paused. YT-0076 AC#5: stopSelf so the service is not kept alive
+        // unnecessarily. Player is NOT stopped — the notification is already cleared by
+        // the foreground-state exit.
+        val action = decideOnTaskRemoved(
+            stopOnTaskRemoved = false,
+            playWhenReady = false,
+            mediaItemCount = 1,
+        )
+        assertEquals(OnTaskRemovedAction.StopServiceOnly, action)
+    }
+
+    @Test
+    fun `decideOnTaskRemoved with toggle OFF preserves YT-0076 stopSelf when queue empty`() {
+        val action = decideOnTaskRemoved(
+            stopOnTaskRemoved = false,
+            playWhenReady = true,
+            mediaItemCount = 0,
+        )
+        assertEquals(OnTaskRemovedAction.StopServiceOnly, action)
+    }
+
+    @Test
+    fun `decideOnTaskRemoved with toggle OFF preserves YT-0076 persistence while playing`() {
+        // Toggle OFF, audible playback. YT-0076 AC#5: notification persists, service stays
+        // alive — None action means `onTaskRemoved` falls through without calling stopSelf.
+        val action = decideOnTaskRemoved(
+            stopOnTaskRemoved = false,
+            playWhenReady = true,
+            mediaItemCount = 1,
+        )
+        assertEquals(OnTaskRemovedAction.None, action)
+    }
 }

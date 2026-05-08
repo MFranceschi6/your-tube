@@ -116,7 +116,14 @@ fun AppShell(
 
     val currentTrack = playerState.currentTrack
     val isPlaying = playerState.isPlaying
-    val isBuffering = playerState.playbackStatus == PlaybackStatus.LOADING
+    // YT-0244 — both LOADING (track-change resolve) and BUFFERING (in-track engine
+    // re-buffer / seek window) surface as the loading spinner on the play/pause control.
+    // `NowPlayingChrome` / `MiniPlayerChrome` consume a single boolean and stay agnostic
+    // to which underlying state is active.
+    val isBuffering = playerState.playbackStatus in setOf(
+        PlaybackStatus.LOADING,
+        PlaybackStatus.BUFFERING,
+    )
     val progressFraction = if (playerState.durationMs > 0)
         (playerState.positionMs.toFloat() / playerState.durationMs).coerceIn(0f, 1f)
     else 0f

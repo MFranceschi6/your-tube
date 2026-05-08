@@ -2,6 +2,7 @@ package com.yourtube.feature.settings
 
 import app.cash.turbine.test
 import com.yourtube.core.data.preferences.AudioQualityPreferences
+import com.yourtube.core.data.preferences.PlaybackLifecyclePreferences
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +25,7 @@ class SettingsViewModelTest {
     @Test
     fun `default audio quality is HIGH`() = runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
-        val viewModel = SettingsViewModel(FakeAudioQualityPreferences())
+        val viewModel = SettingsViewModel(FakeAudioQualityPreferences(), FakePlaybackLifecyclePreferences())
         try {
             advanceUntilIdle()
             assertEquals(AudioQuality.HIGH, viewModel.uiState.value.audioQuality)
@@ -37,7 +38,7 @@ class SettingsViewModelTest {
     fun `setAudioQuality persists and uiState reflects new quality`() = runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
         val prefs = FakeAudioQualityPreferences()
-        val viewModel = SettingsViewModel(prefs)
+        val viewModel = SettingsViewModel(prefs, FakePlaybackLifecyclePreferences())
         try {
             advanceUntilIdle()
             viewModel.setAudioQuality(AudioQuality.LOW)
@@ -49,12 +50,70 @@ class SettingsViewModelTest {
         }
     }
 
+    // YT-0241: stop-on-task-removed toggle. Default OFF, reflects upstream pref, toggle
+    // writes the inverse to the pref.
+    @Test
+    fun `default stopOnTaskRemoved is off`() = runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        val viewModel = SettingsViewModel(
+            FakeAudioQualityPreferences(),
+            FakePlaybackLifecyclePreferences(),
+        )
+        try {
+            advanceUntilIdle()
+            assertEquals(false, viewModel.uiState.value.stopOnTaskRemoved)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `uiState reflects upstream stopOnTaskRemoved pref change`() = runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        val lifecyclePrefs = FakePlaybackLifecyclePreferences(initial = true)
+        val viewModel = SettingsViewModel(FakeAudioQualityPreferences(), lifecyclePrefs)
+        try {
+            advanceUntilIdle()
+            assertEquals(true, viewModel.uiState.value.stopOnTaskRemoved)
+            // Simulate an external write (e.g. another surface flipping the pref). uiState
+            // recomputes via combine() and the screen sees the new value.
+            lifecyclePrefs.setStopOnTaskRemoved(false)
+            advanceUntilIdle()
+            assertEquals(false, viewModel.uiState.value.stopOnTaskRemoved)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `toggleStopOnTaskRemoved writes the inverse of current value`() = runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        val lifecyclePrefs = FakePlaybackLifecyclePreferences()
+        val viewModel = SettingsViewModel(FakeAudioQualityPreferences(), lifecyclePrefs)
+        try {
+            advanceUntilIdle()
+            // Default = false. First toggle flips to true.
+            assertEquals(false, viewModel.uiState.value.stopOnTaskRemoved)
+            viewModel.toggleStopOnTaskRemoved()
+            advanceUntilIdle()
+            assertEquals(true, lifecyclePrefs.state.value)
+            assertEquals(true, viewModel.uiState.value.stopOnTaskRemoved)
+            // Second toggle flips back to false.
+            viewModel.toggleStopOnTaskRemoved()
+            advanceUntilIdle()
+            assertEquals(false, lifecyclePrefs.state.value)
+            assertEquals(false, viewModel.uiState.value.stopOnTaskRemoved)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
     // YT-0164: import-row state machine. Idle → InProgress → Idle (success);
     // Idle → InProgress → Failed (failure); Failed → Idle (dismiss).
     @Test
     fun `importRow goes Idle to InProgress to Idle on success`() = runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
-        val viewModel = SettingsViewModel(FakeAudioQualityPreferences())
+        val viewModel = SettingsViewModel(FakeAudioQualityPreferences(), FakePlaybackLifecyclePreferences())
         try {
             advanceUntilIdle()
             assertEquals(ImportRowState.Idle, viewModel.uiState.value.importRow)
@@ -72,7 +131,7 @@ class SettingsViewModelTest {
     @Test
     fun `importRow goes Idle to InProgress to Failed on failure`() = runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
-        val viewModel = SettingsViewModel(FakeAudioQualityPreferences())
+        val viewModel = SettingsViewModel(FakeAudioQualityPreferences(), FakePlaybackLifecyclePreferences())
         try {
             advanceUntilIdle()
             viewModel.onImportStarted()
@@ -94,7 +153,7 @@ class SettingsViewModelTest {
     @Test
     fun `events-driven InProgress to Failed flips importRow on Failure outcome`() = runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
-        val viewModel = SettingsViewModel(FakeAudioQualityPreferences())
+        val viewModel = SettingsViewModel(FakeAudioQualityPreferences(), FakePlaybackLifecyclePreferences())
         val events = MutableSharedFlow<SettingsImportOutcome>(
             replay = 0,
             extraBufferCapacity = 1,
@@ -141,7 +200,7 @@ class SettingsViewModelTest {
     @Test
     fun `retryImport clears Failed to Idle and emits a retry request`() = runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
-        val viewModel = SettingsViewModel(FakeAudioQualityPreferences())
+        val viewModel = SettingsViewModel(FakeAudioQualityPreferences(), FakePlaybackLifecyclePreferences())
         try {
             advanceUntilIdle()
             viewModel.onImportFailed()
@@ -165,7 +224,7 @@ class SettingsViewModelTest {
     @Test
     fun `dismissImportError returns Failed to Idle`() = runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
-        val viewModel = SettingsViewModel(FakeAudioQualityPreferences())
+        val viewModel = SettingsViewModel(FakeAudioQualityPreferences(), FakePlaybackLifecyclePreferences())
         try {
             advanceUntilIdle()
             viewModel.onImportFailed()
@@ -186,6 +245,16 @@ class SettingsViewModelTest {
         override val bitrateKbps: Flow<Int> = state
         override suspend fun setBitrateKbps(kbps: Int) {
             state.value = kbps
+        }
+    }
+
+    private class FakePlaybackLifecyclePreferences(
+        initial: Boolean = PlaybackLifecyclePreferences.DEFAULT_STOP_ON_TASK_REMOVED,
+    ) : PlaybackLifecyclePreferences {
+        val state = MutableStateFlow(initial)
+        override val stopOnTaskRemoved: Flow<Boolean> = state
+        override suspend fun setStopOnTaskRemoved(value: Boolean) {
+            state.value = value
         }
     }
 }

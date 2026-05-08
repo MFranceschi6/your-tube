@@ -3,6 +3,7 @@ package com.yourtube.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.yourtube.core.data.preferences.AudioQualityPreferences
+import com.yourtube.core.data.preferences.PlaybackLifecyclePreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.channels.BufferOverflow
@@ -37,11 +38,18 @@ enum class ImportRowState { Idle, InProgress, Failed }
 data class SettingsUiState(
     val audioQuality: AudioQuality = AudioQuality.HIGH,
     val importRow: ImportRowState = ImportRowState.Idle,
+    /**
+     * YT-0241 — opt-in toggle: when `true`, swiping the app from recents also stops audio
+     * and dismisses the foreground notification. Default `false` preserves YT-0076 AC#5
+     * Spotify-style persistence.
+     */
+    val stopOnTaskRemoved: Boolean = PlaybackLifecyclePreferences.DEFAULT_STOP_ON_TASK_REMOVED,
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val audioQualityPreferences: AudioQualityPreferences,
+    private val playbackLifecyclePreferences: PlaybackLifecyclePreferences,
 ) : ViewModel() {
 
     private val _importRow = MutableStateFlow(ImportRowState.Idle)
@@ -62,15 +70,35 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = combine(
         audioQualityPreferences.bitrateKbps,
         _importRow,
-    ) { bitrate, importRow ->
+        playbackLifecyclePreferences.stopOnTaskRemoved,
+    ) { bitrate, importRow, stopOnTaskRemoved ->
         val quality = AudioQuality.entries.firstOrNull { it.maxBitrateKbps == bitrate }
             ?: AudioQuality.HIGH
-        SettingsUiState(audioQuality = quality, importRow = importRow)
+        SettingsUiState(
+            audioQuality = quality,
+            importRow = importRow,
+            stopOnTaskRemoved = stopOnTaskRemoved,
+        )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsUiState())
 
     fun setAudioQuality(quality: AudioQuality) {
         viewModelScope.launch {
             audioQualityPreferences.setBitrateKbps(quality.maxBitrateKbps)
+        }
+    }
+
+    /**
+     * YT-0241 — persists the inverse of the current `stopOnTaskRemoved` preference. The
+     * Settings row simply calls this on tap; the new value flips automatically once the
+     * upstream DataStore re-emits and `uiState` recomputes via [combine].
+     *
+     * Reads `uiState.value.stopOnTaskRemoved` rather than re-collecting the upstream flow
+     * so the toggle stays responsive (single allocation, no suspending `first()`).
+     */
+    fun toggleStopOnTaskRemoved() {
+        val current = uiState.value.stopOnTaskRemoved
+        viewModelScope.launch {
+            playbackLifecyclePreferences.setStopOnTaskRemoved(!current)
         }
     }
 

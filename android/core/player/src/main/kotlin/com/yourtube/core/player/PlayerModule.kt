@@ -3,6 +3,7 @@ package com.yourtube.core.player
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.SeekParameters
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -50,6 +51,15 @@ abstract class PlayerModule {
                 .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
                 .setHandleAudioBecomingNoisy(true)
                 .build()
+                // YT-0244 — snap seeks to the nearest sync sample. Music-only HLS sources
+                // typically use sub-10s segments, so the worst-case offset is small and well
+                // below the threshold of perception, while the seek itself completes WITHOUT
+                // a network round-trip to fetch the next sync sample. `SeekParameters.EXACT`
+                // would re-decode from the previous sync sample (closer to the original slow
+                // behaviour the user reported); `CLOSEST_SYNC` is the right default for
+                // music playback. Set on the built ExoPlayer because `setSeekParameters` is
+                // an ExoPlayer-level (not Builder-level) API in Media3 1.4.x.
+                .apply { setSeekParameters(SeekParameters.CLOSEST_SYNC) }
         }
 
         @Provides

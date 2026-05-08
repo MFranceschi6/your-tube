@@ -349,7 +349,6 @@ fun PlayerOverlay(
             Box(modifier = Modifier.fillMaxSize()) {
                 ArtworkBox(
                     track = currentTrack,
-                    isPlaying = isPlaying,
                     progressProvider = state.progressProvider,
                     miniSlot = effectiveMini,
                     expandedSlot = effectiveExpanded,
@@ -360,13 +359,15 @@ fun PlayerOverlay(
 }
 
 /**
- * The single artwork instance. Position + size + corner radius + visible scale come from
+ * The single artwork instance. Position + size + corner radius come from
  * progress. No `sharedBounds`, no `AnimatedVisibility`. Pure transform.
+ *
+ * YT-0243: visible scale is pinned to 1.0 in every state — the previous
+ * paused-only 0.85 shrink is gone.
  */
 @Composable
 private fun ArtworkBox(
     track: Track,
-    isPlaying: Boolean,
     progressProvider: () -> Float,
     /**
      * Window-relative rect of the MiniPlayerChrome's artwork slot.
@@ -413,14 +414,12 @@ private fun ArtworkBox(
                 translationX = targetX - halfShrinkOffset
                 translationY = targetY - halfShrinkOffset
 
-                // Pause-scale: multiplicative on top of size shrink. At p=0 the
-                // thumbnail is unscaled (matches MiniPlayerChrome's slot); at p=1
-                // the artwork settles at the live isPlaying target (1.0 playing,
-                // 0.85 paused) — continuous, no settle-snap.
-                val pauseScaleTarget = if (isPlaying) 1.0f else 0.85f
-                val visibleScale = lerp(1.0f, pauseScaleTarget, p)
-                scaleX *= visibleScale
-                scaleY *= visibleScale
+                // YT-0243: artwork stays at full size in every playback state
+                // (playing / paused / buffering). The previous Spotify-style
+                // 0.85 pause-shrink was perceived as a flicker during the
+                // stream-resolve gap on track changes, so the pause-scale
+                // multiplier collapses to a constant 1.0 (no-op) and is
+                // intentionally omitted here.
             },
     ) {
         Box(

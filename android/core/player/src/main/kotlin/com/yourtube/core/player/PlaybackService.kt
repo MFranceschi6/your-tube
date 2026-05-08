@@ -21,6 +21,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import com.yourtube.core.common.model.PlayerState
 import com.yourtube.core.common.model.Track
+import com.yourtube.core.data.preferences.PlaybackLifecyclePreferences
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -70,6 +71,16 @@ class PlaybackService : MediaSessionService() {
     @Inject
     lateinit var playerController: PlayerController
 
+    /**
+     * YT-0241 — opt-in toggle that makes `onTaskRemoved` also stop audio + dismiss the
+     * foreground notification. The flow is collected on [serviceScope] at `onCreate` time
+     * by [observeStopOnTaskRemovedPreference]; the cached snapshot in
+     * [stopOnTaskRemovedSnapshot] is read non-blockingly inside `onTaskRemoved`, which runs
+     * on the main thread.
+     */
+    @Inject
+    lateinit var playbackLifecyclePreferences: PlaybackLifecyclePreferences
+
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
     private var perfPlayerListener: Player.Listener? = null
@@ -79,6 +90,17 @@ class PlaybackService : MediaSessionService() {
     private var notificationProvider: ColorizedMediaNotificationProvider? = null
     private val paletteColorCache = PaletteColorCache()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /**
+     * YT-0241 — `@Volatile` snapshot of [PlaybackLifecyclePreferences.stopOnTaskRemoved]
+     * so [onTaskRemoved] can read the latest persisted value without blocking the main
+     * thread. Initialised from the eagerly-shared `StateFlow` populated at `onCreate`.
+     * Falls back to the documented default (`false`) if `onTaskRemoved` fires before the
+     * first emission lands (cold start race) — preserving YT-0076 AC#5 behaviour.
+     */
+    @Volatile
+    private var stopOnTaskRemovedSnapshot: Boolean =
+        PlaybackLifecyclePreferences.DEFAULT_STOP_ON_TASK_REMOVED
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -178,6 +200,26 @@ class PlaybackService : MediaSessionService() {
         observeQueueBoundaryForCustomLayout()
         observeNextTrackForArtworkPrewarm()
         observeCurrentTrackForArtworkPrewarm()
+        observeStopOnTaskRemovedPreference()
+    }
+
+    /**
+     * YT-0241 — eagerly collect [PlaybackLifecyclePreferences.stopOnTaskRemoved] into a
+     * `@Volatile` snapshot so [onTaskRemoved] (main-thread, synchronous) can branch on the
+     * latest persisted value without `runBlocking`. The collection is anchored to
+     * [serviceScope] (`Dispatchers.Main.immediate`) so writes to `stopOnTaskRemovedSnapshot`
+     * happen-before `onTaskRemoved` reads on the same thread; `@Volatile` is belt-and-braces
+     * for the cross-thread case (DataStore IO threads emitting back to Main.immediate).
+     *
+     * If the user flips the toggle and then immediately swipes the app away, the snapshot
+     * may still hold the previous value during the few milliseconds before DataStore emits.
+     * That race window is unavoidable for any synchronous main-thread read; the documented
+     * fallback is the existing YT-0076 AC#5 behaviour (notification persists).
+     */
+    private fun observeStopOnTaskRemovedPreference() {
+        playbackLifecyclePreferences.stopOnTaskRemoved
+            .onEach { value -> stopOnTaskRemovedSnapshot = value }
+            .launchIn(serviceScope)
     }
 
     /**
@@ -310,9 +352,24 @@ class PlaybackService : MediaSessionService() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val session = mediaSession ?: return
-        if (!session.player.playWhenReady || session.player.mediaItemCount == 0) {
-            // No active playback — stop the service so it is not kept alive unnecessarily.
-            stopSelf()
+        // YT-0241 — branch on the snapshot read of `stopOnTaskRemoved`. The decision is
+        // extracted into [decideOnTaskRemoved] so it can be unit-tested without spinning up
+        // an Android service. When `true`: stop the player AND the service unconditionally.
+        // When `false`: keep the existing YT-0076 AC#5 branch (Spotify-style persistence —
+        // only stopSelf when playback is idle).
+        when (
+            decideOnTaskRemoved(
+                stopOnTaskRemoved = stopOnTaskRemovedSnapshot,
+                playWhenReady = session.player.playWhenReady,
+                mediaItemCount = session.player.mediaItemCount,
+            )
+        ) {
+            OnTaskRemovedAction.StopPlayerAndService -> {
+                session.player.stop()
+                stopSelf()
+            }
+            OnTaskRemovedAction.StopServiceOnly -> stopSelf()
+            OnTaskRemovedAction.None -> Unit
         }
     }
 
@@ -487,6 +544,45 @@ internal data class QueueBoundary(
 internal fun buildCustomLayoutButtons(boundary: QueueBoundary): List<CommandButton> = buildList {
     if (boundary.hasPrev) add(PlaybackSessionCommand.playbackSkipPrevButton())
     if (boundary.hasNext) add(PlaybackSessionCommand.playbackSkipNextButton())
+}
+
+/**
+ * YT-0241 — describes what [PlaybackService.onTaskRemoved] should do when the system
+ * notifies the service that the app's task has been removed from recents.
+ *
+ * Extracted as a pure value type so the decision is unit-testable without instantiating a
+ * `MediaSession` or `MediaSessionService`.
+ */
+internal enum class OnTaskRemovedAction {
+    /** Stop the player AND `stopSelf()` (toggle ON; user opted into single-gesture kill). */
+    StopPlayerAndService,
+
+    /** `stopSelf()` only — preserves YT-0076 AC#5 behaviour for the toggle-OFF idle path. */
+    StopServiceOnly,
+
+    /** Leave the service running with the foreground notification (toggle-OFF, audible). */
+    None,
+}
+
+/**
+ * YT-0241 — pure decision function used by [PlaybackService.onTaskRemoved].
+ *
+ * - `stopOnTaskRemoved == true`: ALWAYS [OnTaskRemovedAction.StopPlayerAndService] regardless
+ *   of `playWhenReady` or `mediaItemCount`. The user has opted in to a single-gesture kill;
+ *   audible or paused playback both terminate.
+ * - `stopOnTaskRemoved == false`: keep the existing YT-0076 AC#5 split — when there is no
+ *   active playback (`!playWhenReady` OR empty queue) call [OnTaskRemovedAction.StopServiceOnly]
+ *   so the service is not kept alive unnecessarily; otherwise [OnTaskRemovedAction.None] so
+ *   the foreground notification persists Spotify-style.
+ */
+internal fun decideOnTaskRemoved(
+    stopOnTaskRemoved: Boolean,
+    playWhenReady: Boolean,
+    mediaItemCount: Int,
+): OnTaskRemovedAction = when {
+    stopOnTaskRemoved -> OnTaskRemovedAction.StopPlayerAndService
+    !playWhenReady || mediaItemCount == 0 -> OnTaskRemovedAction.StopServiceOnly
+    else -> OnTaskRemovedAction.None
 }
 
 /**

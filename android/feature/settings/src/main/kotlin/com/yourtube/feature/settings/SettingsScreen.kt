@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -42,6 +43,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -163,6 +165,16 @@ fun SettingsScreen(
                 )
                 HorizontalDivider()
             }
+            // YT-0241 — opt-in toggle: when ON, swiping the app card from recents also
+            // stops audio + dismisses the foreground notification. Default OFF preserves
+            // YT-0076 AC#5 Spotify-style persistence.
+            item {
+                StopOnTaskRemovedRow(
+                    enabled = uiState.stopOnTaskRemoved,
+                    onToggle = { viewModel.toggleStopOnTaskRemoved() },
+                )
+                HorizontalDivider()
+            }
             item {
                 SectionHeader("Playlists")
             }
@@ -249,6 +261,47 @@ private fun SectionHeader(title: String) {
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+    )
+}
+
+/**
+ * YT-0241 — Switch row for "Stop playback when app is closed".
+ *
+ * Tapping anywhere on the row flips the preference (matching Material guidance for
+ * full-row toggle affordance). The row's `contentDescription` announces the toggle's
+ * current state ("on" / "off") so TalkBack reads "Stop playback when app is closed,
+ * off" — same announcement pattern used by other a11y-friendly switch rows in the app.
+ *
+ * Inline literals here mirror the existing convention in this file (Audio Quality,
+ * Import playlist, version row, etc.); a sweep to `strings.xml` is tracked separately
+ * by YT-0064 across `core/ui` and `feature/settings` together.
+ */
+@Composable
+private fun StopOnTaskRemovedRow(
+    enabled: Boolean,
+    onToggle: () -> Unit,
+) {
+    val stateLabel = if (enabled) "on" else "off"
+    ListItem(
+        headlineContent = { Text("Stop playback when app is closed") },
+        supportingContent = {
+            Text("When on, swiping YourTube away from recents also stops audio and clears the notification.")
+        },
+        trailingContent = {
+            Switch(
+                checked = enabled,
+                onCheckedChange = { onToggle() },
+            )
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                contentDescription = "Stop playback when app is closed, $stateLabel"
+            }
+            .clickable(
+                onClickLabel = if (enabled) "Turn off" else "Turn on",
+                onClick = onToggle,
+            ),
     )
 }
 

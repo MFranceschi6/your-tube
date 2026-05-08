@@ -60,6 +60,23 @@ interface PlaybackTransportListener {
      * extension) do not need to react.
      */
     fun onPositionChanged(positionMs: Long) = Unit
+
+    /**
+     * YT-0244 — the underlying player flipped between `STATE_BUFFERING` (true) and
+     * `STATE_READY` (false). Distinguishing buffering from a user-driven pause lets the
+     * controller surface a loading spinner during in-track seeks + re-buffers without
+     * misclassifying them as PAUSED.
+     *
+     * Deliberately separate from [onIsPlayingChanged]: at the player level the two events
+     * describe different concerns — `onIsPlayingChanged` reflects whether audio output is
+     * gated (user pause, audio-focus loss) and `onPlaybackStateChanged(STATE_BUFFERING)`
+     * reflects whether the engine has enough data to play. YT-0185 / YT-0150 already rely
+     * on the existing `onIsPlayingChanged` semantics, so do NOT collapse the callbacks.
+     *
+     * Default body: pre-existing fakes / call sites that do not need to react keep
+     * compiling with no source changes.
+     */
+    fun onBufferingStateChanged(isBuffering: Boolean) = Unit
 }
 
 interface PlaybackTransport {

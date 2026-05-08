@@ -11,6 +11,8 @@ import com.yourtube.core.data.codec.KotlinxPlaylistCodec
 import com.yourtube.core.data.codec.PlaylistCodec
 import com.yourtube.core.data.preferences.AudioQualityPreferences
 import com.yourtube.core.data.preferences.DataStoreAudioQualityPreferences
+import com.yourtube.core.data.preferences.DataStorePlaybackLifecyclePreferences
+import com.yourtube.core.data.preferences.PlaybackLifecyclePreferences
 import com.yourtube.core.data.repository.OfflineFirstPlaylistRepository
 import com.yourtube.core.data.repository.PlaylistRepository
 import com.yourtube.core.database.PlaylistDatabase
@@ -59,6 +61,16 @@ object AppModule {
     fun provideAudioQualityPreferences(
         dataStore: DataStore<Preferences>,
     ): AudioQualityPreferences = DataStoreAudioQualityPreferences(dataStore)
+
+    /**
+     * YT-0241 — opt-in toggle for "stop playback when app is closed". Backed by the
+     * same DataStore instance as audio quality; keys do not collide.
+     */
+    @Provides
+    @Singleton
+    fun providePlaybackLifecyclePreferences(
+        dataStore: DataStore<Preferences>,
+    ): PlaybackLifecyclePreferences = DataStorePlaybackLifecyclePreferences(dataStore)
 
     @Provides
     @Singleton

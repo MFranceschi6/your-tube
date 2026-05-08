@@ -9,11 +9,13 @@ import com.yourtube.core.data.repository.PlaylistRepository
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +36,23 @@ class DefaultPlayerController @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutablePlayerState = MutableStateFlow(PlayerState())
     private var progressJob: Job? = null
+
+    // YT-0244 — most recent buffering signal from the transport. Cached so
+    // `handleIsPlayingChanged(false)` can suppress the spurious PAUSED clobber that
+    // `Player.isPlaying = false` would otherwise trigger during an in-track seek's
+    // STATE_BUFFERING window. `@Volatile` is sufficient: both the buffering callback and
+    // the isPlaying callback land on the controller's main dispatcher, so the field is
+    // never read off-thread.
+    @Volatile
+    private var isBuffering: Boolean = false
+
+    // YT-0249 — single-flight job that owns the current `playQueueItem(...)` resolve.
+    // Each new track-change cancels the in-flight resolve before launching its own; the
+    // launched body gates its post-resolve `Success` write on `coroutineContext.ensureActive()`
+    // so a stale Success that lands after the cancel cannot clobber the latest target's
+    // PlayerState. Updated only from the controller's main dispatcher (see [scope]) so
+    // a plain `var` is sufficient.
+    private var currentLoadJob: Job? = null
 
     // YT-0193 — coalesce rapid scrubber-driven `seekTo()` calls.
     //
@@ -75,6 +94,10 @@ class DefaultPlayerController @Inject constructor(
 
             override fun onPositionChanged(positionMs: Long) {
                 handlePositionChanged(positionMs)
+            }
+
+            override fun onBufferingStateChanged(isBuffering: Boolean) {
+                handleBufferingStateChanged(isBuffering)
             }
         })
     }
@@ -175,10 +198,18 @@ class DefaultPlayerController @Inject constructor(
         // so re-applying the same values is a no-op for downstream collectors.
         // Guard against clobbering ERROR (transport already reported failure)
         // and LOADING (we are mid-resolve and will set PLAYING on success).
+        //
+        // YT-0244 — additionally suppress the false→PAUSED clobber while the engine is
+        // buffering. ExoPlayer drops `Player.isPlaying` to `false` during STATE_BUFFERING
+        // even though the user did not pause; the BUFFERING state owns the status during
+        // that window (see [handleBufferingStateChanged]). Without this guard, scrubbing
+        // the slider mid-playback flips status to PAUSED until STATE_READY restores it,
+        // which the user perceives as a "fake pause" flash on the play/pause button.
         mutablePlayerState.update { state ->
             when {
                 state.playbackStatus == PlaybackStatus.ERROR -> state
                 state.playbackStatus == PlaybackStatus.LOADING && !isPlaying -> state
+                isBuffering && !isPlaying -> state
                 isPlaying -> state.copy(
                     isPlaying = true,
                     playbackStatus = PlaybackStatus.PLAYING,
@@ -191,6 +222,58 @@ class DefaultPlayerController @Inject constructor(
                     }
                     state.copy(isPlaying = false, playbackStatus = nextStatus)
                 }
+            }
+        }
+
+        // YT-0245 — re-arm the progress-tick job whenever isPlaying flips back to `true`.
+        // The progress loop in [startProgressUpdates] breaks itself when `isPlaying` flips
+        // to `false` (engine buffering, lock-screen pause, audio-focus loss); without this
+        // restart the slider would stay frozen at the last tick after the engine resumes.
+        // Idempotent: `startProgressUpdates()` cancels any prior job before launching, and
+        // the active-check below skips the cancel/relaunch churn when the loop is still
+        // running (true→true flips). With YT-0244 in place the BUFFERING-aware suppression
+        // means the engine-side false→true round-trip is mostly absorbed inside the
+        // buffering callback, so this restart fires primarily on user-driven resume /
+        // focus-regain — still correct, since [resume] already starts its own job and the
+        // active-check makes the duplicate path a no-op.
+        if (isPlaying && progressJob?.isActive != true) {
+            startProgressUpdates()
+        }
+    }
+
+    /**
+     * YT-0244 — propagates the engine's STATE_BUFFERING / STATE_READY transitions into
+     * [PlayerState.playbackStatus] so the NowPlaying / MiniPlayer surfaces show the loading
+     * spinner during in-track re-buffers. Caches the latest value into [isBuffering] so
+     * [handleIsPlayingChanged] can suppress the spurious PAUSED clobber that would otherwise
+     * fire from the engine-side `isPlaying = false` during a buffer.
+     *
+     * Transition rules (rest of the state machine left untouched):
+     * - On `true`: PLAYING / PAUSED → BUFFERING. LOADING and ERROR are sticky — the
+     *   controller is mid-resolve / has surfaced a transport failure and the buffering
+     *   ping is engine bookkeeping that must not clobber either.
+     * - On `false`: BUFFERING → PLAYING when the controller still believes audio is
+     *   intended to play (`isPlaying == true`); otherwise BUFFERING → PAUSED. Idempotent
+     *   for already-not-buffering: leaves PLAYING / PAUSED / IDLE / LOADING / ERROR alone.
+     */
+    private fun handleBufferingStateChanged(isBuffering: Boolean) {
+        this.isBuffering = isBuffering
+        mutablePlayerState.update { state ->
+            when {
+                isBuffering -> when (state.playbackStatus) {
+                    PlaybackStatus.PLAYING, PlaybackStatus.PAUSED ->
+                        state.copy(playbackStatus = PlaybackStatus.BUFFERING)
+                    else -> state
+                }
+                state.playbackStatus == PlaybackStatus.BUFFERING -> {
+                    val resolved = if (state.isPlaying) {
+                        PlaybackStatus.PLAYING
+                    } else {
+                        PlaybackStatus.PAUSED
+                    }
+                    state.copy(playbackStatus = resolved)
+                }
+                else -> state
             }
         }
     }
@@ -495,7 +578,36 @@ class DefaultPlayerController @Inject constructor(
         playQueueItem(queueItem)
     }
 
+    /**
+     * YT-0249 — single-flight launcher. Cancels any in-flight `playQueueItem(...)` resolve
+     * before kicking off a new one and captures the new launch's [Job] into [currentLoadJob]
+     * so the next skip can cancel us in turn. The launch runs on the controller's [scope]
+     * (Main.immediate by default) so cancellation propagates through Media3's
+     * `ListenableFuture.await()` extension and aborts the in-flight `MediaController.sendCustomCommand`
+     * via the cancellation handler in [MediaControllerPlaybackClient].
+     *
+     * Rapid skip taps on a long-resolving queue used to race: tap #2 mutated state
+     * synchronously (new index + LOADING) and started its own resolve while tap #1's
+     * `playTrack` was still suspended; whichever resolve happened to return last clobbered
+     * the most recent target's PlayerState.Success write. The launch+cancel pattern collapses
+     * the burst — only the LATEST target's resolve is allowed to mutate state on Success.
+     *
+     * The function suspends until the launched job completes (success, failure, or cancel)
+     * so existing callers — `setQueueAndPlay`, `playNow`, `playQueueItemAt`, `resume`,
+     * `handleTrackEnded` — keep their pre-existing semantics: they only return after the
+     * resolve has settled (or been pre-empted by a newer skip). `Job.join()` does NOT throw
+     * when the JOINED job is cancelled — only when the joining coroutine itself is cancelled
+     * — so a skip-cancellation from another coroutine cleanly unwinds the previous tap's
+     * `playQueueItem` call without spurious exceptions.
+     */
     private suspend fun playQueueItem(queueItem: QueueItem) {
+        currentLoadJob?.cancel()
+        val job = scope.launch { runPlayQueueItem(queueItem) }
+        currentLoadJob = job
+        job.join()
+    }
+
+    private suspend fun runPlayQueueItem(queueItem: QueueItem) {
         progressJob?.cancel()
         // YT-0050: stop any currently-playing audio and clear the underlying
         // player's media items BEFORE we suspend on the network for stream URL
@@ -505,14 +617,27 @@ class DefaultPlayerController @Inject constructor(
         // `playNow` / `playQueueItemAt` already reset positionMs/durationMs
         // synchronously; this call mirrors that reset onto the engine itself
         // and refreshes MediaSession metadata.
+        //
+        // YT-0249 — do NOT re-introduce `clearMediaItems` here on the cancel path.
+        // The YT-0238 fix removed it precisely to avoid the STATE_ENDED cascade; the
+        // launch+cancel pattern in [playQueueItem] handles the abort cleanly without
+        // tearing down the timeline.
         playbackTransport.stopAndClearCurrent()
         // Snapshot the current preference at extraction time. Reading via
         // `Flow.first()` is safe on any dispatcher and does not block — DataStore
         // delivers asynchronously through the suspending pipeline.
         val bitrate = audioQualityPreferences.bitrateKbps.first()
-        when (val result = playbackTransport.playTrack(
+        val result = playbackTransport.playTrack(
             PlaybackRequest(track = queueItem.track, preferredMaxBitrateKbps = bitrate)
-        )) {
+        )
+        // YT-0249 — gate the post-resolve state mutation on the launched coroutine still
+        // being active. If a later skip cancelled this job while `playTrack` was suspended
+        // on the network resolve, a stale Success returning here MUST NOT clobber the
+        // freshly-written PlayerState that the next launch already advanced past. Throws
+        // CancellationException so the outer launch unwinds cleanly without recording
+        // history or starting the progress loop for an aborted target.
+        coroutineContext.ensureActive()
+        when (result) {
             is PlaybackResult.Success -> {
                 // YT-0236 — engine timeline now holds a MediaItem for [queueItem]; flip the
                 // flag so subsequent `resume()` calls forward to `playbackTransport.resume()`

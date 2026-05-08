@@ -142,8 +142,16 @@ class MediaControllerPlaybackClient @Inject constructor(
         // change ownership across rebuilds without a re-registration race.
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) {
-                    transportListener?.onTrackEnded()
+                // YT-0244 — surface buffering/ready transitions so the controller can show a
+                // loading spinner during in-track seeks + re-buffers without misclassifying
+                // them as PAUSED. STATE_IDLE is intentionally not forwarded: the engine sits
+                // there pre-prepare and on release; treating that as "not buffering" would
+                // race with the controller's own LOADING / IDLE bookkeeping.
+                when (playbackState) {
+                    Player.STATE_ENDED -> transportListener?.onTrackEnded()
+                    Player.STATE_BUFFERING -> transportListener?.onBufferingStateChanged(true)
+                    Player.STATE_READY -> transportListener?.onBufferingStateChanged(false)
+                    else -> Unit
                 }
             }
 

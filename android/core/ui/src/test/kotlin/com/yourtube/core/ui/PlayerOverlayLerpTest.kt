@@ -5,37 +5,14 @@ import org.junit.Test
 
 /**
  * Round 4 — pure-math tests for the per-frame lerp formulas in `PlayerOverlay`. These pin
- * the contract that every visual property is a deterministic function of `progress` and
- * (where applicable) `isPlaying`. Every test is a single arithmetic identity — no
- * Compose, no Animatable.
+ * the contract that every visual property is a deterministic function of `progress`.
+ * Every test is a single arithmetic identity — no Compose, no Animatable.
+ *
+ * YT-0243: the artwork's visible-scale formula was removed (artwork stays at 1.0 in every
+ * playback state), so the corresponding test helper and assertions are also gone. The
+ * remaining tests pin the chrome-alpha and scrim-alpha lerp windows.
  */
 class PlayerOverlayLerpTest {
-
-    /** Pure replica of `PlayerOverlay`'s artwork visible-scale formula. */
-    private fun visibleScale(progress: Float, isPlaying: Boolean): Float {
-        val target = if (isPlaying) 1.0f else 0.85f
-        return lerp(1.0f, target, progress)
-    }
-
-    @Test
-    fun visible_scale_at_progress_zero_paused_equals_one() {
-        assertEquals(1.0f, visibleScale(progress = 0f, isPlaying = false), 0f)
-    }
-
-    @Test
-    fun visible_scale_at_progress_one_paused_equals_paused_target() {
-        assertEquals(0.85f, visibleScale(progress = 1f, isPlaying = false), 0f)
-    }
-
-    @Test
-    fun visible_scale_at_progress_one_playing_equals_one() {
-        assertEquals(1.0f, visibleScale(progress = 1f, isPlaying = true), 0f)
-    }
-
-    @Test
-    fun visible_scale_at_progress_zero_playing_equals_one() {
-        assertEquals(1.0f, visibleScale(progress = 0f, isPlaying = true), 0f)
-    }
 
     @Test
     fun mini_chrome_alpha_is_one_at_progress_zero() {

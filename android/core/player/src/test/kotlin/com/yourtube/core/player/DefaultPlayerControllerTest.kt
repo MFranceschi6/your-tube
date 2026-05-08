@@ -1003,6 +1003,205 @@ class DefaultPlayerControllerTest {
         assertEquals(emptyList<Track>(), playlistRepository.recorded)
     }
 
+    // YT-0244: engine STATE_BUFFERING must flip status PLAYING → BUFFERING, not PAUSED.
+    @Test
+    fun `onBufferingStateChanged true flips PLAYING to BUFFERING`() = runTest(dispatcher) {
+        val transport = FakePlaybackTransport()
+        val controller = makeController(transport)
+
+        controller.playNow(trackOne)
+        runCurrent()
+        assertEquals(PlaybackStatus.PLAYING, controller.playerState.value.playbackStatus)
+
+        transport.listener?.onBufferingStateChanged(true)
+        // isPlaying stays true — the engine hasn't fired onIsPlayingChanged yet, and the
+        // guard in handleIsPlayingChanged suppresses the spurious false flip during BUFFERING.
+        assertEquals(PlaybackStatus.BUFFERING, controller.playerState.value.playbackStatus)
+    }
+
+    // YT-0244: after buffering ends while audio was playing, status returns to PLAYING.
+    @Test
+    fun `onBufferingStateChanged false returns BUFFERING to PLAYING`() = runTest(dispatcher) {
+        val transport = FakePlaybackTransport()
+        val controller = makeController(transport)
+
+        controller.playNow(trackOne)
+        runCurrent()
+
+        transport.listener?.onBufferingStateChanged(true)
+        assertEquals(PlaybackStatus.BUFFERING, controller.playerState.value.playbackStatus)
+
+        transport.listener?.onIsPlayingChanged(true)
+        transport.listener?.onBufferingStateChanged(false)
+        assertEquals(PlaybackStatus.PLAYING, controller.playerState.value.playbackStatus)
+        assertEquals(true, controller.playerState.value.isPlaying)
+    }
+
+    // YT-0244: ExoPlayer fires onIsPlayingChanged(false) during STATE_BUFFERING. The
+    // controller must NOT clobber BUFFERING → PAUSED during that window.
+    @Test
+    fun `handleIsPlayingChanged false is no-op while currently BUFFERING`() =
+        runTest(dispatcher) {
+            val transport = FakePlaybackTransport()
+            val controller = makeController(transport)
+
+            controller.playNow(trackOne)
+            runCurrent()
+
+            transport.listener?.onBufferingStateChanged(true)
+            assertEquals(PlaybackStatus.BUFFERING, controller.playerState.value.playbackStatus)
+
+            transport.listener?.onIsPlayingChanged(false)
+            assertEquals(PlaybackStatus.BUFFERING, controller.playerState.value.playbackStatus)
+        }
+
+    // YT-0245: after isPlaying flips false→true the progress job must restart and tick.
+    @Test
+    fun `progress job restarts when isPlaying flips false then true`() = runTest(dispatcher) {
+        val transport = FakePlaybackTransport()
+        val controller = makeController(transport)
+
+        controller.playNow(trackOne)
+        runCurrent()
+        assertEquals(PlaybackStatus.PLAYING, controller.playerState.value.playbackStatus)
+
+        // One tick advances positionMs by 1 s.
+        advanceTimeBy(1_000L); runCurrent()
+        val posAfterOneTick = controller.playerState.value.positionMs
+        assertEquals(1_000L, posAfterOneTick)
+
+        // Simulate lockscreen / audio-focus pause.
+        transport.listener?.onIsPlayingChanged(false)
+        runCurrent()
+        assertEquals(PlaybackStatus.PAUSED, controller.playerState.value.playbackStatus)
+
+        // Drain the progress loop's pending tick so the job terminates.
+        advanceTimeBy(1_100L); runCurrent()
+        assertEquals(posAfterOneTick, controller.playerState.value.positionMs)
+
+        // Resume — the restart branch fires.
+        transport.listener?.onIsPlayingChanged(true)
+        runCurrent()
+        assertEquals(PlaybackStatus.PLAYING, controller.playerState.value.playbackStatus)
+
+        // Two ticks advance positionMs by 2 s from the snap.
+        advanceTimeBy(2_000L); runCurrent()
+        assertEquals(posAfterOneTick + 2_000L, controller.playerState.value.positionMs)
+    }
+
+    // YT-0245: repeated true→true flips must not stack extra progress jobs.
+    @Test
+    fun `progress job stays single-instance when isPlaying flips true then true`() =
+        runTest(dispatcher) {
+            val transport = FakePlaybackTransport()
+            val controller = makeController(transport)
+
+            controller.playNow(trackOne)
+            runCurrent()
+            assertEquals(PlaybackStatus.PLAYING, controller.playerState.value.playbackStatus)
+
+            // Two consecutive "still playing" callbacks — no stacked jobs.
+            transport.listener?.onIsPlayingChanged(true)
+            runCurrent()
+            transport.listener?.onIsPlayingChanged(true)
+            runCurrent()
+
+            // Advance 2 s: should see exactly 2 ticks, not 4 or 6 from stacked jobs.
+            advanceTimeBy(2_000L); runCurrent()
+            assertEquals(2_000L, controller.playerState.value.positionMs)
+        }
+
+    // YT-0249: three rapid skipNext taps during a loading window must cancel intermediate
+    // resolves and land on the third-forward queue index. Each skip is launched in a
+    // separate coroutine (as system/lockscreen callbacks would do) because skipNext is
+    // suspend and blocks on job.join() until its resolve settles or is pre-empted.
+    @Test
+    fun `rapid skipNext bursts cancel in-flight resolve and land on latest index`() =
+        runTest(dispatcher) {
+            val transport = MultiSuspendingPlaybackTransport(immediateCalls = 1)
+            val controller = makeController(transport)
+
+            val trackFour = Track("four", "Track Four", "Ch D", 210, "")
+            controller.setQueueAndPlay(
+                listOf(trackOne, trackTwo, trackThree, trackFour),
+                startIndex = 0,
+            )
+            // Initial play completes immediately (immediateCalls=1). Drain remaining tasks.
+            runCurrent()
+            assertEquals(0, controller.playerState.value.currentQueueIndex)
+
+            // Simulate rapid tap bursts: each tap is an independent coroutine, mirroring
+            // how serviceScope.launch { controller.skipNext() } fires from lockscreen.
+            launch { controller.skipNext() }; runCurrent() // idx → 1, inner1 suspends
+            launch { controller.skipNext() }; runCurrent() // cancels inner1, idx → 2
+            launch { controller.skipNext() }; runCurrent() // cancels inner2, idx → 3
+
+            // Only the final resolve completes.
+            transport.completeLatest(PlaybackResult.Success)
+            runCurrent()
+
+            val state = controller.playerState.value
+            assertEquals(3, state.currentQueueIndex)
+            assertEquals(trackFour, state.currentTrack)
+        }
+
+    // YT-0249: same guarantee for skipPrevious rapid taps.
+    @Test
+    fun `rapid skipPrevious bursts collapse to the latest index`() = runTest(dispatcher) {
+        val transport = MultiSuspendingPlaybackTransport(immediateCalls = 1)
+        val controller = makeController(transport)
+
+        val trackFour = Track("four", "Track Four", "Ch D", 210, "")
+        val trackFive = Track("five", "Track Five", "Ch E", 220, "")
+        controller.setQueueAndPlay(
+            listOf(trackOne, trackTwo, trackThree, trackFour, trackFive),
+            startIndex = 4,
+        )
+        runCurrent()
+        assertEquals(4, controller.playerState.value.currentQueueIndex)
+
+        // positionMs=0 on fresh play — below RESTART_THRESHOLD_MS — so each tap goes back.
+        launch { controller.skipPrevious() }; runCurrent() // idx → 3
+        launch { controller.skipPrevious() }; runCurrent() // cancel, idx → 2
+        launch { controller.skipPrevious() }; runCurrent() // cancel, idx → 1
+
+        transport.completeLatest(PlaybackResult.Success)
+        runCurrent()
+
+        val state = controller.playerState.value
+        assertEquals(1, state.currentQueueIndex)
+        assertEquals(trackTwo, state.currentTrack)
+    }
+
+    // YT-0249: a stale Success from a cancelled resolve must not clobber state.
+    @Test
+    fun `cancelled resolve does not clobber state with stale Success`() = runTest(dispatcher) {
+        val transport = MultiSuspendingPlaybackTransport(immediateCalls = 1)
+        val controller = makeController(transport)
+
+        controller.setQueueAndPlay(
+            listOf(trackOne, trackTwo, trackThree),
+            startIndex = 0,
+        )
+        runCurrent()
+
+        launch { controller.skipNext() }; runCurrent() // resolve #1 pending (trackTwo)
+        launch { controller.skipNext() }; runCurrent() // cancel #1, resolve #2 (trackThree)
+
+        // Complete only the latest (trackThree's resolve, at deferreds[2]).
+        transport.completeLatest(PlaybackResult.Success)
+        runCurrent()
+
+        // Completing the stale deferred from resolve #1 (deferreds[1], coroutine already cancelled).
+        transport.completePending(1, PlaybackResult.Success)
+        runCurrent()
+
+        // State must reflect trackThree at idx=2, not trackTwo.
+        val state = controller.playerState.value
+        assertEquals(2, state.currentQueueIndex)
+        assertEquals(trackThree, state.currentTrack)
+    }
+
     private class FakePlaybackTransport : PlaybackTransport {
         var listener: PlaybackTransportListener? = null
             private set
@@ -1178,6 +1377,47 @@ class DefaultPlayerControllerTest {
         }
         override suspend fun clearHistory() = Unit
         override suspend fun removeHistoryEntry(entryId: String) = Unit
+    }
+
+    // YT-0249: transport whose playTrack suspends independently per call so tests can
+    // complete specific invocations and verify that earlier in-flight resolves are discarded.
+    // The first [immediateCalls] invocations return PlaybackResult.Success synchronously so
+    // the initial setQueueAndPlay/playNow can complete without manual deferred management;
+    // all subsequent calls suspend until explicitly completed via [completeLatest] / [completePending].
+    private class MultiSuspendingPlaybackTransport(
+        private val immediateCalls: Int = 1,
+    ) : PlaybackTransport {
+        var listener: PlaybackTransportListener? = null
+            private set
+        private val deferreds = mutableListOf<CompletableDeferred<PlaybackResult>>()
+        val callCount get() = deferreds.size
+
+        fun completeLatest(result: PlaybackResult) {
+            deferreds.lastOrNull()?.complete(result)
+        }
+
+        fun completePending(index: Int, result: PlaybackResult) {
+            deferreds.getOrNull(index)?.complete(result)
+        }
+
+        override fun setListener(l: PlaybackTransportListener?) { listener = l }
+
+        override suspend fun playTrack(request: PlaybackRequest): PlaybackResult {
+            val d = CompletableDeferred<PlaybackResult>()
+            deferreds += d
+            if (deferreds.size <= immediateCalls) {
+                d.complete(PlaybackResult.Success)
+                return PlaybackResult.Success
+            }
+            return d.await()
+        }
+
+        override suspend fun pause() = Unit
+        override suspend fun resume() = Unit
+        override suspend fun seekTo(positionMs: Long) = Unit
+        override suspend fun stopAndClearCurrent() = Unit
+        override suspend fun setShuffleMode(enabled: Boolean) = Unit
+        override suspend fun setRepeatMode(mode: Int) = Unit
     }
 
     private object NoOpLogger : Logger {
