@@ -5,6 +5,8 @@ import com.yourtube.core.common.model.PlaybackStatus
 import com.yourtube.core.common.model.PlayerState
 import com.yourtube.core.common.model.QueueItem
 import com.yourtube.core.common.model.Track
+import com.yourtube.core.player.Logger
+import com.yourtube.core.player.PlaybackPerfTracer
 import com.yourtube.core.player.PlayerController
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -39,7 +41,7 @@ class PlayerViewModelTest {
     @Test
     fun `playNow emits idle then loading then playing through the view model`() = runTest(dispatcher) {
         val controller = FakePlayerController()
-        val viewModel = PlayerViewModel(controller)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
 
         viewModel.playerState.test {
             assertEquals(PlaybackStatus.IDLE, awaitItem().playbackStatus)
@@ -65,10 +67,90 @@ class PlayerViewModelTest {
         }
     }
 
+    // YT-0196 — the play/pause button on MiniPlayer + NowPlaying renders a spinner while
+    // `playbackStatus == LOADING`. This test pins that contract: `playerState.playbackStatus`
+    // remains LOADING for as long as the controller's resolve is in flight (i.e. before the
+    // transport reports `STATE_READY`/`isPlaying = true`), then flips to PLAYING the moment
+    // the transport completes. Without this guarantee the button would render `Pause` the
+    // instant the user taps a track — implying playback already started — even though audio
+    // takes ~3.5 s to start on Android per `YT_PERF`.
+    @Test
+    fun `playbackStatus stays LOADING across the resolve window then flips to PLAYING`() =
+        runTest(dispatcher) {
+            val controller = FakePlayerController()
+            val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+
+            viewModel.playerState.test {
+                assertEquals(PlaybackStatus.IDLE, awaitItem().playbackStatus)
+
+                viewModel.playNow(track)
+                advanceUntilIdle()
+
+                // First state after `playNow` MUST be LOADING — playback has not yet started.
+                val loading = awaitItem()
+                assertEquals(PlaybackStatus.LOADING, loading.playbackStatus)
+                assertEquals(false, loading.isPlaying)
+                assertEquals(track, loading.currentTrack)
+
+                // The state must NOT silently flip to PLAYING while the transport is still
+                // resolving the stream. Drain the dispatcher and re-check — no new emission
+                // beyond LOADING should appear before the transport reports ready.
+                advanceUntilIdle()
+                assertEquals(PlaybackStatus.LOADING, viewModel.playerState.value.playbackStatus)
+
+                // Transport reports `STATE_READY` → controller flips to PLAYING.
+                controller.completePlayNow()
+                advanceUntilIdle()
+
+                val playing = awaitItem()
+                assertEquals(PlaybackStatus.PLAYING, playing.playbackStatus)
+                assertEquals(true, playing.isPlaying)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    // YT-0196 — fast pause→play on a track that's already loaded must NOT re-enter LOADING.
+    // The button transitions PAUSED → PLAYING directly with no spinner flash, matching iOS.
+    // Per `DefaultPlayerController.resume()` the path is: `playbackTransport.resume()` then
+    // PLAYING — never via LOADING.
+    @Test
+    fun `resume on a loaded track skips LOADING and goes PAUSED to PLAYING directly`() =
+        runTest(dispatcher) {
+            val pausedState = PlayerState(
+                currentTrack = track,
+                queue = listOf(QueueItem(track = track, queueId = "queue-1")),
+                currentQueueIndex = 0,
+                playbackStatus = PlaybackStatus.PAUSED,
+                isPlaying = false,
+                durationMs = track.durationSec * 1000L,
+            )
+            val controller = FakePlayerController().apply { startInState(pausedState) }
+            val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+
+            viewModel.playerState.test {
+                assertEquals(PlaybackStatus.PAUSED, awaitItem().playbackStatus)
+
+                viewModel.resume()
+                advanceUntilIdle()
+                controller.completeResume()
+                advanceUntilIdle()
+
+                // Next emission MUST be PLAYING — never LOADING. If a regression routes resume
+                // through the resolve path, the LOADING state would appear here and this
+                // assertion would fail.
+                val resumed = awaitItem()
+                assertEquals(PlaybackStatus.PLAYING, resumed.playbackStatus)
+                assertEquals(true, resumed.isPlaying)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
     @Test
     fun `pause then resume toggles playback status`() = runTest(dispatcher) {
         val controller = FakePlayerController().apply { startInState(playingState) }
-        val viewModel = PlayerViewModel(controller)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
 
         viewModel.playerState.test {
             assertEquals(PlaybackStatus.PLAYING, awaitItem().playbackStatus)
@@ -98,7 +180,7 @@ class PlayerViewModelTest {
     @Test
     fun `seekTo updates the position on the state stream`() = runTest(dispatcher) {
         val controller = FakePlayerController().apply { startInState(playingState) }
-        val viewModel = PlayerViewModel(controller)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
 
         viewModel.seekTo(positionMs = 12_345L)
         advanceUntilIdle()
@@ -112,7 +194,7 @@ class PlayerViewModelTest {
     @Test
     fun `skipNext and skipPrevious move the queue cursor`() = runTest(dispatcher) {
         val controller = FakePlayerController().apply { startInState(playingState) }
-        val viewModel = PlayerViewModel(controller)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
 
         viewModel.skipNext()
         advanceUntilIdle()
@@ -131,7 +213,7 @@ class PlayerViewModelTest {
     @Test
     fun `playList plays first track and queues the rest in order`() = runTest(dispatcher) {
         val controller = FakePlayerController()
-        val viewModel = PlayerViewModel(controller)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
 
         viewModel.playList(listOf(track, secondTrack, thirdTrack), shuffle = false)
         advanceUntilIdle()
@@ -149,7 +231,7 @@ class PlayerViewModelTest {
     @Test
     fun `playList shuffle randomises order but keeps the full set of tracks`() = runTest(dispatcher) {
         val controller = FakePlayerController()
-        val viewModel = PlayerViewModel(controller)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
         val all = listOf(track, secondTrack, thirdTrack)
 
         viewModel.playList(all, shuffle = true)
@@ -167,7 +249,7 @@ class PlayerViewModelTest {
     @Test
     fun `playList no-ops on empty input`() = runTest(dispatcher) {
         val controller = FakePlayerController()
-        val viewModel = PlayerViewModel(controller)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
 
         viewModel.playList(emptyList(), shuffle = false)
         advanceUntilIdle()
@@ -184,7 +266,7 @@ class PlayerViewModelTest {
     fun `setShuffleMode wrapper forwards to controller and is reflected in state`() =
         runTest(dispatcher) {
             val controller = FakePlayerController()
-            val viewModel = PlayerViewModel(controller)
+            val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
 
             viewModel.setShuffleMode(enabled = true)
             advanceUntilIdle()
@@ -197,7 +279,7 @@ class PlayerViewModelTest {
     fun `setRepeatMode wrapper forwards to controller and is reflected in state`() =
         runTest(dispatcher) {
             val controller = FakePlayerController()
-            val viewModel = PlayerViewModel(controller)
+            val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
 
             // REPEAT_MODE_ALL = 2 (matches androidx.media3.common.Player.REPEAT_MODE_ALL).
             viewModel.setRepeatMode(mode = 2)
@@ -210,7 +292,7 @@ class PlayerViewModelTest {
     @Test
     fun `queue mutations remove and reorder items in player state`() = runTest(dispatcher) {
         val controller = FakePlayerController().apply { startInState(playingState) }
-        val viewModel = PlayerViewModel(controller)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
 
         viewModel.removeQueueItem(queueId = "queue-1")
         advanceUntilIdle()
@@ -266,6 +348,20 @@ class PlayerViewModelTest {
 
         fun completeSeek() {
             seekGate.complete(Unit)
+        }
+
+        override suspend fun setQueueAndPlay(tracks: List<Track>, startIndex: Int) {
+            if (tracks.isEmpty()) return
+            val safe = startIndex.coerceIn(0, tracks.lastIndex)
+            val items = tracks.map { QueueItem(track = it, queueId = "queue-${it.videoId}") }
+            mutableState.value = PlayerState(
+                currentTrack = tracks[safe],
+                queue = items,
+                currentQueueIndex = safe,
+                playbackStatus = PlaybackStatus.PLAYING,
+                isPlaying = true,
+                durationMs = tracks[safe].durationSec * 1000L,
+            )
         }
 
         override suspend fun playNow(track: Track) {
@@ -367,6 +463,20 @@ class PlayerViewModelTest {
             mutableState.value = mutableState.value.copy(repeatMode = mode)
         }
     }
+
+    private object NoOpLogger : Logger {
+        override fun debug(tag: String, message: String) = Unit
+        override fun info(tag: String, message: String) = Unit
+        override fun warn(tag: String, message: String, throwable: Throwable?) = Unit
+        override fun error(tag: String, message: String, throwable: Throwable?) = Unit
+    }
+
+    /**
+     * The perf tracer is a behavioural side-channel for `YT_PERF` log lines —
+     * tests don't assert on those, so we route through a no-op logger to
+     * keep test output clean while preserving the production call shape.
+     */
+    private val NoOpPerfTracer: PlaybackPerfTracer = PlaybackPerfTracer(NoOpLogger)
 
     companion object {
         private val track = Track(

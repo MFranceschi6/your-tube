@@ -9,6 +9,16 @@ interface PlayerController {
 
     suspend fun playNow(track: Track)
 
+    /**
+     * YT-0155: replace the current queue with [tracks] and start playback at [startIndex].
+     * Used by `PlaylistDetail`'s Play / Shuffle header and tap-to-play row interactions
+     * so the user gets the Spotify-style "the playlist becomes my queue" behaviour. The
+     * queue swap is a single state-flow update so the UI never sees an intermediate
+     * empty queue. [startIndex] is clamped to the list's indices; the empty list is a
+     * no-op (the controller stays in its current state).
+     */
+    suspend fun setQueueAndPlay(tracks: List<Track>, startIndex: Int)
+
     suspend fun addToQueue(track: Track)
 
     suspend fun playNext(track: Track)

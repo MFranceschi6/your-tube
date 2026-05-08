@@ -123,6 +123,34 @@ final class AVPlayerAudioEngine: AudioEngineProtocol {
     /// lifetime contract as `itemStatusObserver` above.
     private var currentResourceLoader: HLSProxyLoader?
 
+    // MARK: - Perf instrumentation (PlaybackPerfTracer)
+
+    /// Most-recent track id handed to `play(track:url:...)`. Captured up-front
+    /// so KVO / time-observer callbacks (which fire without a `Track`
+    /// reference) can attribute their `mark` to the correct video. Cleared
+    /// on `stop()` and refreshed on every `play(...)`.
+    private var perfCurrentVideoId: String?
+
+    /// Latched flag for FIRST_AUDIO. `addPeriodicTimeObserver` keeps firing
+    /// for the lifetime of the player; we want exactly one FIRST_AUDIO mark
+    /// per `play(...)`. Reset in `prepare(track:)` so the next track gets a
+    /// fresh latch.
+    private var perfFirstAudioFired: Bool = false
+
+    /// Latched flags for STATUS_READY_TO_PLAY / STATE_BUFFERING / STATE_READY.
+    /// `AVPlayerItem.status` and `AVPlayer.timeControlStatus` can flap
+    /// (especially when the network throttles); the perf trace only cares
+    /// about the *first* transition into each meaningful state per track,
+    /// matching the Android brief one-shot semantics.
+    private var perfReadyToPlayFired: Bool = false
+    private var perfBufferingFired: Bool = false
+    private var perfStateReadyFired: Bool = false
+
+    /// KVO observation on `AVPlayer.timeControlStatus`. Drives the
+    /// `STATE_BUFFERING` / `STATE_READY` perf marks. Held alongside the
+    /// other KVO handles so deinit invalidates it cleanly.
+    nonisolated(unsafe) private var timeControlStatusObserver: NSKeyValueObservation?
+
 
     // MARK: - Init
 
@@ -137,6 +165,7 @@ final class AVPlayerAudioEngine: AudioEngineProtocol {
         setupInterruptionHandling()
         setupRateObserver()
         setupTimeObserver()
+        setupTimeControlStatusObserver()
     }
 
     /// Defensive `AVAudioSession` activation (YT-0046 v3). The app already
@@ -160,6 +189,7 @@ final class AVPlayerAudioEngine: AudioEngineProtocol {
     deinit {
         rateObserver?.invalidate()
         itemStatusObserver?.invalidate()
+        timeControlStatusObserver?.invalidate()
         for (command, token) in remoteCommandEntries {
             command.removeTarget(token)
         }
@@ -180,6 +210,13 @@ final class AVPlayerAudioEngine: AudioEngineProtocol {
         isPlaying = true
         currentTime = 0
         duration = TimeInterval(track.durationSec)
+        // Ad-hoc perf instrumentation: lock in the videoId so the
+        // (background-queue-fired) periodic time observer and the (KVO-fired)
+        // status / timeControlStatus callbacks can label their marks even
+        // though they don't carry a `Track`. `prepare(track:)` already
+        // assigned this — re-assigning here is defensive in case a caller
+        // skipped `prepare` (tests, previews).
+        perfCurrentVideoId = track.videoId
         // YT-0157: bind the proxy loader to the asset's resourceLoader so
         // AVPlayer's HLS engine routes m3u8 + segment requests through our
         // delegate, and retain the loader on the engine so it outlives the
@@ -227,13 +264,36 @@ final class AVPlayerAudioEngine: AudioEngineProtocol {
             itemStatusObserver = item.observe(\.status, options: [.new]) { [weak self] item, _ in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
-                    guard item.status == .failed else { return }
-                    // Surface the AVPlayerItem error to the coordinator. We
-                    // pass the error along (without the URL) so the
-                    // coordinator can build a user-safe message; the
-                    // localized description from CoreMedia / CFNetwork is
-                    // safe to render but the URL never leaves the engine.
-                    self.onItemFailure?(item.error)
+                    switch item.status {
+                    case .readyToPlay:
+                        // Ad-hoc perf instrumentation — first time this item
+                        // reports ready-to-play. Latched so flapping never
+                        // produces multiple STATUS_READY_TO_PLAY marks per
+                        // track.
+                        if !self.perfReadyToPlayFired {
+                            self.perfReadyToPlayFired = true
+                            let videoId = self.perfCurrentVideoId ?? "?"
+                            PlaybackPerfTracer.shared.mark("STATUS_READY_TO_PLAY", videoId: videoId)
+                        }
+                    case .failed:
+                        // Surface the AVPlayerItem error to the coordinator. We
+                        // pass the error along (without the URL) so the
+                        // coordinator can build a user-safe message; the
+                        // localized description from CoreMedia / CFNetwork is
+                        // safe to render but the URL never leaves the engine.
+                        let videoId = self.perfCurrentVideoId ?? "?"
+                        let message = (item.error as NSError?)?.localizedDescription ?? "unknown"
+                        PlaybackPerfTracer.shared.mark(
+                            "FAIL",
+                            videoId: videoId,
+                            context: "stage=avplayerItem error=\(message)"
+                        )
+                        self.onItemFailure?(item.error)
+                    case .unknown:
+                        break
+                    @unknown default:
+                        break
+                    }
                 }
             }
             player.replaceCurrentItem(with: item)
@@ -280,6 +340,17 @@ final class AVPlayerAudioEngine: AudioEngineProtocol {
         // the assignment below is the value SwiftUI reads on the next render.
         currentTime = 0
         duration = TimeInterval(track.durationSec)
+        // Ad-hoc perf instrumentation — reset the per-track latches so the
+        // next `play(track:url:...)` re-emits STATUS_READY_TO_PLAY /
+        // STATE_BUFFERING / STATE_READY / FIRST_AUDIO. PREPARE itself is
+        // marked here because this is the synchronous engine-side hook that
+        // immediately follows the coordinator's `.loading` transition.
+        perfCurrentVideoId = track.videoId
+        perfFirstAudioFired = false
+        perfReadyToPlayFired = false
+        perfBufferingFired = false
+        perfStateReadyFired = false
+        PlaybackPerfTracer.shared.mark("PREPARE", videoId: track.videoId)
         updateNowPlayingInfo()
         loadArtworkIfNeeded(for: track)
     }
@@ -326,6 +397,13 @@ final class AVPlayerAudioEngine: AudioEngineProtocol {
         currentTrack = nil
         currentTime = 0
         duration = 0
+        // Ad-hoc perf instrumentation — drop the videoId latch so a stray
+        // late KVO callback can't mis-attribute to a freed track.
+        perfCurrentVideoId = nil
+        perfFirstAudioFired = false
+        perfReadyToPlayFired = false
+        perfBufferingFired = false
+        perfStateReadyFired = false
         infoCenter.nowPlayingInfo = nil
     }
 
@@ -487,7 +565,13 @@ final class AVPlayerAudioEngine: AudioEngineProtocol {
     }
 
     private func setupTimeObserver() {
-        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        // 100 ms granularity is fine-grained enough that FIRST_AUDIO lands
+        // within ~50 ms of actual audio output (vs ~250 ms with the previous
+        // 0.5 s tick) without measurably hurting scroll perf — the callback
+        // body is a few statements. Keeping the same interval for the
+        // scrubber update is fine because SwiftUI batches @Observable
+        // re-renders.
+        let interval = CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: interval,
             queue: .main
@@ -506,6 +590,67 @@ final class AVPlayerAudioEngine: AudioEngineProtocol {
                 guard seconds.isFinite else { return }
                 self.currentTime = seconds
                 self.updateNowPlayingInfo()
+                // Ad-hoc perf instrumentation — FIRST_AUDIO fires the first
+                // tick where AVPlayer reports `currentTime > 0` AND the
+                // player rate is > 0 (i.e. samples are actually being
+                // pumped, not just the item being prepared). Latched per
+                // `prepare(track:)` so subsequent ticks for the same track
+                // do NOT re-emit. There is no public AVFoundation API for
+                // "first audio frame to the speaker"; this is the closest
+                // observable proxy.
+                if !self.perfFirstAudioFired,
+                   seconds > 0,
+                   self.player.rate > 0 {
+                    self.perfFirstAudioFired = true
+                    let videoId = self.perfCurrentVideoId ?? "?"
+                    PlaybackPerfTracer.shared.mark(
+                        "FIRST_AUDIO",
+                        videoId: videoId,
+                        context: "currentTime=\(String(format: "%.3f", seconds))"
+                    )
+                }
+            }
+        }
+    }
+
+    /// Wires KVO on `AVPlayer.timeControlStatus` so the perf trace can
+    /// distinguish "the player is waiting for the buffer" (`.waitingToPlay…`)
+    /// from "the player is actively pumping samples" (`.playing`). Both
+    /// states map to a single `mark` per track via the latches on
+    /// `perfBufferingFired` / `perfStateReadyFired` — flapping (which
+    /// happens on slow networks) does not produce duplicate lines.
+    ///
+    /// `timeControlStatus` is only available on the concrete `AVPlayer`
+    /// type, not the protocol — so the observer is a no-op when the engine
+    /// runs against the test fake. That's fine because the perf instrumentation
+    /// is verified via `PlaybackPerfTracerTests` against the tracer directly.
+    private func setupTimeControlStatusObserver() {
+        guard let avPlayer = player as? AVPlayer else { return }
+        timeControlStatusObserver = avPlayer.observe(\.timeControlStatus, options: [.new]) { [weak self] avPlayer, _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let videoId = self.perfCurrentVideoId ?? "?"
+                switch avPlayer.timeControlStatus {
+                case .waitingToPlayAtSpecifiedRate:
+                    if !self.perfBufferingFired {
+                        self.perfBufferingFired = true
+                        let reason = avPlayer.reasonForWaitingToPlay?.rawValue ?? "?"
+                        PlaybackPerfTracer.shared.mark(
+                            "STATE_BUFFERING",
+                            videoId: videoId,
+                            context: "reason=\(reason)"
+                        )
+                    }
+                case .playing:
+                    if !self.perfStateReadyFired {
+                        self.perfStateReadyFired = true
+                        PlaybackPerfTracer.shared.mark("STATE_READY", videoId: videoId)
+                    }
+                case .paused:
+                    break
+                @unknown default:
+                    break
+                }
             }
         }
     }

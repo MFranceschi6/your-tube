@@ -20,6 +20,8 @@ mockk = "1.13.13"
 junit4 = "4.13.2"
 robolectric = "4.13"
 androidxTestCore = "1.6.1"
+androidxTestRunner = "1.6.2"
+androidxTestExtJunit = "1.2.1"
 okhttp = "4.12.0"
 ktlint = "12.1.1"
 detekt = "1.23.7"
@@ -56,6 +58,8 @@ kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExtJunit" }
 # Test dependencies
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit", version.ref = "kotlin" }
 junit4 = { group = "junit", name = "junit", version.ref = "junit4" }

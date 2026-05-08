@@ -26,6 +26,7 @@ class DefaultPlayerControllerTest {
     private val dispatcher = StandardTestDispatcher()
     private val audioQualityPreferences = FakeAudioQualityPreferences()
     private val playlistRepository = FakePlaylistRepository()
+    private val perfTracer = PlaybackPerfTracer(NoOpLogger)
 
     private fun makeController(transport: PlaybackTransport = FakePlaybackTransport()) =
         DefaultPlayerController(
@@ -33,6 +34,7 @@ class DefaultPlayerControllerTest {
             dispatcher = dispatcher,
             audioQualityPreferences = audioQualityPreferences,
             playlistRepository = playlistRepository,
+            perfTracer = perfTracer,
         )
 
     @Test
@@ -93,6 +95,97 @@ class DefaultPlayerControllerTest {
         assertEquals(PlaybackStatus.PLAYING, controller.playerState.value.playbackStatus)
     }
 
+    // YT-0193: a single seek issues one transport `seekTo(...)` and NO `pause()` / `resume()`.
+    // This protects the bug surface user-reported as "moving the seek-bar slider stops audio":
+    // any regression that adds a pause/resume bracket around the seek will fail this assertion.
+    @Test
+    fun `seekTo issues a single transport seekTo with no pause or resume`() = runTest(dispatcher) {
+        val transport = FakePlaybackTransport()
+        val controller = makeController(transport)
+
+        controller.playNow(trackOne)
+        runCurrent()
+        // Drop the playTrack/stopAndClearCurrent bookkeeping so we focus on the seek path.
+        transport.events.clear()
+
+        controller.seekTo(7_000L)
+        // Position updates synchronously for the slider thumb; transport dispatch is debounced.
+        assertEquals(7_000L, controller.playerState.value.positionMs)
+        advanceTimeBy(DefaultPlayerController.SEEK_DEBOUNCE_MS + 5L)
+        runCurrent()
+
+        assertEquals(listOf(7_000L), transport.seekCalls)
+        assertEquals(0, transport.pauseCalls)
+        assertEquals(0, transport.resumeCalls)
+    }
+
+    // YT-0193: rapid scrubber-driven seeks (NowPlaying slider's `onValueChange` fires every
+    // drag-tick at up to ~60 Hz) must coalesce into a SINGLE engine-side dispatch with the
+    // latest target. Otherwise we flood `MediaController.seekTo(...)`, push ExoPlayer into
+    // `STATE_BUFFERING`, and the user perceives audio dropping out.
+    @Test
+    fun `rapid seekTo calls collapse to a single transport seekTo with the latest position`() =
+        runTest(dispatcher) {
+            val transport = FakePlaybackTransport()
+            val controller = makeController(transport)
+
+            controller.playNow(trackOne)
+            runCurrent()
+            transport.events.clear()
+
+            // Simulate a drag burst: 6 frame-rate ticks within the debounce window.
+            controller.seekTo(1_000L)
+            advanceTimeBy(8L); runCurrent()
+            controller.seekTo(2_000L)
+            advanceTimeBy(8L); runCurrent()
+            controller.seekTo(3_000L)
+            advanceTimeBy(8L); runCurrent()
+            controller.seekTo(4_000L)
+            advanceTimeBy(8L); runCurrent()
+            controller.seekTo(5_000L)
+            advanceTimeBy(8L); runCurrent()
+            controller.seekTo(6_000L)
+
+            // Slider thumb tracks the user's finger every tick — positionMs reflects the
+            // latest call SYNCHRONOUSLY so the UI does not lag the gesture.
+            assertEquals(6_000L, controller.playerState.value.positionMs)
+
+            // Drain the trailing debounce window. Engine-side, only one dispatch fires and
+            // it carries the user's settle target.
+            advanceTimeBy(DefaultPlayerController.SEEK_DEBOUNCE_MS + 5L)
+            runCurrent()
+
+            assertEquals(listOf(6_000L), transport.seekCalls)
+            assertEquals(0, transport.pauseCalls)
+            assertEquals(0, transport.resumeCalls)
+        }
+
+    // YT-0193: a fresh seek issued AFTER the debounce window of a previous seek has elapsed
+    // is dispatched separately. The debounce must not "swallow" subsequent intentional seeks
+    // (e.g. the user scrubs, releases, then later taps a different position on the bar).
+    @Test
+    fun `seeks separated by more than the debounce window dispatch independently`() =
+        runTest(dispatcher) {
+            val transport = FakePlaybackTransport()
+            val controller = makeController(transport)
+
+            controller.playNow(trackOne)
+            runCurrent()
+            transport.events.clear()
+
+            controller.seekTo(2_000L)
+            advanceTimeBy(DefaultPlayerController.SEEK_DEBOUNCE_MS + 5L)
+            runCurrent()
+
+            controller.seekTo(9_000L)
+            advanceTimeBy(DefaultPlayerController.SEEK_DEBOUNCE_MS + 5L)
+            runCurrent()
+
+            assertEquals(listOf(2_000L, 9_000L), transport.seekCalls)
+            assertEquals(0, transport.pauseCalls)
+            assertEquals(0, transport.resumeCalls)
+        }
+
     @Test
     fun `removing currently playing item transitions to PAUSED with positionMs reset`() = runTest(dispatcher) {
         val playbackTransport = FakePlaybackTransport()
@@ -116,6 +209,7 @@ class DefaultPlayerControllerTest {
     @Test
     fun `error state set when transport returns failure`() = runTest(dispatcher) {
         val failingTransport = object : PlaybackTransport {
+            override fun setListener(listener: PlaybackTransportListener?) = Unit
             override suspend fun playTrack(request: PlaybackRequest) =
                 PlaybackResult.Failure("injected failure")
             override suspend fun pause() = Unit
@@ -292,9 +386,112 @@ class DefaultPlayerControllerTest {
             assertEquals(listOf(true, true), transport.shuffleCalls)
         }
 
+    // YT-0155: setQueueAndPlay replaces the queue atomically and starts at startIndex.
+    @Test
+    fun `setQueueAndPlay starts at the requested index with full queue installed`() =
+        runTest(dispatcher) {
+            val controller = makeController()
+
+            controller.setQueueAndPlay(listOf(trackOne, trackTwo, trackThree), startIndex = 1)
+            runCurrent()
+
+            val state = controller.playerState.value
+            assertEquals(
+                listOf(trackOne, trackTwo, trackThree),
+                state.queue.map { it.track },
+            )
+            assertEquals(1, state.currentQueueIndex)
+            assertEquals(trackTwo, state.currentTrack)
+        }
+
+    @Test
+    fun `setQueueAndPlay clamps an out-of-range startIndex into the list`() =
+        runTest(dispatcher) {
+            val controller = makeController()
+
+            controller.setQueueAndPlay(listOf(trackOne, trackTwo, trackThree), startIndex = 99)
+            runCurrent()
+
+            val state = controller.playerState.value
+            assertEquals(2, state.currentQueueIndex)
+            assertEquals(trackThree, state.currentTrack)
+        }
+
+    @Test
+    fun `setQueueAndPlay with empty input is a no-op`() = runTest(dispatcher) {
+        val controller = makeController()
+        controller.playNow(trackOne)
+        runCurrent()
+
+        controller.setQueueAndPlay(emptyList(), startIndex = 0)
+        runCurrent()
+
+        val state = controller.playerState.value
+        assertEquals(trackOne, state.currentTrack)
+        assertEquals(1, state.queue.size)
+    }
+
+    // YT-0182: STATE_ENDED with a next queue item must auto-advance the controller.
+    @Test
+    fun `transport onTrackEnded auto-advances to next queue item`() = runTest(dispatcher) {
+        val transport = FakePlaybackTransport()
+        val controller = makeController(transport)
+
+        controller.playNow(trackOne)
+        controller.addToQueue(trackTwo)
+        controller.addToQueue(trackThree)
+        runCurrent()
+
+        transport.listener?.onTrackEnded()
+        runCurrent()
+
+        val state = controller.playerState.value
+        assertEquals(1, state.currentQueueIndex)
+        assertEquals(trackTwo, state.currentTrack)
+    }
+
+    // YT-0182: STATE_ENDED on the last queue item must settle into IDLE/non-playing.
+    @Test
+    fun `transport onTrackEnded with no next item flips to IDLE and stops`() = runTest(dispatcher) {
+        val transport = FakePlaybackTransport()
+        val controller = makeController(transport)
+
+        controller.playNow(trackOne)
+        runCurrent()
+
+        transport.listener?.onTrackEnded()
+        runCurrent()
+
+        val state = controller.playerState.value
+        assertEquals(false, state.isPlaying)
+        assertEquals(PlaybackStatus.IDLE, state.playbackStatus)
+    }
+
+    // YT-0185: lock-screen pause flips PlayerState to paused; resume restores PLAYING.
+    @Test
+    fun `transport onIsPlayingChanged mirrors paused and resumed states`() = runTest(dispatcher) {
+        val transport = FakePlaybackTransport()
+        val controller = makeController(transport)
+
+        controller.playNow(trackOne)
+        runCurrent()
+        assertEquals(true, controller.playerState.value.isPlaying)
+
+        transport.listener?.onIsPlayingChanged(false)
+        var state = controller.playerState.value
+        assertEquals(false, state.isPlaying)
+        assertEquals(PlaybackStatus.PAUSED, state.playbackStatus)
+
+        transport.listener?.onIsPlayingChanged(true)
+        state = controller.playerState.value
+        assertEquals(true, state.isPlaying)
+        assertEquals(PlaybackStatus.PLAYING, state.playbackStatus)
+    }
+
     @Test
     fun `failed playback does not record history`() = runTest(dispatcher) {
         val failingTransport = object : PlaybackTransport {
+            override fun setListener(listener: PlaybackTransportListener?) = Unit
             override suspend fun playTrack(request: PlaybackRequest) =
                 PlaybackResult.Failure("nope")
             override suspend fun pause() = Unit
@@ -313,16 +510,48 @@ class DefaultPlayerControllerTest {
     }
 
     private class FakePlaybackTransport : PlaybackTransport {
-        override suspend fun playTrack(request: PlaybackRequest): PlaybackResult =
-            PlaybackResult.Success
+        var listener: PlaybackTransportListener? = null
+            private set
 
-        override suspend fun pause() = Unit
+        // YT-0193 — record every transport call in invocation order so seek-debounce
+        // tests can assert that scrubber drags coalesce into a single `seekTo(...)` and
+        // never call `pause()` / `resume()` / `play()` along the seek path.
+        val events = mutableListOf<String>()
+        val seekCalls: List<Long>
+            get() = events.mapNotNull { event ->
+                if (event.startsWith("seekTo(")) {
+                    event.removePrefix("seekTo(").removeSuffix(")").toLong()
+                } else {
+                    null
+                }
+            }
+        val pauseCalls: Int get() = events.count { it == "pause" }
+        val resumeCalls: Int get() = events.count { it == "resume" }
 
-        override suspend fun resume() = Unit
+        override fun setListener(listener: PlaybackTransportListener?) {
+            this.listener = listener
+        }
 
-        override suspend fun seekTo(positionMs: Long) = Unit
+        override suspend fun playTrack(request: PlaybackRequest): PlaybackResult {
+            events += "playTrack"
+            return PlaybackResult.Success
+        }
 
-        override suspend fun stopAndClearCurrent() = Unit
+        override suspend fun pause() {
+            events += "pause"
+        }
+
+        override suspend fun resume() {
+            events += "resume"
+        }
+
+        override suspend fun seekTo(positionMs: Long) {
+            events += "seekTo($positionMs)"
+        }
+
+        override suspend fun stopAndClearCurrent() {
+            events += "stopAndClearCurrent"
+        }
 
         override suspend fun setShuffleMode(enabled: Boolean) = Unit
 
@@ -344,6 +573,8 @@ class DefaultPlayerControllerTest {
         fun completePlayTrack(result: PlaybackResult) {
             playTrackResult.complete(result)
         }
+
+        override fun setListener(listener: PlaybackTransportListener?) = Unit
 
         override suspend fun playTrack(request: PlaybackRequest): PlaybackResult {
             events += "playTrack"
@@ -380,6 +611,8 @@ class DefaultPlayerControllerTest {
         var lastRequest: PlaybackRequest? = null
         val shuffleCalls = mutableListOf<Boolean>()
         val repeatCalls = mutableListOf<Int>()
+
+        override fun setListener(listener: PlaybackTransportListener?) = Unit
 
         override suspend fun playTrack(request: PlaybackRequest): PlaybackResult {
             lastRequest = request
@@ -445,6 +678,13 @@ class DefaultPlayerControllerTest {
         }
         override suspend fun clearHistory() = Unit
         override suspend fun removeHistoryEntry(entryId: String) = Unit
+    }
+
+    private object NoOpLogger : Logger {
+        override fun debug(tag: String, message: String) = Unit
+        override fun info(tag: String, message: String) = Unit
+        override fun warn(tag: String, message: String, throwable: Throwable?) = Unit
+        override fun error(tag: String, message: String, throwable: Throwable?) = Unit
     }
 
     companion object {

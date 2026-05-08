@@ -12,6 +12,16 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface HistoryDao {
+    /**
+     * YT-0154 / YT-0158 — read-side dedup. The underlying `history_entries` table
+     * keeps one row per play event for any future analytics surface, but the
+     * "Recently Played" view shows each `videoId` at most once, picking the
+     * latest play. The correlated subquery selects the single most recent
+     * history entry per track (tiebreak on `id DESC` to be deterministic when
+     * two play events share an instant). The outer ORDER BY then sorts the
+     * surviving one-per-track rows by recency, again with `id DESC` to keep
+     * stable ordering across snapshots.
+     */
     @Query(
         """
         SELECT
@@ -24,6 +34,12 @@ interface HistoryDao {
             t.thumbnailUrl AS thumbnailUrl
         FROM history_entries h
         INNER JOIN tracks t ON t.videoId = h.trackVideoId
+        WHERE h.id = (
+            SELECT h2.id FROM history_entries h2
+            WHERE h2.trackVideoId = h.trackVideoId
+            ORDER BY julianday(h2.playedAt) DESC, h2.id DESC
+            LIMIT 1
+        )
         ORDER BY julianday(h.playedAt) DESC, h.id DESC
         """,
     )

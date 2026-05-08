@@ -32,6 +32,7 @@ class PlaybackCommandProcessorTest {
             youtubeService = youtubeService,
             preparedPlaybackFactory = PreparedPlaybackFactory(),
             logger = NoOpLogger,
+            perfTracer = PlaybackPerfTracer(NoOpLogger),
         )
 
         processor.playTrack(PlaybackRequest(track = track), playbackEngine)
@@ -76,6 +77,7 @@ class PlaybackCommandProcessorTest {
             youtubeService = youtubeService,
             preparedPlaybackFactory = PreparedPlaybackFactory(),
             logger = NoOpLogger,
+            perfTracer = PlaybackPerfTracer(NoOpLogger),
         )
 
         processor.playTrack(request, playbackEngine)

@@ -130,6 +130,11 @@ final class AppShellViewModel {
         // the loading affordance flipping on (coordinator state goes
         // synchronously to `.loading` inside `playNow`).
         trackTapHapticTrigger &+= 1
+        // Ad-hoc perf instrumentation — measures tap → first audio. Reset
+        // the baseline BEFORE `playNow(_:)` so the synchronous hop into
+        // `.loading` and any downstream EXTRACT_START / PREPARE marks read
+        // a non-stale tap timestamp. See `PlaybackPerfTracer`.
+        PlaybackPerfTracer.shared.markTap(videoId: track.videoId, source: "trackTap")
         player.playNow(track)
     }
 
@@ -141,14 +146,34 @@ final class AppShellViewModel {
     }
 
     func togglePlayPause() {
+        // Ad-hoc perf instrumentation — only mark a TAP when this transition
+        // actually starts NEW playback (paused → playing or resuming a track
+        // from idle). A pause has no "first audio" downstream so re-baselining
+        // would just produce noise in the trace.
+        if let track = player.currentTrack, !player.isPlaying {
+            PlaybackPerfTracer.shared.markTap(videoId: track.videoId, source: "miniPlayerPlayPause")
+        }
         player.togglePlayPause()
     }
 
     func skipNext() {
+        // Ad-hoc perf instrumentation — the tap origin for next-track. The
+        // upcoming track is `queue[currentIndex + 1]` once the coordinator
+        // advances, but we baseline against that videoId BEFORE the move so
+        // EXTRACT_START / PREPARE can correlate against the same id.
+        if player.hasNext, let i = player.currentIndex,
+           player.queue.indices.contains(i + 1) {
+            PlaybackPerfTracer.shared.markTap(videoId: player.queue[i + 1].videoId, source: "skipNext")
+        }
         player.next()
     }
 
     func skipPrevious() {
+        // Ad-hoc perf instrumentation — symmetric with `skipNext` above.
+        if player.hasPrevious, let i = player.currentIndex,
+           player.queue.indices.contains(i - 1) {
+            PlaybackPerfTracer.shared.markTap(videoId: player.queue[i - 1].videoId, source: "skipPrevious")
+        }
         player.previous()
     }
 

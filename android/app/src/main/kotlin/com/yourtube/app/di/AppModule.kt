@@ -5,6 +5,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
+import com.yourtube.app.connectivity.AndroidConnectivityMonitor
+import com.yourtube.core.common.ConnectivityMonitor
 import com.yourtube.core.data.codec.KotlinxPlaylistCodec
 import com.yourtube.core.data.codec.PlaylistCodec
 import com.yourtube.core.data.preferences.AudioQualityPreferences
@@ -61,4 +63,15 @@ object AppModule {
     @Provides
     @Singleton
     fun providePlaylistCodec(): PlaylistCodec = KotlinxPlaylistCodec()
+
+    /**
+     * YT-0164 — `ConnectivityMonitor` for Search C4 vs. C5 (offline) discrimination.
+     * Backed by `ConnectivityManager`; the manifest already declares the
+     * `ACCESS_NETWORK_STATE` permission.
+     */
+    @Provides
+    @Singleton
+    fun provideConnectivityMonitor(
+        impl: AndroidConnectivityMonitor,
+    ): ConnectivityMonitor = impl
 }

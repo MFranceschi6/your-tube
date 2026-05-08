@@ -38,17 +38,29 @@ internal class ExoPlayerMediaItemQueueing(
 
 class PlaybackPlayerAdapter internal constructor(
     private val hlsMediaSourceFactory: (MediaItem) -> MediaSource,
+    private val perfTracer: PlaybackPerfTracer?,
 ) : PlaybackEngine {
 
     @Inject
-    constructor() : this(
+    constructor(perfTracer: PlaybackPerfTracer) : this(
         hlsMediaSourceFactory = { mediaItem ->
             HlsMediaSource.Factory(DefaultHttpDataSource.Factory())
                 .createMediaSource(mediaItem)
         },
+        perfTracer = perfTracer,
+    )
+
+    /**
+     * Test-only constructor for the existing JVM unit tests that don't need
+     * the perf tracer. Production wiring goes through the `@Inject` ctor.
+     */
+    internal constructor(hlsMediaSourceFactory: (MediaItem) -> MediaSource) : this(
+        hlsMediaSourceFactory = hlsMediaSourceFactory,
+        perfTracer = null,
     )
 
     private var queueing: MediaItemQueueing? = null
+    private var lastQueuedVideoId: String? = null
 
     fun attach(player: ExoPlayer) {
         this.queueing = ExoPlayerMediaItemQueueing(player)
@@ -72,6 +84,7 @@ class PlaybackPlayerAdapter internal constructor(
         val target = requireNotNull(queueing) {
             "PlaybackPlayerAdapter is not attached to an ExoPlayer."
         }
+        lastQueuedVideoId = preparedPlayback.track.videoId
         // Livestream URLs are HLS manifests (`.m3u8`) emitted by the InnerTube
         // `/player` endpoint as `streamingData.hlsManifestUrl`. ExoPlayer's
         // default progressive `MediaSource` cannot parse them — route via
@@ -85,8 +98,16 @@ class PlaybackPlayerAdapter internal constructor(
     }
 
     override fun prepare() {
-        requireNotNull(queueing) { "PlaybackPlayerAdapter is not attached to an ExoPlayer." }
-            .prepare()
+        val target = requireNotNull(queueing) {
+            "PlaybackPlayerAdapter is not attached to an ExoPlayer."
+        }
+        // PREPARE perf marker — emitted right before the player begins
+        // buffering. The Player.Listener wired up in PlaybackService will
+        // emit STATE_BUFFERING / STATE_READY / FIRST_AUDIO from here on.
+        lastQueuedVideoId?.let { videoId ->
+            perfTracer?.mark("PREPARE", videoId)
+        }
+        target.prepare()
     }
 
     override fun play() {

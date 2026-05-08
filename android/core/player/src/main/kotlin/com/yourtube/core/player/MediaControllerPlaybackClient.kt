@@ -2,6 +2,7 @@ package com.yourtube.core.player
 
 import android.content.ComponentName
 import android.content.Context
+import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
@@ -23,6 +24,13 @@ class MediaControllerPlaybackClient @Inject constructor(
 ) : PlaybackTransport {
     private val controllerMutex = Mutex()
     private var controller: MediaController? = null
+    @Volatile
+    private var transportListener: PlaybackTransportListener? = null
+    private var playerListener: Player.Listener? = null
+
+    override fun setListener(listener: PlaybackTransportListener?) {
+        transportListener = listener
+    }
 
     override suspend fun playTrack(request: PlaybackRequest): PlaybackResult {
         val mediaController = controllerMutex.withLock {
@@ -101,16 +109,42 @@ class MediaControllerPlaybackClient @Inject constructor(
 
     suspend fun release() {
         controllerMutex.withLock {
-            controller?.let(MediaController::release)
+            val currentController = controller
+            val currentListener = playerListener
+            if (currentController != null && currentListener != null) {
+                withContext(Dispatchers.Main.immediate) {
+                    currentController.removeListener(currentListener)
+                }
+            }
+            currentController?.release()
             controller = null
+            playerListener = null
         }
     }
 
     private suspend fun buildController(): MediaController = withContext(Dispatchers.Main.immediate) {
-        MediaController.Builder(
+        val mediaController = MediaController.Builder(
             context,
             SessionToken(context, ComponentName(context, PlaybackService::class.java)),
         ).buildAsync().await()
+        // Install a single Player.Listener per controller instance and remember it
+        // so [release] can detach cleanly. The forwarding stays cheap — the
+        // transport listener is a `@Volatile` reference so the controller can
+        // change ownership across rebuilds without a re-registration race.
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) {
+                    transportListener?.onTrackEnded()
+                }
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                transportListener?.onIsPlayingChanged(isPlaying)
+            }
+        }
+        mediaController.addListener(listener)
+        playerListener = listener
+        mediaController
     }
 
     private suspend fun MediaController.awaitCustomCommandResult(

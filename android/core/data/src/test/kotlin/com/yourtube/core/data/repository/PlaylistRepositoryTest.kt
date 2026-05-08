@@ -233,6 +233,49 @@ class PlaylistRepositoryTest {
         assertEquals(listOf("playlist-newer", "playlist-older"), playlists.map { it.id })
     }
 
+    // YT-0184: removeTrackFromPlaylist(playlistId, trackVideoId) is content-keyed
+    // so two parallel removals do not race on shifting indices and never throw.
+    @Test
+    fun `concurrent videoId removals leave a consistent track list`() = runTest {
+        val repository = repositoryAt(initialInstant)
+        val created = repository.createPlaylist(
+            name = "Two-Finger",
+            tracks = listOf(trackOne, trackTwo),
+            playlistId = "playlist-concurrent",
+        )
+
+        val a = launch {
+            repository.removeTrackFromPlaylist(created.id, trackOne.videoId)
+        }
+        val b = launch {
+            repository.removeTrackFromPlaylist(created.id, trackTwo.videoId)
+        }
+        a.join()
+        b.join()
+
+        val playlist = repository.observePlaylist(created.id).first()
+        requireNotNull(playlist)
+        assertEquals(emptyList(), playlist.tracks)
+    }
+
+    // YT-0184: position-based removal with stale/out-of-range index no-ops instead
+    // of crashing when a parallel removal already shrunk the list.
+    @Test
+    fun `removeTrackFromPlaylist with out-of-range position is a safe no-op`() = runTest {
+        val repository = repositoryAt(initialInstant)
+        val created = repository.createPlaylist(
+            name = "Fast Swipes",
+            tracks = listOf(trackOne),
+            playlistId = "playlist-oob",
+        )
+
+        repository.removeTrackFromPlaylist(created.id, position = 5)
+
+        val playlist = repository.observePlaylist(created.id).first()
+        requireNotNull(playlist)
+        assertEquals(listOf(trackOne), playlist.tracks)
+    }
+
     @Test
     fun `history flow returns newest entries first`() = runTest {
         val repository = repositoryAt(initialInstant)
@@ -242,6 +285,22 @@ class PlaylistRepositoryTest {
 
         val history = repository.observeHistory().first()
         assertEquals(listOf(trackTwo, trackOne), history.map { it.track })
+    }
+
+    // YT-0154 / YT-0158: replays of the same videoId surface as a single row with
+    // the latest playedAt. Underlying history_entries keeps the per-play audit.
+    @Test
+    fun `history dedupes duplicate videoId plays and keeps the most recent timestamp`() = runTest {
+        val repository = repositoryAt(initialInstant)
+
+        repository.recordPlayback(trackOne, playedAt = "2026-05-02T10:00:00Z")
+        repository.recordPlayback(trackOne, playedAt = "2026-05-02T11:00:00Z")
+        repository.recordPlayback(trackTwo, playedAt = "2026-05-02T10:30:00Z")
+        repository.recordPlayback(trackOne, playedAt = "2026-05-02T12:00:00Z")
+
+        val history = repository.observeHistory().first()
+        assertEquals(listOf(trackOne, trackTwo), history.map { it.track })
+        assertEquals("2026-05-02T12:00:00Z", history.first { it.track == trackOne }.playedAt)
     }
 
     private fun repositoryAt(now: Instant): PlaylistRepository =

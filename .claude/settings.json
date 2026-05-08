@@ -42,7 +42,39 @@
       "Read(//Users/matteofranceschi/Library/Developer/Xcode/DerivedData/YourTube-cjpomxgrcmlknlexkquxwpiwzqcm/Build/Products/Debug-iphonesimulator/YourTube.app/PlugIns/YourTubeTests.xctest/**)",
       "Bash(./gradlew :core:network:testDebugUnitTest :core:player:testDebugUnitTest)",
       "Bash(xcodebuild -project /Users/matteofranceschi/Desktop/personal-projects/your-tube/ios/YourTube.xcodeproj -scheme YourTube -destination 'platform=iOS Simulator,name=iPhone 16' build test)",
-      "Bash(xcodebuild -project /Users/matteofranceschi/Desktop/personal-projects/your-tube/ios/YourTube.xcodeproj -scheme YourTube -destination 'platform=iOS Simulator,name=iPhone 16' test)"
+      "Bash(xcodebuild -project /Users/matteofranceschi/Desktop/personal-projects/your-tube/ios/YourTube.xcodeproj -scheme YourTube -destination 'platform=iOS Simulator,name=iPhone 16' test)",
+      "Bash(./gradlew :feature:library:testDebugUnitTest :app:assembleDebug)",
+      "Bash(./gradlew :feature:library:testDebugUnitTest :core:player:testDebugUnitTest --rerun-tasks)",
+      "Bash(python3 -c ' *)",
+      "Bash(./gradlew :feature:search:clean :feature:search:kspDebugKotlin)",
+      "Bash(./gradlew :feature:search:compileDebugKotlin)",
+      "Bash(./gradlew :core:ui:assembleDebug :core:ui:testDebugUnitTest :app:assembleDebug)",
+      "Bash(./gradlew testDebugUnitTest --rerun-tasks)",
+      "Bash(./gradlew :feature:settings:assembleDebug :feature:settings:testDebugUnitTest :app:assembleDebug)",
+      "Bash(./gradlew :core:ui:assembleDebug)",
+      "Bash(./gradlew :app:compileDebugKotlin)",
+      "Bash(./gradlew :app:compileDebugUnitTestKotlin)",
+      "Bash(./gradlew :feature:player:assembleDebug :feature:player:testDebugUnitTest :app:assembleDebug)",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"com.yourtube.app.ui.MotionSpecWiringTest\")",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"com.yourtube.app.ui.SharedArtworkModifierTest\" --tests \"com.yourtube.app.ui.ChromeGatingFormulaTest\" --tests \"com.yourtube.app.ui.DestinationScopeRegistryTest\")",
+      "Read(//private/tmp/**)",
+      "Bash(./gradlew :core:player:assembleDebug :core:player:testDebugUnitTest :app:assembleDebug)",
+      "Bash(log show *)",
+      "Bash(/usr/bin/log show *)",
+      "Bash(python3 /Users/matteofranceschi/Desktop/personal-projects/your-tube/tools/perf-trace/parse_yt_perf.py --ios /tmp/ios-live.log)",
+      "Bash(~/Library/Android/sdk/emulator/emulator -list-avds)",
+      "Bash(~/Library/Android/sdk/platform-tools/adb logcat *)",
+      "Bash(python3 /Users/matteofranceschi/Desktop/personal-projects/your-tube/tools/perf-trace/parse_yt_perf.py --android /tmp/android-perf.log --ios /tmp/ios-live.log)",
+      "Bash(./gradlew :feature:player:assembleDebug testDebugUnitTest)",
+      "Bash(./gradlew :app:compileDebugAndroidTestKotlin)",
+      "Bash(~/Library/Android/sdk/emulator/emulator @Pixel_8 -no-snapshot-load -no-boot-anim)",
+      "Bash(echo \"Boot started PID $!\")",
+      "Bash(~/Library/Android/sdk/platform-tools/adb wait-for-device *)",
+      "Bash(~/Library/Android/sdk/platform-tools/adb shell *)",
+      "Bash(./gradlew :app:testDebugUnitTest --tests \"com.yourtube.app.ui.PauseScaleLifecycleTest\")",
+      "Bash(./gradlew :core:ui:compileDebugKotlin)",
+      "Bash(./gradlew :core:ui:testDebugUnitTest)",
+      "Bash(./gradlew :core:ui:assembleDebug :core:ui:testDebugUnitTest)"
     ],
     "deny": [
       "Bash(rm -rf *)",
@@ -60,6 +92,9 @@
       "Bash(cd ios && xcodebuild*)",
       "Bash(obsidian *)",
       "Bash(git *)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   },
   "skillOverrides": {

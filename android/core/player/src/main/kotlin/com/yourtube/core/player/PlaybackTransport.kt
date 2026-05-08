@@ -5,7 +5,36 @@ sealed interface PlaybackResult {
     data class Failure(val message: String) : PlaybackResult
 }
 
+/**
+ * Sink for `Player.Listener` events forwarded from the underlying media transport
+ * (typically a `MediaController` bound to the playback service). The controller
+ * implements this to reconcile its `PlayerState` with player-side events that
+ * originate outside in-app interactions — auto-advance on track end (YT-0182),
+ * lock-screen / notification pause-resume sync (YT-0185), and (when multi-item
+ * queueing lands) lock-screen skip-next/prev (YT-0150).
+ *
+ * All callbacks fire on the main thread; implementations must dispatch back onto
+ * their controller scope and must be idempotent — re-firing with the same value
+ * is a no-op for callers, since in-app writes will trigger the same callback as
+ * a feedback echo.
+ */
+interface PlaybackTransportListener {
+    /** Player reached `STATE_ENDED` for the currently-queued media item. */
+    fun onTrackEnded()
+
+    /** `Player.isPlaying` flipped to [isPlaying]; mirrors `Player.Listener.onIsPlayingChanged`. */
+    fun onIsPlayingChanged(isPlaying: Boolean)
+}
+
 interface PlaybackTransport {
+    /**
+     * Register (or clear when null) a callback sink for player-side events. The
+     * controller calls this once at construction; the transport keeps a single
+     * listener slot to avoid duplicate registrations across MediaController
+     * rebuilds.
+     */
+    fun setListener(listener: PlaybackTransportListener?)
+
     suspend fun playTrack(request: PlaybackRequest): PlaybackResult
 
     suspend fun pause()

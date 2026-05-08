@@ -113,13 +113,44 @@ final class LivePlayerExtractor: PlayerExtracting, Sendable {
     // MARK: - PlayerExtracting
 
     func resolve(videoId: String, quality: AudioQuality) async throws -> PlayerResolution {
-        let response = try await fetchPlayerResponse(videoId: videoId)
+        // Ad-hoc perf instrumentation — EXTRACT_START is the closest signal
+        // we have to "stream resolution kicked off". Pairs with EXTRACT_DONE
+        // / FAIL emitted below so a reader of `log stream` can see the
+        // round-trip cost of the InnerTube /player call.
+        PlaybackPerfTracer.shared.mark("EXTRACT_START", videoId: videoId)
+
+        let response: InnerTubePlayerResponse
+        do {
+            response = try await fetchPlayerResponse(videoId: videoId)
+        } catch {
+            // Cancellation propagates as a clean re-throw; everything else
+            // is a real network/decode failure that we want to see in the
+            // perf trace alongside the surfaced YouTubeServiceError.
+            if !(error is CancellationError) {
+                PlaybackPerfTracer.shared.mark(
+                    "FAIL",
+                    videoId: videoId,
+                    context: "stage=fetch error=\((error as NSError).localizedDescription)"
+                )
+            }
+            throw error
+        }
 
         // Surface playability gates first so a user-safe error displaces any
         // partial streamingData payload that might otherwise be misinterpreted.
-        try Self.validatePlayability(response.playabilityStatus)
+        do {
+            try Self.validatePlayability(response.playabilityStatus)
+        } catch {
+            PlaybackPerfTracer.shared.mark(
+                "FAIL",
+                videoId: videoId,
+                context: "stage=playability error=\((error as NSError).localizedDescription)"
+            )
+            throw error
+        }
 
         guard let streamingData = response.streamingData else {
+            PlaybackPerfTracer.shared.mark("FAIL", videoId: videoId, context: "stage=select error=noStreamFound")
             throw YouTubeServiceError.noStreamFound
         }
 
@@ -129,6 +160,15 @@ final class LivePlayerExtractor: PlayerExtracting, Sendable {
         //    requested AudioQuality, fall back to lowest if no candidate
         //    fits the ceiling).
         if let url = Self.pickAudioOnlyURL(from: streamingData.adaptiveFormats ?? [], quality: quality) {
+            // EXTRACT_DONE: log the URL HOST only (not the full URL — signed
+            // googlevideo.com URLs carry short-lived access tokens, see
+            // .claude/rules/security.md). itag picks out the bitrate slot.
+            let itag = Self.itagForURL(url, in: streamingData.adaptiveFormats ?? [])
+            PlaybackPerfTracer.shared.mark(
+                "EXTRACT_DONE",
+                videoId: videoId,
+                context: "kind=audioOnly host=\(url.host ?? "?") itag=\(itag.map(String.init) ?? "?")"
+            )
             return PlayerResolution(audioURL: url, kind: .audioOnly)
         }
 
@@ -136,6 +176,12 @@ final class LivePlayerExtractor: PlayerExtracting, Sendable {
         //    server only returned a `formats` payload (rare for modern YouTube
         //    but happens for old uploads / age-gated previews).
         if let url = Self.pickMuxedURL(from: streamingData.formats ?? []) {
+            let itag = Self.itagForURL(url, in: streamingData.formats ?? [])
+            PlaybackPerfTracer.shared.mark(
+                "EXTRACT_DONE",
+                videoId: videoId,
+                context: "kind=muxed host=\(url.host ?? "?") itag=\(itag.map(String.init) ?? "?")"
+            )
             return PlayerResolution(audioURL: url, kind: .muxed)
         }
 
@@ -144,10 +190,25 @@ final class LivePlayerExtractor: PlayerExtracting, Sendable {
         //    arrays but a populated `hlsManifestUrl`. AVPlayer plays HLS
         //    natively so the proxy is unnecessary here.
         if let manifestString = streamingData.hlsManifestUrl, let manifest = URL(string: manifestString) {
+            PlaybackPerfTracer.shared.mark(
+                "EXTRACT_DONE",
+                videoId: videoId,
+                context: "kind=livestream host=\(manifest.host ?? "?")"
+            )
             return PlayerResolution(audioURL: manifest, kind: .livestream)
         }
 
+        PlaybackPerfTracer.shared.mark("FAIL", videoId: videoId, context: "stage=select error=noStreamFound")
         throw YouTubeServiceError.noStreamFound
+    }
+
+    /// Looks up the itag of the format whose `url` matches `chosen`. Used to
+    /// annotate `EXTRACT_DONE` with the bitrate slot the picker landed on.
+    /// String-equality on the URL avoids re-running the picker logic and
+    /// keeps the lookup pure.
+    private static func itagForURL(_ chosen: URL, in formats: [InnerTubePlayerResponse.AdaptiveFormat]) -> Int? {
+        let target = chosen.absoluteString
+        return formats.first(where: { $0.url == target })?.itag
     }
 
     // MARK: - Networking

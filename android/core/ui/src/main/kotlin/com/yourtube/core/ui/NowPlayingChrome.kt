@@ -1,15 +1,19 @@
 package com.yourtube.core.ui
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,6 +39,7 @@ import androidx.compose.material.icons.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -45,7 +50,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,78 +57,78 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.yourtube.core.common.model.QueueItem
 import com.yourtube.core.common.model.Track
 
 /**
- * Full-screen now-playing surface. Stateless — all state is passed in.
+ * Round 4 — extracted from the now-deleted `NowPlayingScreen.kt`. Renders ONLY the
+ * NowPlaying chrome (top bar with collapse button + drag handle, scrubber, transport
+ * row, queue button, more menu). NO artwork (rendered ONCE by [PlayerOverlay] above
+ * this composable). NO pause-scale `Animatable` (the artwork's visible scale is owned
+ * by the overlay's `lerp` from progress).
  *
- * The caller is responsible for overlaying this composable (e.g. inside a `Box`
- * at the root scaffold level) so it covers the bottom nav and MiniPlayer.
+ * Two alphas drive the visual fade: [chromeAlphaProvider] for the bulk of the screen
+ * (top bar, track info, scrubber) and [transportRowAlphaProvider] for the play/pause
+ * + skip transport row. Both are pure functions of `progress` computed by the overlay.
+ *
+ * The drag handle wires `Modifier.draggable` to [onDragDelta] and [onDragStopped] —
+ * the overlay state owns the threshold decision and the release animation.
+ *
+ * YT-0196 — the primary play/pause button swaps for a `CircularProgressIndicator`
+ * while [isBuffering] is true. Branch must survive future refactors.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NowPlayingScreen(
-    track: Track?,
+internal fun NowPlayingChrome(
+    track: Track,
     isPlaying: Boolean,
+    isBuffering: Boolean,
     progressFraction: Float,
     onPlayPauseClick: () -> Unit,
     onSkipNextClick: () -> Unit,
     onSkipPreviousClick: () -> Unit,
+    onCollapseClick: () -> Unit,
     onSeek: (Float) -> Unit,
-    onDismiss: () -> Unit,
+    queue: List<QueueItem>,
+    currentQueueIndex: Int,
+    onRemoveQueueItem: (queueId: String) -> Unit,
+    onMoveQueueItem: (Int, Int) -> Unit,
+    chromeAlphaProvider: () -> Float,
+    transportRowAlphaProvider: () -> Float,
+    onDragDelta: (Float) -> Unit,
+    onDragStopped: (Float) -> Unit,
+    /**
+     * Window-relative rect of the artwork slot reserved by this chrome. The
+     * overlay reads this rect to position+size the single shared artwork
+     * instance — no hardcoded constants. Fired on every layout pass.
+     */
+    onArtworkSlotPositioned: (Rect) -> Unit = {},
     modifier: Modifier = Modifier,
-    queue: List<QueueItem> = emptyList(),
-    currentQueueIndex: Int = 0,
-    onRemoveQueueItem: (queueId: String) -> Unit = {},
-    onMoveQueueItem: (fromIndex: Int, toIndex: Int) -> Unit = { _, _ -> },
-    artworkModifier: Modifier = Modifier,
 ) {
     var showQueueSheet by remember { mutableStateOf(false) }
-
-    // YT-0062a Q3 + Q10: artwork pause-scale driven by a single `Animatable<Float>` keyed to
-    // `isPlaying`. Spring spec from the YT-0013 decision-log; targets 0.85 ↔ 1.0 (pause →
-    // play) with corner radius interpolating 20.dp → 12.dp in lockstep so the artwork
-    // breathes rather than just shrinks. `LocalReduceMotion` swaps the spring for a snap so
-    // users with `TRANSITION_ANIMATION_SCALE = 0` (or system "Remove animations") land at
-    // the target instantly.
     val reduceMotion = LocalReduceMotion.current
-    val artworkScale = remember { Animatable(if (isPlaying) ARTWORK_SCALE_PLAYING else ARTWORK_SCALE_PAUSED) }
-    LaunchedEffect(isPlaying, reduceMotion) {
-        val target = if (isPlaying) ARTWORK_SCALE_PLAYING else ARTWORK_SCALE_PAUSED
-        if (reduceMotion) {
-            artworkScale.snapTo(target)
-        } else {
-            artworkScale.animateTo(
-                targetValue = target,
-                animationSpec = spring(
-                    stiffness = ARTWORK_SPRING_STIFFNESS,
-                    dampingRatio = ARTWORK_SPRING_DAMPING_RATIO,
-                ),
-            )
-        }
+
+    val dragState = rememberDraggableState { delta ->
+        if (reduceMotion) return@rememberDraggableState
+        onDragDelta(delta)
     }
-    // Linear normalization 0.85..1.0 → 0..1, used to lerp the corner radius alongside scale.
-    val scaleProgress = ((artworkScale.value - ARTWORK_SCALE_PAUSED) /
-        (ARTWORK_SCALE_PLAYING - ARTWORK_SCALE_PAUSED)).coerceIn(0f, 1f)
-    val artworkCornerDp = ARTWORK_CORNER_PAUSED_DP +
-        (ARTWORK_CORNER_PLAYING_DP - ARTWORK_CORNER_PAUSED_DP) * scaleProgress
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                MaterialTheme.colorScheme.background,
-            ),
+            // Single chrome alpha applied at the root so all NowPlaying surfaces fade
+            // together; the transport row gets an additional inner alpha for the
+            // staggered fade-in (200..320ms of an expand).
+            .graphicsLayer { alpha = chromeAlphaProvider() }
+            .semantics { paneTitle = "Now playing" },
     ) {
         Column(
             modifier = Modifier
@@ -133,15 +137,21 @@ fun NowPlayingScreen(
                 .navigationBarsPadding()
                 .verticalScroll(rememberScrollState()),
         ) {
-            // Top bar
+            // Top bar — collapse button + drag handle.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .testTag(NowPlayingDragHandleTestTag)
+                    .draggable(
+                        state = dragState,
+                        orientation = Orientation.Vertical,
+                        onDragStopped = { velocity -> onDragStopped(velocity) },
+                    )
                     .padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
-                    onClick = onDismiss,
+                    onClick = onCollapseClick,
                     modifier = Modifier.semantics { contentDescription = "Collapse player" },
                 ) {
                     Icon(
@@ -173,41 +183,19 @@ fun NowPlayingScreen(
                 }
             }
 
-            // Artwork — `artworkModifier` is the YT-0061 sharedBounds seam, applied to the
-            // Box containing the artwork so the morph target matches the MiniPlayer thumbnail.
-            // Q3: explicit `transformOrigin = Center` via `graphicsLayer` keeps the breathe
-            // animation centered when nested inside the (eventually scrolling) Column.
+            // Reserved space where the artwork visually sits. A square Box that
+            // fills the chrome width minus 24dp gutters; reports its window-relative
+            // rect via [onArtworkSlotPositioned] so the overlay's ArtworkBox can
+            // morph into THIS exact rect at progress=1 with zero hardcoded constants.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 40.dp)
+                    .padding(horizontal = 24.dp)
                     .aspectRatio(1f)
-                    .graphicsLayer {
-                        scaleX = artworkScale.value
-                        scaleY = artworkScale.value
-                        transformOrigin = TransformOrigin.Center
-                    }
-                    .then(artworkModifier)
-                    .clip(RoundedCornerShape(artworkCornerDp.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (track != null && track.thumbnailUrl.isNotEmpty()) {
-                    AsyncImage(
-                        model = track.thumbnailUrl,
-                        contentDescription = "Album art for ${track.title}",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Rounded.QueueMusic,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
-                        modifier = Modifier.size(64.dp),
-                    )
-                }
-            }
+                    .onGloballyPositioned { coords ->
+                        onArtworkSlotPositioned(coords.boundsInWindow())
+                    },
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -220,7 +208,7 @@ fun NowPlayingScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = track?.title ?: "Nothing playing",
+                        text = track.title,
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
@@ -228,7 +216,7 @@ fun NowPlayingScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = track?.channel ?: "",
+                        text = track.channel,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -253,10 +241,10 @@ fun NowPlayingScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
             ) {
-                val durationSec = track?.durationSec?.takeIf { it > 0 } ?: 240
+                val durationSec = track.durationSec.takeIf { it > 0 } ?: 240
                 Slider(
                     value = progressFraction.coerceIn(0f, 1f),
-                    onValueChange = onSeek,
+                    onValueChange = { fraction -> onSeek(fraction) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .semantics {
@@ -283,11 +271,12 @@ fun NowPlayingScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Transport controls
+            // Transport controls — separate alpha layer for the staggered fade-in.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 16.dp)
+                    .graphicsLayer { alpha = transportRowAlphaProvider() },
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -316,24 +305,38 @@ fun NowPlayingScreen(
                     )
                 }
 
-                // Primary FAB-style play button — 72dp, Material 3 primary color
+                // Primary FAB-style play button — YT-0196 buffering branch preserved.
+                val playPauseLabel = when {
+                    isBuffering -> "Loading"
+                    isPlaying -> "Pause"
+                    else -> "Play"
+                }
                 Box(
                     modifier = Modifier
                         .size(72.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary)
                         .clickable(
-                            onClickLabel = if (isPlaying) "Pause" else "Play",
+                            enabled = !isBuffering,
+                            onClickLabel = playPauseLabel,
                             onClick = onPlayPauseClick,
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = null, // described by clickable label
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(36.dp),
-                    )
+                    if (isBuffering) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(36.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 3.dp,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(36.dp),
+                        )
+                    }
                 }
 
                 IconButton(
@@ -457,52 +460,8 @@ private fun QueuePanel(
     }
 }
 
-// YT-0062a Q3 — artwork pause-scale spec from design-system/handoff/YT-0013/decision-log.md.
-private const val ARTWORK_SCALE_PLAYING = 1f
-private const val ARTWORK_SCALE_PAUSED = 0.85f
-private const val ARTWORK_SPRING_STIFFNESS = 380f
-private const val ARTWORK_SPRING_DAMPING_RATIO = 0.78f
-private const val ARTWORK_CORNER_PLAYING_DP = 12f
-private const val ARTWORK_CORNER_PAUSED_DP = 20f
-
 internal fun formatSeconds(totalSec: Int): String {
     val m = totalSec / 60
     val s = totalSec % 60
     return "$m:${s.toString().padStart(2, '0')}"
-}
-
-// ── Previews ──────────────────────────────────────────────────────────────────
-
-@Preview(showBackground = true, backgroundColor = 0xFF141218)
-@Composable
-private fun NowPlayingPlayingPreview() {
-    MaterialTheme {
-        NowPlayingScreen(
-            track = Track("1", "lofi hip hop radio – beats to relax/study to", "Lofi Girl", 3612, ""),
-            isPlaying = true,
-            progressFraction = 0.35f,
-            onPlayPauseClick = {},
-            onSkipNextClick = {},
-            onSkipPreviousClick = {},
-            onSeek = {},
-            onDismiss = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF141218)
-@Composable
-private fun NowPlayingNoTrackPreview() {
-    MaterialTheme {
-        NowPlayingScreen(
-            track = null,
-            isPlaying = false,
-            progressFraction = 0f,
-            onPlayPauseClick = {},
-            onSkipNextClick = {},
-            onSkipPreviousClick = {},
-            onSeek = {},
-            onDismiss = {},
-        )
-    }
 }

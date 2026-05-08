@@ -16,12 +16,25 @@ import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class OfflineFirstPlaylistRepository(
     private val playlistDao: PlaylistDao,
     private val historyDao: HistoryDao,
     private val clock: Clock = Clock.systemUTC(),
 ) : PlaylistRepository {
+
+    /**
+     * YT-0184: serializes mutating operations on a single playlist's track list.
+     * Compose's `SwipeToDismissBox` can fire two `confirmValueChange` callbacks
+     * in the same frame when the user swipes two rows simultaneously; without
+     * the lock the read-modify-write sequence on `playlist_tracks` interleaved
+     * and threw `IndexOutOfBoundsException` on a stale captured index. A single
+     * Mutex is enough — all writes here are per-playlist and the read-modify
+     * window is short.
+     */
+    private val mutationMutex = Mutex()
 
     override fun observePlaylists(): Flow<List<Playlist>> =
         playlistDao.observePlaylistSnapshots().map { rows ->
@@ -76,25 +89,34 @@ class OfflineFirstPlaylistRepository(
     }
 
     override suspend fun removeTrackFromPlaylist(playlistId: String, position: Int) {
-        val existing = requirePlaylist(playlistId)
-        val updatedTracks = playlistDao.getPlaylistTrackRows(playlistId)
-            .toDomainTracks()
-            .toMutableList()
-            .apply { removeAt(position) }
+        mutationMutex.withLock {
+            val existing = requirePlaylist(playlistId)
+            val current = playlistDao.getPlaylistTrackRows(playlistId).toDomainTracks()
+            if (position !in current.indices) return@withLock
+            val updatedTracks = current.toMutableList().apply { removeAt(position) }
+            upsertPlaylistSnapshot(existing.toUpdatedPlaylist(updatedTracks))
+        }
+    }
 
-        upsertPlaylistSnapshot(existing.toUpdatedPlaylist(updatedTracks))
+    override suspend fun removeTrackFromPlaylist(playlistId: String, trackVideoId: String) {
+        mutationMutex.withLock {
+            val existing = requirePlaylist(playlistId)
+            val current = playlistDao.getPlaylistTrackRows(playlistId).toDomainTracks()
+            val nextTracks = current.filterNot { it.videoId == trackVideoId }
+            if (nextTracks.size == current.size) return@withLock
+            upsertPlaylistSnapshot(existing.toUpdatedPlaylist(nextTracks))
+        }
     }
 
     override suspend fun reorderTracks(playlistId: String, fromIndex: Int, toIndex: Int) {
-        val existing = requirePlaylist(playlistId)
-        val updatedTracks = playlistDao.getPlaylistTrackRows(playlistId)
-            .toDomainTracks()
-            .toMutableList()
-
-        val moved = updatedTracks.removeAt(fromIndex)
-        updatedTracks.add(toIndex, moved)
-
-        upsertPlaylistSnapshot(existing.toUpdatedPlaylist(updatedTracks))
+        mutationMutex.withLock {
+            val existing = requirePlaylist(playlistId)
+            val current = playlistDao.getPlaylistTrackRows(playlistId).toDomainTracks().toMutableList()
+            if (fromIndex !in current.indices || toIndex !in current.indices) return@withLock
+            val moved = current.removeAt(fromIndex)
+            current.add(toIndex, moved)
+            upsertPlaylistSnapshot(existing.toUpdatedPlaylist(current))
+        }
     }
 
     override suspend fun importPlaylist(playlist: Playlist) {

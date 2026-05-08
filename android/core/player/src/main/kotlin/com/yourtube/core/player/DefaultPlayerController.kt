@@ -28,13 +28,119 @@ class DefaultPlayerController @Inject constructor(
     @MainDispatcher private val dispatcher: CoroutineDispatcher,
     private val audioQualityPreferences: AudioQualityPreferences,
     private val playlistRepository: PlaylistRepository,
+    private val perfTracer: PlaybackPerfTracer,
 ) : PlayerController {
 
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val mutablePlayerState = MutableStateFlow(PlayerState())
     private var progressJob: Job? = null
 
+    // YT-0193 — coalesce rapid scrubber-driven `seekTo()` calls.
+    //
+    // The NowPlaying slider's `onValueChange` fires every drag-tick (up to ~60 Hz on a
+    // 120 Hz display). Each call previously invoked `MediaController.seekTo(...)` directly,
+    // which ExoPlayer treats as a buffering reset — flooding it for the duration of a drag
+    // pushes the underlying renderer in and out of `STATE_BUFFERING` and the user perceives
+    // the audio dropping out (the bug surface user-reported as "moving the seek-bar slider
+    // stops audio").
+    //
+    // Fix: hold the latest scrubber target in [pendingSeekPositionMs] and, after a short
+    // debounce window, dispatch a SINGLE `playbackTransport.seekTo(...)` to the engine.
+    // `playerState.positionMs` updates SYNCHRONOUSLY on every call so the UI scrubber tracks
+    // the user's finger with no perceptible lag — only the (expensive) engine dispatch is
+    // coalesced. There are NO `pause()` / `resume()` / `play()` calls in the seek path.
+    private var seekDispatchJob: Job? = null
+    @Volatile
+    private var pendingSeekPositionMs: Long? = null
+
     override val playerState: StateFlow<PlayerState> = mutablePlayerState.asStateFlow()
+
+    init {
+        // YT-0182 / YT-0185: subscribe to player-side events so auto-advance fires
+        // on STATE_ENDED and in-app state mirrors lock-screen / notification
+        // pause-resume. The transport keeps a single listener slot; the listener
+        // forwards onto our controller scope (already main).
+        playbackTransport.setListener(object : PlaybackTransportListener {
+            override fun onTrackEnded() {
+                scope.launch { handleTrackEnded() }
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                handleIsPlayingChanged(isPlaying)
+            }
+        })
+    }
+
+    private suspend fun handleTrackEnded() {
+        val state = mutablePlayerState.value
+        val nextIndex = state.currentQueueIndex + 1
+        if (nextIndex < state.queue.size) {
+            // Synthetic TAP so the auto-advance to the next track has a fresh
+            // baseline; without this, EXTRACT_* / STATE_* / FIRST_AUDIO would
+            // be measured against the previous user tap (already minutes old).
+            state.queue[nextIndex].track.videoId.let { videoId ->
+                perfTracer.markTap(videoId, source = "autoAdvance")
+            }
+            playQueueItemAt(nextIndex)
+            return
+        }
+        // No next item — settle into an ended/idle state. We keep `currentTrack`
+        // populated so the in-app UI can keep showing what was last playing
+        // (matching how Spotify et al. behave at queue end), but cancel the
+        // synthetic progress tick and flip to IDLE.
+        progressJob?.cancel()
+        mutablePlayerState.update {
+            it.copy(
+                playbackStatus = PlaybackStatus.IDLE,
+                isPlaying = false,
+                positionMs = it.durationMs,
+            )
+        }
+    }
+
+    private fun handleIsPlayingChanged(isPlaying: Boolean) {
+        // Idempotent mirror — controller-driven writes already set these fields,
+        // so re-applying the same values is a no-op for downstream collectors.
+        // Guard against clobbering ERROR (transport already reported failure)
+        // and LOADING (we are mid-resolve and will set PLAYING on success).
+        mutablePlayerState.update { state ->
+            when {
+                state.playbackStatus == PlaybackStatus.ERROR -> state
+                state.playbackStatus == PlaybackStatus.LOADING && !isPlaying -> state
+                isPlaying -> state.copy(
+                    isPlaying = true,
+                    playbackStatus = PlaybackStatus.PLAYING,
+                    errorMessage = null,
+                )
+                else -> {
+                    val nextStatus = when (state.playbackStatus) {
+                        PlaybackStatus.IDLE -> PlaybackStatus.IDLE
+                        else -> PlaybackStatus.PAUSED
+                    }
+                    state.copy(isPlaying = false, playbackStatus = nextStatus)
+                }
+            }
+        }
+    }
+
+    override suspend fun setQueueAndPlay(tracks: List<Track>, startIndex: Int) {
+        if (tracks.isEmpty()) return
+        val safeIndex = startIndex.coerceIn(0, tracks.lastIndex)
+        val queue = tracks.map { it.toQueueItem() }
+        val starting = queue[safeIndex]
+        // Single atomic replacement so collectors never observe a half-applied queue.
+        mutablePlayerState.value = PlayerState(
+            currentTrack = starting.track,
+            queue = queue,
+            currentQueueIndex = safeIndex,
+            playbackStatus = PlaybackStatus.LOADING,
+            isPlaying = false,
+            positionMs = 0L,
+            durationMs = starting.track.durationMs,
+            errorMessage = null,
+        )
+        playQueueItem(starting)
+    }
 
     override suspend fun playNow(track: Track) {
         val queueItem = track.toQueueItem()
@@ -115,9 +221,25 @@ class DefaultPlayerController @Inject constructor(
 
     override suspend fun seekTo(positionMs: Long) {
         val clamped = positionMs.coerceIn(0L, mutablePlayerState.value.durationMs)
-        playbackTransport.seekTo(clamped)
-        mutablePlayerState.update { state ->
-            state.copy(positionMs = clamped)
+        // YT-0193 — update PlayerState.positionMs synchronously so the slider thumb tracks
+        // the user's finger with no perceptible lag. The engine-side dispatch is debounced
+        // below to avoid flooding `MediaController.seekTo(...)` during a drag, which
+        // otherwise pushes the renderer into `STATE_BUFFERING` and silences audio.
+        mutablePlayerState.update { state -> state.copy(positionMs = clamped) }
+        pendingSeekPositionMs = clamped
+        if (seekDispatchJob?.isActive == true) {
+            // A pending dispatch already owns the trailing transport call — it will pick up
+            // [pendingSeekPositionMs] when its debounce window elapses. Returning here
+            // collapses the burst into a single transport call.
+            return
+        }
+        seekDispatchJob = scope.launch {
+            delay(SEEK_DEBOUNCE_MS)
+            // Drain the latest target. `pendingSeekPositionMs` may have advanced since the
+            // delay started; use whatever the user's finger settled on.
+            val target = pendingSeekPositionMs ?: clamped
+            pendingSeekPositionMs = null
+            playbackTransport.seekTo(target)
         }
     }
 
@@ -239,6 +361,11 @@ class DefaultPlayerController @Inject constructor(
                 recordPlayback(queueItem.track)
             }
             is PlaybackResult.Failure -> {
+                perfTracer.mark(
+                    "FAIL",
+                    queueItem.track.videoId,
+                    "stage=transport msg=\"${result.message}\"",
+                )
                 mutablePlayerState.update {
                     it.copy(
                         currentTrack = queueItem.track,
@@ -293,5 +420,11 @@ class DefaultPlayerController @Inject constructor(
     companion object {
         private const val PROGRESS_TICK_MS = 1_000L
         private const val RESTART_THRESHOLD_MS = 3_000L
+
+        // YT-0193 — debounce window for engine-side seek dispatch. 50 ms is short enough
+        // that a single tap on the scrubber feels instant (well under the ~100 ms human
+        // perception threshold) but long enough to coalesce frame-rate ticks emitted by
+        // the slider during a drag (16 ms at 60 Hz; 8 ms at 120 Hz).
+        internal const val SEEK_DEBOUNCE_MS = 50L
     }
 }

@@ -53,6 +53,13 @@ fun PlaylistRow(
     onMoreClick: () -> Unit,
     modifier: Modifier = Modifier,
     cover: @Composable (size: Dp) -> Unit = { size -> DefaultPlaylistCover(playlist, size) },
+    /**
+     * YT-0153 — when non-null, replaces the default trailing `MoreVert` `IconButton`. Lets a
+     * caller wrap their own icon button + `DropdownMenu` inside a `Box` so the menu anchors
+     * directly under the dot rather than at the row's leading edge. [onMoreClick] is ignored
+     * when [trailingContent] is provided.
+     */
+    trailingContent: (@Composable () -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
@@ -81,15 +88,19 @@ fun PlaylistRow(
             )
         }
 
-        IconButton(
-            onClick = onMoreClick,
-            modifier = Modifier.semantics { contentDescription = "More options for ${playlist.name}" },
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.MoreVert,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        if (trailingContent != null) {
+            trailingContent()
+        } else {
+            IconButton(
+                onClick = onMoreClick,
+                modifier = Modifier.semantics { contentDescription = "More options for ${playlist.name}" },
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.MoreVert,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

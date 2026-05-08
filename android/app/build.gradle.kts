@@ -15,6 +15,11 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        // YT-0166 round 2 — instrumented Compose UI tests live under
+        // `app/src/androidTest/`. Standard AndroidJUnitRunner is sufficient because the
+        // tests compose Compose primitives directly (no Hilt graph required for the
+        // motion-spec wiring contract).
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -92,4 +97,15 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.turbine)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // YT-0166 round 2 — instrumented Compose UI tests in `app/src/androidTest/`.
+    // Tests compose primitives directly (no Hilt graph) so we only need the Compose
+    // ui-test runner + AndroidJUnitRunner. Tests are run via
+    // `./gradlew :app:connectedDebugAndroidTest` against a booted Pixel 8 emulator.
+    androidTestImplementation(composeBom)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.junit4)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
 }

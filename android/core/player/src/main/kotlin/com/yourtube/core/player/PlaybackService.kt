@@ -4,6 +4,8 @@ import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Intent
 import androidx.annotation.OptIn
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -47,8 +49,12 @@ class PlaybackService : MediaSessionService() {
     @Inject
     lateinit var logger: Logger
 
+    @Inject
+    lateinit var perfTracer: PlaybackPerfTracer
+
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
+    private var perfPlayerListener: Player.Listener? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @OptIn(UnstableApi::class)
@@ -57,6 +63,60 @@ class PlaybackService : MediaSessionService() {
         val exoPlayer = playerFactory.create(this)
         player = exoPlayer
         playbackPlayerAdapter.attach(exoPlayer)
+        // Service-side perf listener: fires from the underlying ExoPlayer
+        // BEFORE Media3's session IPC echoes the same events to the
+        // MediaController. That makes the elapsed_ms values for STATE_*
+        // accurate for "what the player itself observed" rather than
+        // "when the controller was notified".
+        val listener = object : Player.Listener {
+            private var lastBufferingForVideoId: String? = null
+            private var lastReadyForVideoId: String? = null
+
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                val videoId = mediaItem?.mediaId ?: return
+                perfTracer.mark("MEDIA_ITEM_TRANSITION", videoId, "reason=$reason")
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                val videoId = exoPlayer.currentMediaItem?.mediaId ?: return
+                when (playbackState) {
+                    Player.STATE_BUFFERING -> {
+                        // Re-buffers within the same item are still useful but
+                        // we only emit the first one per item to keep the
+                        // first-note timeline scannable.
+                        if (lastBufferingForVideoId != videoId) {
+                            lastBufferingForVideoId = videoId
+                            perfTracer.mark("STATE_BUFFERING", videoId)
+                        }
+                    }
+                    Player.STATE_READY -> {
+                        if (lastReadyForVideoId != videoId) {
+                            lastReadyForVideoId = videoId
+                            perfTracer.mark("STATE_READY", videoId)
+                        }
+                    }
+                    Player.STATE_ENDED, Player.STATE_IDLE -> Unit
+                }
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (!isPlaying) return
+                val videoId = exoPlayer.currentMediaItem?.mediaId ?: return
+                // FIRST_AUDIO is emitted on the first isPlaying=true after
+                // STATE_READY for a given item. This is the closest in-process
+                // proxy for "audio out the speaker" without hooking the audio
+                // session.
+                if (lastReadyForVideoId == videoId) {
+                    perfTracer.mark("FIRST_AUDIO", videoId)
+                    // Clear the ready marker so subsequent in-item pauses /
+                    // resumes don't re-emit FIRST_AUDIO. The next track
+                    // re-arms via STATE_READY.
+                    lastReadyForVideoId = null
+                }
+            }
+        }
+        exoPlayer.addListener(listener)
+        perfPlayerListener = listener
         mediaSession = MediaSession.Builder(this, exoPlayer)
             .setCallback(PlaybackSessionCallback())
             .setSessionActivity(nowPlayingPendingIntent())
@@ -115,6 +175,11 @@ class PlaybackService : MediaSessionService() {
     override fun onDestroy() {
         serviceScope.cancel()
         playbackPlayerAdapter.detach()
+        val currentListener = perfPlayerListener
+        if (currentListener != null) {
+            player?.removeListener(currentListener)
+        }
+        perfPlayerListener = null
         mediaSession?.run {
             player.release()
             release()
