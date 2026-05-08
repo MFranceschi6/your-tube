@@ -32,7 +32,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,28 +70,21 @@ fun LibraryScreen(
     var renameTarget by remember { mutableStateOf<Playlist?>(null) }
     var deleteTarget by remember { mutableStateOf<Playlist?>(null) }
 
-    // YT-0063a Q5: hoist the list scroll state so the registered Extended FAB can collapse to
-    // its icon-only form while the user is actively scrolling. Hoisting (vs. local
-    // `rememberLazyListState()` inside the LazyColumn) is required because the FAB closure runs
-    // inside `DisposableEffect(slots)` above and would otherwise close over a state that does
-    // not exist yet on the first frame.
+    // YT-0063a v2 Q5: FAB stays expanded at all times. v2 §5 explicitly rejects
+    // collapse-on-scroll because (a) typical user has <30 playlists, (b) collapse hides
+    // the only "create" affordance from the empty state, (c) MiniPlayer-aware lift
+    // handles the chrome conflict the collapse pattern was designed for.
     val listState = rememberLazyListState()
-    val fabExpanded by remember { derivedStateOf { !listState.isScrollInProgress } }
 
     // YT-0061 FAB seam: register the "New playlist" Extended FAB with the AppShell while
     // this destination is composed; clear on disposal so other tabs don't inherit it.
-    // YT-0063a Q5: the FAB collapses on scroll via `expanded = !listState.isScrollInProgress`.
-    // Re-register on every change to `fabExpanded` so the rendered FAB picks up the new state
-    // (the slot stores a single composable lambda; without re-registering the closed-over value
-    // would never update).
     val slots = LocalAppShellSlots.current
-    DisposableEffect(slots, fabExpanded) {
+    DisposableEffect(slots) {
         slots.setFab {
             ExtendedFloatingActionButton(
                 onClick = { showCreateDialog = true },
                 icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
                 text = { Text("New playlist") },
-                expanded = fabExpanded,
                 modifier = Modifier.semantics { contentDescription = "New playlist" },
             )
         }
@@ -131,9 +123,9 @@ fun LibraryScreen(
             }
 
             LibraryUiState.Empty -> {
-                // C7 — Recently Played row at top + EmptyState with Create
-                // playlist FAB-style CTA (default TONAL primary button per the
-                // catalog's empty-state convention).
+                // C7 — Recently Played row at top + EmptyState. YT-0063a v2 Q9: no
+                // inline CTA — the Extended FAB is on screen as the single "create"
+                // entry point and the body copy points at it.
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -145,9 +137,8 @@ fun LibraryScreen(
                             Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = mod)
                         },
                         title = "No playlists yet",
-                        body = "Create one to organize tracks for offline listening.",
-                        actionLabel = "Create playlist",
-                        onAction = { showCreateDialog = true },
+                        body = "Save groups of tracks for offline plays, sharing, " +
+                            "or just to find them again. Tap New playlist to start.",
                     )
                 }
             }
