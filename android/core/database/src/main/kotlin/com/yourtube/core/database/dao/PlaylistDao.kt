@@ -129,6 +129,9 @@ interface PlaylistDao {
     @Query("DELETE FROM playlists WHERE id = :playlistId")
     suspend fun deletePlaylist(playlistId: String)
 
+    @Query("SELECT COUNT(*) > 0 FROM playlist_tracks WHERE playlistId = :playlistId AND trackVideoId = :videoId")
+    suspend fun trackExistsInPlaylist(playlistId: String, videoId: String): Boolean
+
     @Transaction
     suspend fun upsertPlaylistSnapshot(
         playlist: PlaylistEntity,

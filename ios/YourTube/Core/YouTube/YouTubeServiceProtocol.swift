@@ -47,8 +47,10 @@ struct ResolvedStream: Sendable {
 
 // MARK: - YouTubeServiceProtocol
 
-/// Service protocol for YouTube search and stream extraction.
-/// All methods are async and throw; keep conformances fakeable in tests.
+/// Service protocol for YouTube search, stream extraction, and Mix queue pagination.
+/// All methods are async; search and resolution throw on failure; Mix methods return
+/// empty results on failure and never throw (matching the silent-failure contract in
+/// `docs/mix-queue.md`). Keep conformances fakeable in tests.
 protocol YouTubeServiceProtocol: Sendable {
     /// Searches YouTube for the given query and returns up to `maxResults` video results.
     func search(query: String, maxResults: Int) async throws -> [SearchResult]
@@ -59,4 +61,23 @@ protocol YouTubeServiceProtocol: Sendable {
     /// it falls back to the best available muxed (progressive) stream.
     /// - Throws: `YouTubeServiceError.noStreamFound` when neither audio-only nor muxed streams are available.
     func resolveStreamURL(videoId: String, quality: AudioQuality) async throws -> ResolvedStream
+
+    // MARK: - YT-0298 Mix queue (initial page + continuation)
+
+    /// Fetches the initial Mix page for `videoId` and surfaces the first continuation
+    /// token alongside the items.
+    ///
+    /// The first item in `items` is the seed track itself. Consumers should skip
+    /// index 0 (already at queue position 0) and append `items.dropFirst()`.
+    ///
+    /// Returns `MixQueueResult.empty` on HTTP failure or parse error — never throws.
+    func getMixQueueWithContinuation(videoId: String) async -> MixQueueResult
+
+    /// Fetches the next Mix page given a continuation `token` from a previous
+    /// `getMixQueueWithContinuation` or `getMixContinuation` call.
+    ///
+    /// Returns `MixQueueResult.empty` on blank token, HTTP failure, or parse error —
+    /// never throws. A non-nil `nextToken` in the result means the consumer SHOULD
+    /// continue paginating; `nil` means stop and fall back to autoplay-related.
+    func getMixContinuation(token: String) async -> MixQueueResult
 }

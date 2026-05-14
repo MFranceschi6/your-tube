@@ -1,13 +1,18 @@
 package com.yourtube.feature.player
 
 import app.cash.turbine.test
+import com.yourtube.core.common.haptics.HapticsController
 import com.yourtube.core.common.model.PlaybackStatus
 import com.yourtube.core.common.model.PlayerState
 import com.yourtube.core.common.model.QueueItem
+import com.yourtube.core.common.model.SleepTimerPreset
+import com.yourtube.core.common.model.SleepTimerState
 import com.yourtube.core.common.model.Track
+import com.yourtube.core.database.entity.PlayerSnapshotEntity
 import com.yourtube.core.player.Logger
 import com.yourtube.core.player.PlaybackPerfTracer
 import com.yourtube.core.player.PlayerController
+import com.yourtube.core.player.SleepTimerController
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -41,7 +46,7 @@ class PlayerViewModelTest {
     @Test
     fun `playNow emits idle then loading then playing through the view model`() = runTest(dispatcher) {
         val controller = FakePlayerController()
-        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, NoOpSleepTimerController())
 
         viewModel.playerState.test {
             assertEquals(PlaybackStatus.IDLE, awaitItem().playbackStatus)
@@ -78,7 +83,7 @@ class PlayerViewModelTest {
     fun `playbackStatus stays LOADING across the resolve window then flips to PLAYING`() =
         runTest(dispatcher) {
             val controller = FakePlayerController()
-            val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+            val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, NoOpSleepTimerController())
 
             viewModel.playerState.test {
                 assertEquals(PlaybackStatus.IDLE, awaitItem().playbackStatus)
@@ -126,7 +131,7 @@ class PlayerViewModelTest {
                 durationMs = track.durationSec * 1000L,
             )
             val controller = FakePlayerController().apply { startInState(pausedState) }
-            val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+            val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, NoOpSleepTimerController())
 
             viewModel.playerState.test {
                 assertEquals(PlaybackStatus.PAUSED, awaitItem().playbackStatus)
@@ -150,7 +155,7 @@ class PlayerViewModelTest {
     @Test
     fun `pause then resume toggles playback status`() = runTest(dispatcher) {
         val controller = FakePlayerController().apply { startInState(playingState) }
-        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, NoOpSleepTimerController())
 
         viewModel.playerState.test {
             assertEquals(PlaybackStatus.PLAYING, awaitItem().playbackStatus)
@@ -180,7 +185,7 @@ class PlayerViewModelTest {
     @Test
     fun `seekTo updates the position on the state stream`() = runTest(dispatcher) {
         val controller = FakePlayerController().apply { startInState(playingState) }
-        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, NoOpSleepTimerController())
 
         viewModel.seekTo(positionMs = 12_345L)
         advanceUntilIdle()
@@ -194,7 +199,7 @@ class PlayerViewModelTest {
     @Test
     fun `skipNext and skipPrevious move the queue cursor`() = runTest(dispatcher) {
         val controller = FakePlayerController().apply { startInState(playingState) }
-        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, NoOpSleepTimerController())
 
         viewModel.skipNext()
         advanceUntilIdle()
@@ -213,7 +218,7 @@ class PlayerViewModelTest {
     @Test
     fun `playList plays first track and queues the rest in order`() = runTest(dispatcher) {
         val controller = FakePlayerController()
-        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, NoOpSleepTimerController())
 
         viewModel.playList(listOf(track, secondTrack, thirdTrack), shuffle = false)
         advanceUntilIdle()
@@ -231,7 +236,7 @@ class PlayerViewModelTest {
     @Test
     fun `playList shuffle randomises order but keeps the full set of tracks`() = runTest(dispatcher) {
         val controller = FakePlayerController()
-        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, NoOpSleepTimerController())
         val all = listOf(track, secondTrack, thirdTrack)
 
         viewModel.playList(all, shuffle = true)
@@ -249,7 +254,7 @@ class PlayerViewModelTest {
     @Test
     fun `playList no-ops on empty input`() = runTest(dispatcher) {
         val controller = FakePlayerController()
-        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, NoOpSleepTimerController())
 
         viewModel.playList(emptyList(), shuffle = false)
         advanceUntilIdle()
@@ -266,7 +271,7 @@ class PlayerViewModelTest {
     fun `setShuffleMode wrapper forwards to controller and is reflected in state`() =
         runTest(dispatcher) {
             val controller = FakePlayerController()
-            val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+            val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, NoOpSleepTimerController())
 
             viewModel.setShuffleMode(enabled = true)
             advanceUntilIdle()
@@ -279,7 +284,7 @@ class PlayerViewModelTest {
     fun `setRepeatMode wrapper forwards to controller and is reflected in state`() =
         runTest(dispatcher) {
             val controller = FakePlayerController()
-            val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+            val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, NoOpSleepTimerController())
 
             // REPEAT_MODE_ALL = 2 (matches androidx.media3.common.Player.REPEAT_MODE_ALL).
             viewModel.setRepeatMode(mode = 2)
@@ -292,7 +297,7 @@ class PlayerViewModelTest {
     @Test
     fun `queue mutations remove and reorder items in player state`() = runTest(dispatcher) {
         val controller = FakePlayerController().apply { startInState(playingState) }
-        val viewModel = PlayerViewModel(controller, NoOpPerfTracer)
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, NoOpSleepTimerController())
 
         viewModel.removeQueueItem(queueId = "queue-1")
         advanceUntilIdle()
@@ -311,6 +316,230 @@ class PlayerViewModelTest {
             listOf("queue-fake-3", "queue-2"),
             viewModel.playerState.value.queue.map { it.queueId },
         )
+    }
+
+    // CR3 — Haptics recording tests using RecordingHapticsController.
+    // Each test asserts the exact number of haptic method invocations so that
+    // accidental double-fires or wrong-method calls are caught at the unit level.
+
+    @Test
+    fun `pause invokes onPlayPause exactly once`() = runTest(dispatcher) {
+        val haptics = RecordingHapticsController()
+        val controller = FakePlayerController().apply { startInState(playingState) }
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, haptics, NoOpSleepTimerController())
+
+        viewModel.pause()
+        advanceUntilIdle()
+
+        assertEquals(1, haptics.playPauseCalls)
+        assertEquals(0, haptics.skipCalls)
+        assertEquals(0, haptics.queueAddCalls)
+        assertEquals(0, haptics.playNextCalls)
+    }
+
+    @Test
+    fun `resume invokes onPlayPause exactly once`() = runTest(dispatcher) {
+        val haptics = RecordingHapticsController()
+        val pausedState = PlayerState(
+            currentTrack = track,
+            queue = listOf(QueueItem(track = track, queueId = "queue-1")),
+            currentQueueIndex = 0,
+            playbackStatus = PlaybackStatus.PAUSED,
+            isPlaying = false,
+            durationMs = track.durationSec * 1000L,
+        )
+        val controller = FakePlayerController().apply { startInState(pausedState) }
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, haptics, NoOpSleepTimerController())
+
+        viewModel.resume()
+        advanceUntilIdle()
+
+        assertEquals(1, haptics.playPauseCalls)
+        assertEquals(0, haptics.skipCalls)
+        assertEquals(0, haptics.queueAddCalls)
+        assertEquals(0, haptics.playNextCalls)
+    }
+
+    @Test
+    fun `skipNext invokes onSkip exactly once`() = runTest(dispatcher) {
+        val haptics = RecordingHapticsController()
+        val controller = FakePlayerController().apply { startInState(playingState) }
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, haptics, NoOpSleepTimerController())
+
+        viewModel.skipNext()
+        advanceUntilIdle()
+
+        assertEquals(0, haptics.playPauseCalls)
+        assertEquals(1, haptics.skipCalls)
+        assertEquals(0, haptics.queueAddCalls)
+        assertEquals(0, haptics.playNextCalls)
+    }
+
+    @Test
+    fun `skipPrevious invokes onSkip exactly once`() = runTest(dispatcher) {
+        val haptics = RecordingHapticsController()
+        val controller = FakePlayerController().apply { startInState(playingState) }
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, haptics, NoOpSleepTimerController())
+
+        viewModel.skipPrevious()
+        advanceUntilIdle()
+
+        assertEquals(0, haptics.playPauseCalls)
+        assertEquals(1, haptics.skipCalls)
+        assertEquals(0, haptics.queueAddCalls)
+        assertEquals(0, haptics.playNextCalls)
+    }
+
+    @Test
+    fun `addToQueue invokes onQueueAdd exactly once`() = runTest(dispatcher) {
+        val haptics = RecordingHapticsController()
+        val controller = FakePlayerController().apply { startInState(playingState) }
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, haptics, NoOpSleepTimerController())
+
+        viewModel.addToQueue(thirdTrack)
+        advanceUntilIdle()
+
+        assertEquals(0, haptics.playPauseCalls)
+        assertEquals(0, haptics.skipCalls)
+        assertEquals(1, haptics.queueAddCalls)
+        assertEquals(0, haptics.playNextCalls)
+    }
+
+    @Test
+    fun `playNext invokes onPlayNext exactly once`() = runTest(dispatcher) {
+        val haptics = RecordingHapticsController()
+        val controller = FakePlayerController().apply { startInState(playingState) }
+        val viewModel = PlayerViewModel(controller, NoOpPerfTracer, haptics, NoOpSleepTimerController())
+
+        viewModel.playNext(thirdTrack)
+        advanceUntilIdle()
+
+        assertEquals(0, haptics.playPauseCalls)
+        assertEquals(0, haptics.skipCalls)
+        assertEquals(0, haptics.queueAddCalls)
+        assertEquals(1, haptics.playNextCalls)
+    }
+
+    @Test
+    fun `system-driven transport listener callbacks do not trigger any haptics`() =
+        runTest(dispatcher) {
+            val haptics = RecordingHapticsController()
+            val controller = FakePlayerController()
+            val viewModel = PlayerViewModel(controller, NoOpPerfTracer, haptics, NoOpSleepTimerController())
+
+            // Simulate system-driven state changes by pushing updates directly through
+            // FakePlayerController.startInState — this mirrors what PlaybackTransportListener
+            // does (it updates playerState without going through ViewModel action methods).
+            controller.startInState(playingState)
+            advanceUntilIdle()
+            controller.startInState(playingState.copy(isPlaying = false, playbackStatus = PlaybackStatus.PAUSED))
+            advanceUntilIdle()
+            controller.startInState(playingState)
+            advanceUntilIdle()
+
+            // No ViewModel action methods were called — zero haptic invocations expected.
+            assertEquals(0, haptics.playPauseCalls)
+            assertEquals(0, haptics.skipCalls)
+            assertEquals(0, haptics.queueAddCalls)
+            assertEquals(0, haptics.playNextCalls)
+        }
+
+    // YT-0093 — sleep timer ViewModel surface tests.
+
+    @Test
+    fun `setSleepTimer with Min15 transitions sleepTimerState to Active`() =
+        runTest(dispatcher) {
+            val sleepTimer = RecordingSleepTimerController()
+            val controller = FakePlayerController()
+            val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, sleepTimer)
+
+            viewModel.sleepTimerState.test {
+                // Initial state is Inactive.
+                assertEquals(SleepTimerState.Inactive, awaitItem())
+
+                viewModel.setSleepTimer(SleepTimerPreset.Min15)
+                advanceUntilIdle()
+
+                val active = awaitItem()
+                check(active is SleepTimerState.Active) { "Expected Active but was $active" }
+                assertEquals(SleepTimerPreset.Min15, active.preset)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `cancelSleepTimer transitions sleepTimerState back to Inactive`() =
+        runTest(dispatcher) {
+            val sleepTimer = RecordingSleepTimerController()
+            val controller = FakePlayerController()
+            val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, sleepTimer)
+
+            // Arm the timer first so cancellation has something to cancel.
+            viewModel.setSleepTimer(SleepTimerPreset.Min30)
+            advanceUntilIdle()
+
+            viewModel.sleepTimerState.test {
+                // Drain the current Active emission before testing cancel.
+                val initial = awaitItem()
+                check(initial is SleepTimerState.Active) { "Expected Active but was $initial" }
+
+                viewModel.cancelSleepTimer()
+                advanceUntilIdle()
+
+                assertEquals(SleepTimerState.Inactive, awaitItem())
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `setSleepTimer replaces an already-active timer`() =
+        runTest(dispatcher) {
+            val sleepTimer = RecordingSleepTimerController()
+            val controller = FakePlayerController()
+            val viewModel = PlayerViewModel(controller, NoOpPerfTracer, NoOpHapticsController, sleepTimer)
+
+            viewModel.setSleepTimer(SleepTimerPreset.Min15)
+            advanceUntilIdle()
+
+            viewModel.sleepTimerState.test {
+                val first = awaitItem()
+                check(first is SleepTimerState.Active && first.preset == SleepTimerPreset.Min15)
+
+                viewModel.setSleepTimer(SleepTimerPreset.Min60)
+                advanceUntilIdle()
+
+                val replaced = awaitItem()
+                check(replaced is SleepTimerState.Active) { "Expected Active but was $replaced" }
+                assertEquals(SleepTimerPreset.Min60, replaced.preset)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    /**
+     * A [SleepTimerController] fake that records [setTimer] and [cancel] calls and
+     * immediately reflects them in [timerState], so ViewModel-level tests can assert on the
+     * exposed [StateFlow] without needing a real timer implementation.
+     */
+    private class RecordingSleepTimerController : SleepTimerController {
+        private val _timerState = MutableStateFlow<SleepTimerState>(SleepTimerState.Inactive)
+        override val timerState: StateFlow<SleepTimerState> = _timerState
+
+        override fun attach(scope: kotlinx.coroutines.CoroutineScope) = Unit
+        override fun detach() = Unit
+
+        override fun setTimer(preset: SleepTimerPreset) {
+            _timerState.value = SleepTimerState.Active(
+                remainingMs = preset.durationMs,
+                preset = preset,
+            )
+        }
+
+        override fun cancel() {
+            _timerState.value = SleepTimerState.Inactive
+        }
     }
 
     private class FakePlayerController : PlayerController {
@@ -453,6 +682,15 @@ class PlayerViewModelTest {
             mutableState.value = current.copy(queue = mutableQueue)
         }
 
+        override suspend fun jumpToQueueItem(index: Int) {
+            val current = mutableState.value
+            if (index !in current.queue.indices || index == current.currentQueueIndex) return
+            mutableState.value = current.copy(
+                currentQueueIndex = index,
+                currentTrack = current.queue[index].track,
+            )
+        }
+
         override suspend fun setShuffleMode(enabled: Boolean) {
             shuffleCalls += enabled
             mutableState.value = mutableState.value.copy(shuffleOn = enabled)
@@ -462,6 +700,48 @@ class PlayerViewModelTest {
             repeatCalls += mode
             mutableState.value = mutableState.value.copy(repeatMode = mode)
         }
+
+        override suspend fun setPlaybackSpeed(speed: Float) {
+            mutableState.value = mutableState.value.copy(playbackSpeed = speed)
+        }
+
+        override suspend fun restoreFromSnapshot(snapshot: PlayerSnapshotEntity) = Unit
+        override suspend fun ensureRestored() = Unit
+    }
+
+    /**
+     * Records each haptic method invocation count so CR3 tests can assert
+     * exact call counts without relying on a mocking library.
+     */
+    private class RecordingHapticsController : HapticsController {
+        var playPauseCalls = 0
+            private set
+        var skipCalls = 0
+            private set
+        var queueAddCalls = 0
+            private set
+        var playNextCalls = 0
+            private set
+
+        override fun onPlayPause() { playPauseCalls++ }
+        override fun onSkip() { skipCalls++ }
+        override fun onQueueAdd() { queueAddCalls++ }
+        override fun onPlayNext() { playNextCalls++ }
+    }
+
+    private object NoOpHapticsController : HapticsController {
+        override fun onPlayPause() = Unit
+        override fun onSkip() = Unit
+        override fun onQueueAdd() = Unit
+        override fun onPlayNext() = Unit
+    }
+
+    private class NoOpSleepTimerController : SleepTimerController {
+        override val timerState = MutableStateFlow<SleepTimerState>(SleepTimerState.Inactive)
+        override fun attach(scope: kotlinx.coroutines.CoroutineScope) = Unit
+        override fun detach() = Unit
+        override fun setTimer(preset: SleepTimerPreset) = Unit
+        override fun cancel() = Unit
     }
 
     private object NoOpLogger : Logger {

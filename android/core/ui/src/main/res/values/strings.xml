@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ── core/ui: TrackRow ───────────────────────────────────────────── -->
+    <!-- Row content description: "Now playing: <title> by <channel>" -->
+    <string name="cd_track_row_now_playing">Now playing: %1$s by %2$s</string>
+    <!-- Row content description (idle): "<title> by <channel>" -->
+    <string name="cd_track_row_idle">%1$s by %2$s</string>
+    <!-- Click label for the row tap gesture -->
+    <string name="lbl_track_row_play">Play %1$s</string>
+    <!-- Long-click label for the row -->
+    <string name="lbl_track_row_long_press">More options for %1$s</string>
+    <!-- Preview drag-handle label in edit mode (PlaylistDetailScreen uses this too) -->
+    <string name="cd_drag_handle_reorder">Drag to reorder %1$s</string>
+    <!-- Remove track button in edit mode -->
+    <string name="cd_remove_track">Remove %1$s</string>
+
+    <!-- ── core/ui: PlaylistRow ────────────────────────────────────────── -->
+    <!-- Row click label -->
+    <string name="lbl_playlist_row_open">Open playlist %1$s</string>
+    <!-- Row long-click label -->
+    <string name="lbl_playlist_row_long_press">More options for %1$s</string>
+    <!-- Row content description: "<name>, <n> tracks" -->
+    <string name="cd_playlist_row">%1$s, %2$d tracks</string>
+    <!-- Playlist cover: no tracks yet -->
+    <string name="cd_playlist_cover_empty">%1$s, no tracks yet</string>
+    <!-- Playlist cover: cover from first N tracks -->
+    <string name="cd_playlist_cover_filled">%1$s, cover from first %2$d tracks</string>
+    <!-- Stub: extended FAB "New playlist" — used in LibraryScreen -->
+    <string name="cd_extended_fab_new_playlist">New playlist</string>
+
+    <!-- ── core/ui: Shared overflow button ────────────────────────────── -->
+    <string name="cd_more_options">More options</string>
+    <string name="cd_more_options_for">More options for %s</string>
+
+    <!-- ── core/ui: MiniPlayerChrome ──────────────────────────────────── -->
+    <string name="cd_mini_player_expand">Expand player</string>
+    <string name="cd_mini_player_play_pause_loading">Loading %1$s</string>
+    <string name="cd_mini_player_play_pause_pause">Pause %1$s</string>
+    <string name="cd_mini_player_play_pause_play">Play %1$s</string>
+    <string name="cd_mini_player_skip_next">Skip to next track</string>
+
+    <!-- ── core/ui: NowPlayingChrome ──────────────────────────────────── -->
+    <string name="cd_now_playing_pane_title">Now playing</string>
+    <string name="cd_now_playing_collapse">Collapse player</string>
+    <string name="lbl_now_playing_header">Now Playing</string>
+    <string name="cd_now_playing_playback_speed">Playback speed, currently %1$s</string>
+    <string name="cd_now_playing_previous">Previous track</string>
+    <string name="cd_now_playing_next">Next track</string>
+    <string name="cd_now_playing_play_pause_loading">Loading</string>
+    <string name="cd_now_playing_play_pause_pause">Pause</string>
+    <string name="cd_now_playing_play_pause_play">Play %1$s by %2$s</string>
+    <string name="cd_now_playing_favourites">Add to favourites</string>
+    <string name="cd_now_playing_cast_unavailable">Cast (unavailable)</string>
+    <string name="cd_now_playing_show_queue">Show queue</string>
+    <string name="cd_now_playing_share">Share</string>
+    <string name="cd_now_playing_add_to_playlist">Add to playlist</string>
+    <string name="cd_shuffle_on">Shuffle on</string>
+    <string name="cd_shuffle_off">Shuffle off</string>
+    <string name="cd_repeat_off">Repeat off</string>
+    <string name="cd_repeat_one">Repeat one</string>
+    <string name="cd_repeat_all">Repeat all</string>
+    <!-- Scrubber TalkBack custom actions -->
+    <string name="lbl_scrubber_seek_forward">Seek forward 10 seconds</string>
+    <string name="lbl_scrubber_seek_backward">Seek backward 10 seconds</string>
+    <!-- Queue sheet -->
+    <string name="lbl_queue_empty">Queue is empty</string>
+    <string name="lbl_queue_swipe_to_remove">Remove</string>
+    <string name="lbl_queue_play_next">Play next</string>
+    <string name="lbl_queue_add_to_queue">Add to queue</string>
+    <string name="cd_queue_drag_handle">Drag to reorder</string>
+    <!-- Speed sheet -->
+    <string name="lbl_playback_speed_sheet_title">Playback speed</string>
+    <string name="lbl_speed_normal">1× (Normal)</string>
+
+    <!-- ── core/ui: PlayerOverlay / ArtworkBox ────────────────────────── -->
+    <string name="cd_now_playing_artwork">Album art for %1$s</string>
+
+    <!-- ── core/ui: SearchBar ─────────────────────────────────────────── -->
+    <string name="cd_search_bar_field">Search field</string>
+    <string name="cd_search_bar_clear">Clear search</string>
+
+    <!-- ── core/ui: Skeleton / LoadingList ──────────────────────────── -->
+    <string name="cd_loading_list">Loading</string>
+
+    <!-- ── core/ui: ErrorState ────────────────────────────────────────── -->
+    <string name="lbl_error_try_again">Try again</string>
+
+    <!-- ── feature/library: LibraryScreen ───────────────────────────── -->
+    <string name="lbl_library_title">Library</string>
+    <string name="cd_library_recently_played">Recently played</string>
+    <string name="lbl_library_recently_played">Recently Played</string>
+    <string name="lbl_library_open_recently_played">Open recently played</string>
+    <string name="lbl_library_section_playlists">Playlists</string>
+    <string name="lbl_library_empty_title">No playlists yet</string>
+    <string name="lbl_library_empty_body">Save groups of tracks for offline plays, sharing, or just to find them again. Tap New playlist to start.</string>
+    <string name="err_library_load_title">Couldn\'t load your library</string>
+    <string name="err_library_load_body">Check your connection and try again.</string>
+    <!-- Playlist overflow menu -->
+    <string name="lbl_menu_share">Share</string>
+    <string name="cd_menu_share_playlist">Share playlist</string>
+    <string name="lbl_menu_rename">Rename</string>
+    <string name="lbl_menu_delete">Delete</string>
+    <string name="lbl_menu_play_next">Play next</string>
+    <string name="lbl_menu_add_to_queue">Add to queue</string>
+    <!-- Dialogs -->
+    <string name="lbl_dialog_new_playlist_title">New Playlist</string>
+    <string name="lbl_dialog_rename_playlist_title">Rename playlist</string>
+    <string name="lbl_dialog_delete_playlist_title">Delete playlist?</string>
+    <string name="lbl_dialog_delete_playlist_body">This permanently removes \"%1$s\". The tracks themselves stay in your library.</string>
+    <string name="lbl_dialog_name_label">Name</string>
+    <string name="lbl_dialog_btn_create">Create</string>
+    <string name="lbl_dialog_btn_save">Save</string>
+    <string name="lbl_dialog_btn_cancel">Cancel</string>
+    <string name="lbl_dialog_btn_delete">Delete</string>
+
+    <!-- ── feature/library: PlaylistDetailScreen ──────────────────── -->
+    <string name="cd_playlist_detail_back">Back</string>
+    <string name="lbl_playlist_detail_edit">Edit</string>
+    <string name="lbl_playlist_detail_done">Done</string>
+    <string name="lbl_playlist_detail_play">Play</string>
+    <string name="lbl_playlist_detail_shuffle">Shuffle</string>
+    <string name="cd_playlist_detail_play">Play playlist</string>
+    <string name="cd_playlist_detail_shuffle">Shuffle playlist</string>
+    <string name="lbl_playlist_detail_empty_title">This playlist is empty</string>
+    <string name="lbl_playlist_detail_empty_body">Add tracks from search or your history.</string>
+    <string name="lbl_playlist_detail_empty_action">Find tracks</string>
+    <string name="err_playlist_detail_load_title">Couldn\'t load this playlist</string>
+    <string name="err_playlist_detail_load_body">Check your connection and try again.</string>
+    <!-- Overflow -->
+    <string name="lbl_menu_rename_playlist">Rename</string>
+    <string name="lbl_menu_delete_playlist">Delete playlist</string>
+    <!-- Context menu -->
+    <string name="lbl_menu_share_track">Share</string>
+    <!-- Track removal snackbar -->
+    <string name="lbl_snackbar_removed_track">Removed \"%1$s\"</string>
+    <plurals name="lbl_snackbar_removed_tracks">
+        <item quantity="one">Removed %d item</item>
+        <item quantity="other">Removed %d items</item>
+    </plurals>
+    <string name="lbl_snackbar_undo">Undo</string>
+    <!-- Playlist meta: "<n> tracks · <duration>" -->
+    <plurals name="lbl_playlist_track_count">
+        <item quantity="one">%d track</item>
+        <item quantity="other">%d tracks</item>
+    </plurals>
+
+    <!-- ── feature/library: AddToPlaylistSheet ────────────────────── -->
+    <string name="lbl_add_to_playlist_title">Add to playlist</string>
+    <string name="lbl_add_to_playlist_create_new">Create new playlist</string>
+    <string name="cd_add_to_playlist_create_new">Create new playlist with this track</string>
+    <string name="lbl_add_to_playlist_name_field">Playlist name</string>
+    <string name="lbl_add_to_playlist_create_and_add">Create &amp; add</string>
+    <string name="cd_add_to_playlist_row">Add to playlist %1$s, %2$d tracks</string>
+    <string name="lbl_add_to_playlist_click">Add to %1$s</string>
+    <string name="lbl_add_to_playlist_empty_title">No playlists yet</string>
+    <string name="lbl_add_to_playlist_empty_body">Create one above to add this track.</string>
+    <string name="snackbar_already_in_playlist">Already in playlist</string>
+
+    <!-- ── feature/search: SearchScreen ──────────────────────────── -->
+    <string name="lbl_search_placeholder">Search YouTube…</string>
+    <string name="cd_search_clear">Clear search</string>
+    <string name="cd_search_submit">Search</string>
+    <string name="lbl_search_idle_title">Search YourTube</string>
+    <string name="lbl_search_idle_body">Find tracks, channels, and topics from your subscriptions.</string>
+    <string name="lbl_search_no_results_title">No results for \"%1$s\"</string>
+    <string name="lbl_search_no_results_body">Check your spelling or try a different search.</string>
+    <string name="lbl_search_no_results_action">Clear search</string>
+    <string name="err_search_offline_title">You\'re offline</string>
+    <string name="err_search_offline_body">Connect to the internet to search. Your saved playlists are still available in Library.</string>
+    <string name="err_search_offline_secondary_action">Go to Library</string>
+    <string name="err_search_generic_title">Couldn\'t search</string>
+    <string name="err_search_generic_body">Something went wrong on our end. Try again in a moment.</string>
+    <!-- Voice search -->
+    <string name="cd_search_voice">Voice search</string>
+    <string name="lbl_search_voice_permission_denied">Microphone permission required for voice search</string>
+    <!-- Search suggestions and recent searches -->
+    <string name="lbl_search_recents_header">Recent searches</string>
+    <string name="cd_search_recent_remove">Remove recent search</string>
+    <string name="lbl_search_recent_removed_toast">Removed from recent searches</string>
+    <!-- Search filter chips -->
+    <string name="lbl_filter_duration_any">Any duration</string>
+    <string name="lbl_filter_duration_short">Short (&lt; 4 min)</string>
+    <string name="lbl_filter_duration_medium">Medium (4–20 min)</string>
+    <string name="lbl_filter_duration_long">Long (&gt; 20 min)</string>
+    <string name="lbl_filter_upload_any">Any date</string>
+    <string name="lbl_filter_upload_today">Today</string>
+    <string name="lbl_filter_upload_week">This week</string>
+    <string name="lbl_filter_upload_month">This month</string>
+    <string name="lbl_filter_upload_year">This year</string>
+    <string name="lbl_filter_type_any">Any type</string>
+    <string name="lbl_filter_type_video">Video</string>
+    <string name="lbl_filter_type_playlist">Playlist</string>
+    <string name="lbl_filter_type_channel">Channel</string>
+
+    <!-- Track overflow menu items -->
+    <string name="lbl_menu_play_next_track">Play next</string>
+    <string name="lbl_menu_add_to_queue_track">Add to queue</string>
+    <string name="lbl_menu_add_to_playlist_track">Add to playlist</string>
+
+    <!-- ── feature/history: RecentlyPlayedScreen ─────────────────── -->
+    <string name="lbl_history_title">Recently Played</string>
+    <string name="cd_history_back">Back</string>
+    <string name="lbl_history_clear_all">Clear all</string>
+    <string name="lbl_history_empty_title">Nothing played yet</string>
+    <string name="lbl_history_empty_body">Tracks you play will show up here.</string>
+    <string name="lbl_history_empty_action">Browse search</string>
+    <string name="err_history_load_title">Couldn\'t load history</string>
+    <string name="err_history_load_body">Try again in a moment.</string>
+    <!-- Overflow + clear-all dialog (B1) -->
+    <string name="lbl_history_clear_overflow_item">Clear watch history</string>
+    <string name="lbl_history_clear_dialog_title">Clear watch history?</string>
+    <string name="lbl_history_clear_dialog_body">This permanently removes all entries from your history. Tracks themselves stay in your library.</string>
+    <string name="lbl_history_clear_dialog_confirm">Clear</string>
+    <string name="lbl_history_clear_dialog_cancel">Cancel</string>
+
+    <!-- ── feature/settings: SettingsScreen ──────────────────────── -->
+    <string name="lbl_settings_title">Settings</string>
+    <string name="lbl_settings_section_playback">Playback</string>
+    <string name="lbl_settings_section_appearance">Appearance</string>
+    <string name="lbl_settings_audio_quality_title">Audio Quality</string>
+    <string name="lbl_settings_audio_quality_click">Change audio quality</string>
+    <string name="lbl_settings_stop_on_close_title">Stop playback when app is closed</string>
+    <string name="lbl_settings_stop_on_close_body">When on, swiping YourTube away from recents also stops audio and clears the notification.</string>
+    <string name="cd_settings_stop_on_close_on">Stop playback when app is closed, on</string>
+    <string name="cd_settings_stop_on_close_off">Stop playback when app is closed, off</string>
+    <string name="lbl_settings_stop_on_close_turn_on">Turn on</string>
+    <string name="lbl_settings_stop_on_close_turn_off">Turn off</string>
+    <string name="lbl_settings_haptics_title">Haptic feedback</string>
+    <string name="lbl_settings_haptics_body">Vibrate on play, pause, skip, and queue actions.</string>
+    <string name="cd_settings_haptics_on">Haptic feedback, on</string>
+    <string name="cd_settings_haptics_off">Haptic feedback, off</string>
+    <string name="lbl_settings_autoplay_title">Autoplay</string>
+    <string name="lbl_settings_autoplay_body">Automatically play a related track when the queue ends.</string>
+    <string name="cd_settings_autoplay_on">Autoplay, on</string>
+    <string name="cd_settings_autoplay_off">Autoplay, off</string>
+    <string name="lbl_settings_autoplay_turn_on">Turn on autoplay</string>
+    <string name="lbl_settings_autoplay_turn_off">Turn off autoplay</string>
+    <string name="lbl_settings_amoled_black_title">AMOLED black</string>
+    <string name="lbl_settings_amoled_black_body">Pure-black background in dark mode. No effect in light mode.</string>
+    <string name="cd_settings_amoled_black_on">AMOLED black, on</string>
+    <string name="cd_settings_amoled_black_off">AMOLED black, off</string>
+    <string name="lbl_settings_amoled_black_turn_on">Turn on</string>
+    <string name="lbl_settings_amoled_black_turn_off">Turn off</string>
+    <string name="lbl_settings_section_playlists">Playlists</string>
+    <string name="lbl_settings_import_title">Import playlist</string>
+    <string name="lbl_settings_import_subtitle_idle">Open a .ytplaylist.json file</string>
+    <string name="lbl_settings_import_subtitle_loading">Reading file…</string>
+    <string name="lbl_settings_import_click">Import playlist</string>
+    <string name="err_settings_import_title">Couldn\'t import that file.</string>
+    <string name="err_settings_import_body">This file may be corrupted or made with a newer version.</string>
+    <string name="lbl_settings_section_about">About</string>
+    <string name="lbl_settings_about_app_name">YourTube</string>
+    <string name="lbl_settings_about_app_desc">Personal-use YouTube audio client</string>
+    <string name="lbl_settings_version_title">Version</string>
+    <string name="lbl_settings_version_value">0.1.0</string>
+    <string name="lbl_settings_check_updates_title">Check for updates</string>
+    <string name="lbl_settings_check_updates_idle">Tap to check for a newer version</string>
+    <string name="lbl_settings_check_updates_checking">Checking…</string>
+    <!-- C16 banner for update-check failure — title + body split matches the import pattern -->
+    <string name="err_settings_check_updates_title">Couldn\'t check for updates.</string>
+    <string name="err_settings_check_updates_body">Check your connection and try again.</string>
+    <string name="lbl_settings_check_updates_click">Check for updates</string>
+    <string name="lbl_settings_dismiss">Dismiss</string>
+    <string name="lbl_settings_try_again">Try again</string>
+    <string name="lbl_settings_update_available_title">Update available: %1$s</string>
+    <string name="lbl_settings_update_available_body">Open the browser to download and install.</string>
+    <string name="lbl_settings_update_btn">Update</string>
+    <string name="lbl_settings_audio_quality_dialog_title">Audio Quality</string>
+    <string name="lbl_settings_audio_quality_dialog_cancel">Cancel</string>
+    <!-- YT-0316 — Theme picker -->
+    <string name="lbl_settings_theme_title">Theme</string>
+    <string name="lbl_settings_theme_click">Change theme</string>
+    <string name="lbl_settings_theme_dialog_title">Theme</string>
+    <string name="lbl_settings_theme_cancel">Cancel</string>
+    <string name="lbl_settings_theme_system">Use system setting</string>
+    <string name="lbl_settings_theme_light">Light</string>
+    <string name="lbl_settings_theme_dark">Dark</string>
+
+    <!-- ── core/ui: SleepTimerSheet (YT-0093) ────────────────────────── -->
+    <string name="cd_now_playing_sleep_timer">Sleep timer</string>
+    <string name="lbl_sleep_timer_sheet_title">Sleep timer</string>
+    <string name="lbl_sleep_timer_preset_15">15 minutes</string>
+    <string name="lbl_sleep_timer_preset_30">30 minutes</string>
+    <string name="lbl_sleep_timer_preset_60">60 minutes</string>
+    <string name="lbl_sleep_timer_preset_end_of_track">End of track</string>
+    <!-- Countdown label: "Turns off in M:SS" -->
+    <string name="lbl_sleep_timer_turns_off_in">Turns off in %1$s</string>
+    <string name="lbl_sleep_timer_cancel">Cancel timer</string>
+
+    <!-- ── Stubs for future YT-0058 retrofit strings ──────────────────── -->
+    <!-- Reserved: artwork content description (now-playing overlay) stub already covered above -->
+
+</resources>

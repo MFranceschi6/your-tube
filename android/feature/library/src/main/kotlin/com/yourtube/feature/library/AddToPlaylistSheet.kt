@@ -23,16 +23,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -40,6 +45,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.yourtube.core.common.model.Playlist
 import com.yourtube.core.common.model.Track
 import com.yourtube.core.ui.EmptyState
+import com.yourtube.core.ui.R as CoreUiR
 
 /**
  * Modal bottom sheet that lets the user add [track] to one of their existing playlists or create
@@ -59,14 +65,26 @@ fun AddToPlaylistSheet(
 ) {
     val playlists by viewModel.playlists.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val alreadyInPlaylistMessage = stringResource(CoreUiR.string.snackbar_already_in_playlist)
+
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                AddToPlaylistEvent.TrackAdded -> onDismiss()
+                AddToPlaylistEvent.AlreadyInPlaylist ->
+                    snackbarHostState.showSnackbar(alreadyInPlaylistMessage)
+            }
+        }
+    }
 
     AddToPlaylistSheetContent(
         track = track,
         playlists = playlists,
         sheetState = sheetState,
+        snackbarHostState = snackbarHostState,
         onAddToExisting = { playlistId ->
             viewModel.addTrack(playlistId, track)
-            onDismiss()
         },
         onCreateAndAdd = { name ->
             viewModel.createAndAdd(name, track)
@@ -87,6 +105,7 @@ internal fun AddToPlaylistSheetContent(
     onCreateAndAdd: (name: String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     var creatingNew by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
@@ -96,6 +115,7 @@ internal fun AddToPlaylistSheetContent(
         sheetState = sheetState,
         modifier = modifier,
     ) {
+        SnackbarHost(hostState = snackbarHostState)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -103,7 +123,7 @@ internal fun AddToPlaylistSheetContent(
                 .padding(bottom = 16.dp),
         ) {
             Text(
-                text = "Add to playlist",
+                text = stringResource(CoreUiR.string.lbl_add_to_playlist_title),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
@@ -130,11 +150,12 @@ internal fun AddToPlaylistSheetContent(
                     },
                 )
             } else {
+                val createNewCd = stringResource(CoreUiR.string.cd_add_to_playlist_create_new)
                 CreateNewRow(
                     onClick = { creatingNew = true },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .semantics { contentDescription = "Create new playlist with this track" },
+                        .semantics { contentDescription = createNewCd },
                 )
                 HorizontalDivider()
             }
@@ -142,8 +163,8 @@ internal fun AddToPlaylistSheetContent(
             if (playlists.isEmpty() && !creatingNew) {
                 EmptyState(
                     icon = { mod -> Icon(Icons.Rounded.QueueMusic, contentDescription = null, modifier = mod) },
-                    title = "No playlists yet",
-                    body = "Create one above to add this track.",
+                    title = stringResource(CoreUiR.string.lbl_add_to_playlist_empty_title),
+                    body = stringResource(CoreUiR.string.lbl_add_to_playlist_empty_body),
                 )
             } else if (!creatingNew) {
                 LazyColumn(
@@ -168,12 +189,13 @@ private fun CreateNewRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val createNewLabel = stringResource(CoreUiR.string.lbl_add_to_playlist_create_new)
     ListItem(
-        headlineContent = { Text("Create new playlist") },
+        headlineContent = { Text(createNewLabel) },
         leadingContent = {
             Icon(Icons.Rounded.Add, contentDescription = null)
         },
-        modifier = modifier.clickable(onClickLabel = "Create new playlist", onClick = onClick),
+        modifier = modifier.clickable(onClickLabel = createNewLabel, onClick = onClick),
     )
 }
 
@@ -182,22 +204,20 @@ private fun PlaylistPickerRow(
     playlist: Playlist,
     onClick: () -> Unit,
 ) {
+    val count = playlist.tracks.size
+    val countText = pluralStringResource(CoreUiR.plurals.lbl_playlist_track_count, count, count)
+    val clickLabel = stringResource(CoreUiR.string.lbl_add_to_playlist_click, playlist.name)
+    val rowCd = stringResource(CoreUiR.string.cd_add_to_playlist_row, playlist.name, count)
     ListItem(
         headlineContent = { Text(playlist.name, maxLines = 1) },
-        supportingContent = {
-            val count = playlist.tracks.size
-            Text("$count track${if (count != 1) "s" else ""}")
-        },
+        supportingContent = { Text(countText) },
         leadingContent = {
             Icon(Icons.Rounded.QueueMusic, contentDescription = null)
         },
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClickLabel = "Add to ${playlist.name}", onClick = onClick)
-            .semantics {
-                contentDescription = "Add to playlist ${playlist.name}, " +
-                    "${playlist.tracks.size} tracks"
-            },
+            .clickable(onClickLabel = clickLabel, onClick = onClick)
+            .semantics { contentDescription = rowCd },
     )
 }
 
@@ -216,7 +236,7 @@ private fun NewPlaylistInline(
         OutlinedTextField(
             value = name,
             onValueChange = onNameChange,
-            label = { Text("Playlist name") },
+            label = { Text(stringResource(CoreUiR.string.lbl_add_to_playlist_name_field)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -225,10 +245,10 @@ private fun NewPlaylistInline(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
-            TextButton(onClick = onCancel) { Text("Cancel") }
+            TextButton(onClick = onCancel) { Text(stringResource(CoreUiR.string.lbl_dialog_btn_cancel)) }
             Spacer(modifier = Modifier.width(8.dp))
             TextButton(onClick = onConfirm, enabled = name.isNotBlank()) {
-                Text("Create & add")
+                Text(stringResource(CoreUiR.string.lbl_add_to_playlist_create_and_add))
             }
         }
     }

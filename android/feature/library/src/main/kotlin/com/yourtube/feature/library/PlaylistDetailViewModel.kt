@@ -9,6 +9,8 @@ import com.yourtube.core.data.repository.PlaylistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -115,6 +118,96 @@ class PlaylistDetailViewModel @Inject constructor(
      */
     fun removeTrack(track: com.yourtube.core.common.model.Track) {
         viewModelScope.launch { repository.removeTrackFromPlaylist(playlistId, track.videoId) }
+    }
+
+    // ── YT-0063a v2 Q3 — edit-mode remove with toast-undo ────────────────────
+
+    /**
+     * Pending removal: a track optimistically removed from the UI but whose Room
+     * delete has not yet been committed. The [commitJob] fires after the snackbar
+     * window expires; cancelling it aborts the delete for Undo.
+     */
+    data class PendingRemoval(
+        val trackId: String,
+        val oldPosition: Int,
+        val track: com.yourtube.core.common.model.Track,
+        val commitJob: Job,
+    )
+
+    /**
+     * Live set of pending removals, keyed by `trackId`. The UI removes these rows
+     * optimistically from its local list; committed when the snackbar expires.
+     */
+    private val _pendingRemovals = MutableStateFlow<Map<String, PendingRemoval>>(emptyMap())
+    val pendingRemovals: StateFlow<Map<String, PendingRemoval>> = _pendingRemovals
+
+    /**
+     * YT-0063a v2 Q3 — optimistically queue a removal. The commit coroutine fires
+     * after [commitDelayMs] if not cancelled by [undoRemoval]. The Room delete is
+     * committed there.
+     *
+     * @param track       the track being removed
+     * @param oldPosition its current index in the playlist (before removal)
+     * @param commitDelayMs delay before the Room delete fires (defaults to 4 s to
+     *                      match `SnackbarDuration.Short`)
+     */
+    fun queueRemoval(
+        track: com.yourtube.core.common.model.Track,
+        oldPosition: Int,
+        commitDelayMs: Long = 4_000L,
+    ) {
+        // Cancel existing job for this track (double-tap guard)
+        _pendingRemovals.value[track.videoId]?.commitJob?.cancel()
+
+        val newJob = viewModelScope.launch {
+            delay(commitDelayMs)
+            commitRemoval(track.videoId)
+        }
+
+        _pendingRemovals.update { current ->
+            // Re-arm all existing pending jobs to a shared deadline (now + commitDelayMs)
+            // so the entire visible batch remains undoable until the new snackbar expires.
+            val rearmed = current.mapValues { (_, pending) ->
+                pending.commitJob.cancel()
+                val job = viewModelScope.launch {
+                    delay(commitDelayMs)
+                    commitRemoval(pending.trackId)
+                }
+                pending.copy(commitJob = job)
+            }
+            rearmed + (track.videoId to PendingRemoval(track.videoId, oldPosition, track, newJob))
+        }
+    }
+
+    /**
+     * YT-0063a v2 Q3 — undo a pending removal. Cancels the commit job; the track
+     * was never deleted from Room so no re-insert is needed.
+     */
+    fun undoRemoval(trackId: String) {
+        val pending = _pendingRemovals.value[trackId] ?: return
+        pending.commitJob.cancel()
+        _pendingRemovals.update { it - trackId }
+    }
+
+    /**
+     * YT-0063a v2 Q3 — commit all pending removals immediately (e.g. on "Done"
+     * exit from edit mode). This fires Room deletes for all items in the window.
+     */
+    fun commitAllPendingRemovals() {
+        val snapshot = _pendingRemovals.value.values.toList()
+        val snapshotKeys = snapshot.map { it.trackId }.toSet()
+        _pendingRemovals.update { it - snapshotKeys }
+        snapshot.forEach { pending ->
+            pending.commitJob.cancel()
+            viewModelScope.launch {
+                repository.removeTrackFromPlaylist(playlistId, pending.trackId)
+            }
+        }
+    }
+
+    private suspend fun commitRemoval(trackId: String) {
+        _pendingRemovals.update { it - trackId }
+        repository.removeTrackFromPlaylist(playlistId, trackId)
     }
 
     fun reorderTracks(fromIndex: Int, toIndex: Int) {

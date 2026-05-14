@@ -38,4 +38,10 @@ data class PlayerState(
      * to IDLE with `positionMs = durationMs` (audio never starts, slider jumps to end).
      */
     val engineLoaded: Boolean = false,
+    /**
+     * Current playback speed multiplier applied to ExoPlayer. Range 0.5–2.0; 1.0 = normal.
+     * Updated synchronously on [PlayerController.setPlaybackSpeed] so the UI reflects the
+     * user's selection without waiting on the engine round-trip.
+     */
+    val playbackSpeed: Float = 1.0f,
 )

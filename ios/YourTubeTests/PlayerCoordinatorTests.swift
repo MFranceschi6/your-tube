@@ -89,6 +89,15 @@ final class RecordingYouTubeService: YouTubeServiceProtocol, @unchecked Sendable
         case .failure(let e): throw e
         }
     }
+
+    // YT-0298 Mix stubs — return empty by default; tests override as needed.
+    func getMixQueueWithContinuation(videoId: String) async -> MixQueueResult { .empty }
+
+    /// Configurable continuation result. Defaults to `.empty` (terminal/nil nextToken).
+    /// Set to a non-nil-token result in tests that must preserve `mixContinuationToken`
+    /// across a `jumpToQueueItem` that triggers `maybePrefetchMixContinuation`.
+    var mixContinuationResult: MixQueueResult = .empty
+    func getMixContinuation(token: String) async -> MixQueueResult { mixContinuationResult }
 }
 
 // MARK: - Helpers
@@ -351,6 +360,164 @@ struct PlayerCoordinatorQueueTests {
     }
 }
 
+// MARK: - YT-0308 — tap-to-jump within an existing queue
+
+/// `jumpToQueueItem(at:)` must mirror the skip-next/skip-prev index-set +
+/// transport-play path so a tap on a queued track behaves like the user
+/// pressed skip-next repeatedly: queue contents preserved, only `currentIndex`
+/// moves, and Mix continuation state survives. Anti-tests guard the no-op
+/// surface (current entry, out-of-bounds) and the cancel-during-load contract.
+@Suite("PlayerCoordinator – jumpToQueueItem (YT-0308)")
+@MainActor
+struct PlayerCoordinatorJumpToQueueItemTests {
+
+    @Test("jumpToQueueItem plays target and preserves queue contents")
+    func jumpPlaysTargetAndPreservesQueue() async {
+        let (sut, engine, _) = makeSUT()
+        sut.append(trackA)
+        sut.append(trackB)
+        sut.append(trackC)
+        await flushPlayerTasks()
+        #expect(sut.currentIndex == 0)
+        let playsBefore = engine.playCallCount
+        let queueBefore = sut.queue.map(\.videoId)
+
+        sut.jumpToQueueItem(at: 2)
+        await flushPlayerTasks()
+
+        #expect(sut.currentIndex == 2)
+        #expect(sut.currentTrack?.videoId == trackC.videoId)
+        #expect(sut.queue.map(\.videoId) == queueBefore)
+        #expect(sut.queue.count == 3)
+        #expect(engine.playCallCount == playsBefore + 1)
+        #expect(engine.currentTrack?.videoId == trackC.videoId)
+    }
+
+    @Test("after jumping, skip-prev walks back to the immediately preceding entry")
+    func skipPrevAfterJumpWalksBackOneSlot() async {
+        let (sut, _, _) = makeSUT()
+        sut.append(trackA)
+        sut.append(trackB)
+        sut.append(trackC)
+        await flushPlayerTasks()
+
+        sut.jumpToQueueItem(at: 2)
+        await flushPlayerTasks()
+        sut.previous()
+        await flushPlayerTasks()
+
+        // Skip-prev returns to entry 1 (trackB), NOT entry 0 — the queue was
+        // never rebuilt, so the preceding slot is still trackB.
+        #expect(sut.currentIndex == 1)
+        #expect(sut.currentTrack?.videoId == trackB.videoId)
+    }
+
+    @Test("jumpToQueueItem on the currently-playing entry is a silent no-op")
+    func jumpOnCurrentIsNoOp() async {
+        let (sut, engine, service) = makeSUT()
+        sut.append(trackA)
+        sut.append(trackB)
+        await flushPlayerTasks()
+        let playsBefore = engine.playCallCount
+        let preparesBefore = engine.prepareCallCount
+        let resolvesBefore = service.calls.count
+        let stateBefore = sut.state
+
+        sut.jumpToQueueItem(at: 0)  // already current
+        await flushPlayerTasks()
+
+        #expect(sut.currentIndex == 0)
+        #expect(sut.state == stateBefore)
+        // No re-fetch, no engine churn — pure no-op.
+        #expect(engine.playCallCount == playsBefore)
+        #expect(engine.prepareCallCount == preparesBefore)
+        #expect(service.calls.count == resolvesBefore)
+    }
+
+    @Test("jumpToQueueItem with out-of-bounds index is a silent no-op")
+    func jumpOutOfBoundsIsNoOp() async {
+        let (sut, engine, _) = makeSUT()
+        sut.append(trackA)
+        sut.append(trackB)
+        await flushPlayerTasks()
+        let playsBefore = engine.playCallCount
+        let indexBefore = sut.currentIndex
+
+        sut.jumpToQueueItem(at: 99)
+        sut.jumpToQueueItem(at: -1)
+        await flushPlayerTasks()
+
+        #expect(sut.currentIndex == indexBefore)
+        #expect(engine.playCallCount == playsBefore)
+    }
+
+    /// YT-0249 parity: a jump during a load must cancel the previous resolve
+    /// and start the tapped one. With the never-resolving service the original
+    /// resolve is still suspended; once we tap a different slot, `prepare` runs
+    /// against the new track and `engine.lastPreparedTrack` flips.
+    @Test("jumpToQueueItem during a load cancels the in-flight resolve")
+    func jumpDuringLoadCancelsPreviousResolve() async {
+        let engine = FakeAudioEngine()
+        let service = NeverResolvingYouTubeService()
+        let sut = PlayerCoordinator(
+            audioEngine: engine,
+            youtubeService: service,
+            qualityProvider: { .medium }
+        )
+
+        // Seed a queue and start loading trackA (resolution suspends forever).
+        sut.append(trackA)
+        sut.append(trackB)
+        sut.append(trackC)
+        #expect(sut.state == .loading)
+        #expect(engine.lastPreparedTrack?.videoId == trackA.videoId)
+
+        // Jump to trackC while trackA's resolve is still in flight.
+        sut.jumpToQueueItem(at: 2)
+
+        // Synchronous portion: engine state already reflects the new target.
+        #expect(sut.currentIndex == 2)
+        #expect(sut.state == .loading)
+        #expect(engine.lastPreparedTrack?.videoId == trackC.videoId)
+        // Neither resolve has completed (service never resolves), so play()
+        // has not fired for either track — what we care about is that the
+        // synchronous index + prepare hop landed on trackC.
+        #expect(engine.playCallCount == 0)
+    }
+
+    @Test("jumpToQueueItem preserves the Mix continuation token")
+    func jumpPreservesMixState() async {
+        let (sut, _, service) = makeSUT()
+        // Configure the fake so that any in-flight continuation fetch triggered by
+        // `jumpToQueueItem` returns a non-terminal page. Without this, the fetch
+        // returns `.empty` (nil nextToken) and `fetchMixContinuation` overwrites
+        // `mixContinuationToken` with nil — defeating the assertion below.
+        service.mixContinuationResult = MixQueueResult(
+            items: [SearchResult(videoId: "mx-extra", title: "Extra", channel: "Ch",
+                                 durationSec: 180, thumbnailUrl: "")],
+            nextToken: "tok-preserved"
+        )
+        sut.append(trackA)
+        sut.append(trackB)
+        sut.append(trackC)
+        await flushPlayerTasks()
+        // Pretend the queue is mid-Mix-walk: a continuation token is held so
+        // a near-tail jump must NOT clear it (that's `playNow`'s job).
+        sut.mixContinuationToken = "mix-token-abc"
+
+        sut.jumpToQueueItem(at: 2)
+        await flushPlayerTasks()
+
+        #expect(sut.currentIndex == 2)
+        // Token must survive: fetchMixContinuation returned nextToken="tok-preserved",
+        // so mixContinuationToken is updated to that value (not nil).
+        #expect(sut.mixContinuationToken != nil)
+        // Sanity: jump did NOT push the coordinator into the new-queue path
+        // (which would have cleared the token via `cancelMixContinuation`).
+        #expect(sut.queue.count >= 3)
+    }
+}
+
 // MARK: - Stream-resolution wiring (closes YT-0031 AC2)
 
 @Suite("PlayerCoordinator – stream resolution receives audio quality")
@@ -425,6 +592,8 @@ private final class NeverResolvingYouTubeService: YouTubeServiceProtocol, @unche
         try await Task.sleep(nanoseconds: .max)
         throw CancellationError()
     }
+    func getMixQueueWithContinuation(videoId: String) async -> MixQueueResult { .empty }
+    func getMixContinuation(token: String) async -> MixQueueResult { .empty }
 }
 
 @Suite("PlayerCoordinator – engine state reset on new track (YT-0046 Bug B)")
@@ -829,6 +998,10 @@ final class PrefetchRecordingYouTubeService: YouTubeServiceProtocol, @unchecked 
             isMuxedFallback: false
         )
     }
+
+    // YT-0298 Mix stubs — return empty by default; tests override as needed.
+    func getMixQueueWithContinuation(videoId: String) async -> MixQueueResult { .empty }
+    func getMixContinuation(token: String) async -> MixQueueResult { .empty }
 }
 
 @Suite("PlayerCoordinator – next-track prefetch (YT-0053)")
@@ -987,5 +1160,52 @@ struct PlayerCoordinatorPrefetchTests {
         #expect(trackBCalls == 2)
         #expect(service.calls.count >= callsBeforeNext + 1)
         #expect(engine.lastPlayURL?.absoluteString.contains("b2") == true)
+    }
+}
+
+// MARK: - YT-0192 isActivelyPlaying helper
+
+@Suite("PlayerCoordinator – isActivelyPlaying")
+@MainActor
+struct PlayerCoordinatorIsActivelyPlayingTests {
+
+    // Case 1: id matches AND state is playing → true
+    @Test("returns true when videoId matches the current track and player is playing")
+    func trueWhenIdMatchAndPlaying() async {
+        let (sut, _, _) = makeSUT()
+        sut.playNow(trackA)
+        await flushPlayerTasks()
+        // State is .playing after flush.
+        #expect(sut.isPlaying == true)
+        #expect(sut.isActivelyPlaying(videoId: trackA.videoId) == true)
+    }
+
+    // Case 2: id matches BUT state is paused → false
+    @Test("returns false when videoId matches but player is paused")
+    func falseWhenIdMatchButPaused() async {
+        let (sut, _, _) = makeSUT()
+        sut.playNow(trackA)
+        await flushPlayerTasks()
+        sut.togglePlayPause()
+        #expect(sut.state == .paused)
+        #expect(sut.isActivelyPlaying(videoId: trackA.videoId) == false)
+    }
+
+    // Case 3: id does NOT match but player is playing → false
+    @Test("returns false when videoId does not match even though player is playing")
+    func falseWhenIdNonMatchAndPlaying() async {
+        let (sut, _, _) = makeSUT()
+        sut.playNow(trackA)
+        await flushPlayerTasks()
+        #expect(sut.isPlaying == true)
+        #expect(sut.isActivelyPlaying(videoId: trackB.videoId) == false)
+    }
+
+    // Case 4: no current track (idle) → false
+    @Test("returns false when no track is loaded")
+    func falseWhenNoCurrentTrack() {
+        let (sut, _, _) = makeSUT()
+        #expect(sut.currentTrack == nil)
+        #expect(sut.isActivelyPlaying(videoId: trackA.videoId) == false)
     }
 }

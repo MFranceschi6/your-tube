@@ -37,6 +37,27 @@ final class PlayerCoordinator {
     /// Index of the active track in `queue`, or `nil` when nothing is loaded.
     private(set) var currentIndex: Int?
 
+    // MARK: - YT-0298 Mix continuation state
+
+    /// Continuation token captured from the most recent Mix initial-fetch or
+    /// continuation page. `nil` means either no Mix is active or the server
+    /// returned no further pages (terminal). Survives skip-next / skip-prev /
+    /// reorder; cleared only on a fresh `playNow(_:)` call.
+    ///
+    /// All reads and writes are on `@MainActor` so a plain `var` is safe —
+    /// no atomics or locks needed.
+    ///
+    /// `internal` (not `private`) so `@testable import YourTube` tests can
+    /// assert on it directly via `sut.mixContinuationToken`.
+    var mixContinuationToken: String?
+
+    /// The in-flight continuation Task, if one is currently running. Single-flight:
+    /// `maybePrefetchMixContinuation` is a no-op when this is non-nil. Cleared on
+    /// completion or cancellation so subsequent near-tail hits can retry.
+    ///
+    /// `internal` for the same testability reason as `mixContinuationToken`.
+    var mixContinuationTask: Task<Void, Never>?
+
     // MARK: - Shuffle & Repeat (YT-0027 Q10)
 
     /// Shuffle indicator. v1 mirrors the state to `MPRemoteCommandCenter.changeShuffleModeCommand`
@@ -151,6 +172,22 @@ final class PlayerCoordinator {
     /// clock; tests substitute a fixed clock to drive expiry deterministically.
     private let prefetchClock: @Sendable () -> Date
 
+    // MARK: YT-0298 — Mix continuation constants
+
+    /// Number of unplayed queue slots remaining at which a continuation prefetch
+    /// fires. Matches the Android reference (PREFETCH_THRESHOLD = 2 per YT-0297 /
+    /// `docs/mix-queue.md §Anti-bot`).
+    private static let mixPrefetchThreshold = 2
+
+    /// Minimum track duration in seconds for Mix eligibility. Tracks shorter than
+    /// this are Shorts/previews and are filtered out. Same rule as initial Mix fetch.
+    private static let minMixDurationSec = 60
+
+    /// Maximum time (seconds) `tryExtendMixAtTail` idles for an in-flight
+    /// continuation fetch before falling through to autoplay-related.
+    /// Matches Android's `MIX_TAIL_WAIT_MS = 2_000L` for cross-platform parity.
+    private static let mixTailWaitTimeout: TimeInterval = 2.0
+
     // MARK: - Init
 
     init(
@@ -190,7 +227,15 @@ final class PlayerCoordinator {
     /// Replaces any in-flight playback with `track` and starts loading it.
     /// `track` is appended to the queue (or selected if already present at the
     /// tail) so subsequent next/previous behave predictably.
+    ///
+    /// YT-0298: cancels any in-flight Mix continuation and clears the token so
+    /// the new track starts a fresh Mix walk. After the seed track is queued, a
+    /// fire-and-forget Mix initial-fetch runs asynchronously.
     func playNow(_ track: Track) {
+        // YT-0298 — fresh tap starts a fresh Mix. Cancel before any state
+        // mutation so a racing continuation page cannot append to the new queue.
+        cancelMixContinuation()
+
         if let existing = queue.firstIndex(where: { $0.videoId == track.videoId }) {
             currentIndex = existing
         } else {
@@ -198,6 +243,14 @@ final class PlayerCoordinator {
             currentIndex = queue.count - 1
         }
         beginLoadingCurrent()
+
+        // YT-0298 — fire-and-forget initial Mix fetch. The seed track is already
+        // at queue[currentIndex]; this call appends the Mix tail asynchronously
+        // without disturbing playback. Mirrors YT-0295 / Android YT-0294.
+        let seedVideoId = track.videoId
+        Task { @MainActor [weak self] in
+            await self?.tryLoadMixQueue(seedVideoId: seedVideoId)
+        }
     }
 
     /// Appends `track` to the end of the queue. If nothing is currently loaded,
@@ -225,11 +278,41 @@ final class PlayerCoordinator {
         }
     }
 
-    /// Advances to the next queued track. No-op when at the end.
+    /// Advances to the next queued track.
+    ///
+    /// At queue-end (AC7 / YT-0298): if a Mix continuation is active, spawns
+    /// `tryExtendMixAtTail()` to await the in-flight fetch (bounded timeout)
+    /// before falling through to the autoplay-related path (YT-0292).
     func next() {
-        guard hasNext, let i = currentIndex else { return }
+        guard let i = currentIndex else { return }
+        guard hasNext else {
+            if isMixContinuationActive {
+                Task { @MainActor [weak self] in
+                    await self?.tryExtendMixAtTail()
+                }
+            }
+            return
+        }
         currentIndex = i + 1
         beginLoadingCurrent()
+        // YT-0298 — check whether a continuation prefetch should fire now.
+        maybePrefetchMixContinuation()
+    }
+
+    /// Called at queue-end when `isMixContinuationActive` is true (AC7 / YT-0298).
+    ///
+    /// Fires a continuation fetch if none is in flight, then idles for up to
+    /// `mixTailWaitTimeout` seconds for the fetch to land. If the queue has
+    /// grown after the wait, calls `next()` to advance. Otherwise returns and
+    /// lets the caller fall through to autoplay-related (YT-0292).
+    func tryExtendMixAtTail() async {
+        guard isMixContinuationActive else { return }
+        maybePrefetchMixContinuation()
+        let deadline = Date(timeIntervalSinceNow: Self.mixTailWaitTimeout)
+        while mixContinuationTask != nil && Date() < deadline {
+            await Task.yield()
+        }
+        if hasNext { next() }
     }
 
     /// Returns to the previous queued track. No-op at the head of the queue.
@@ -242,6 +325,38 @@ final class PlayerCoordinator {
         invalidatePrefetch()
         currentIndex = i - 1
         beginLoadingCurrent()
+    }
+
+    /// YT-0308 — jump to an arbitrary slot in the existing queue. Behaves as if
+    /// the user pressed skip-next (or skip-prev) repeatedly until `index` became
+    /// current: `queue` contents and order are preserved, `currentIndex` moves
+    /// to `index`, and the track at `index` begins loading via the same path
+    /// `next()` / `previous()` use.
+    ///
+    /// Differences from ``playNow(_:)`` (the new-queue path):
+    /// - Does NOT clear `mixContinuationToken` / `mixContinuationTask` — the
+    ///   in-progress Mix walk is preserved.
+    /// - Does NOT rebuild the queue or trigger a fresh initial-Mix fetch.
+    ///
+    /// Guards:
+    /// - Out-of-bounds `index` → no-op.
+    /// - `index == currentIndex` → no-op (do not restart, do not re-resolve).
+    ///
+    /// Mirrors Android `DefaultPlayerController.jumpToQueueItem(index)` (YT-0307).
+    func jumpToQueueItem(at index: Int) {
+        guard queue.indices.contains(index) else { return }
+        guard index != currentIndex else { return }
+        // YT-0053: jumping re-positions the cursor anywhere in the queue, so
+        // the cached successor (filled for the OLD position) is no longer
+        // relevant. `beginLoadingCurrent` will re-schedule prefetch for the
+        // new successor once the tapped track lands. Mirrors `previous()`.
+        invalidatePrefetch()
+        currentIndex = index
+        beginLoadingCurrent()
+        // YT-0298 — same trigger as `next()`: a tap-jump can land within
+        // `mixPrefetchThreshold` of the tail. The continuation token (if any)
+        // is intentionally preserved across the jump.
+        maybePrefetchMixContinuation()
     }
 
     /// Removes the track at `index`. If the active track is removed, playback
@@ -377,6 +492,21 @@ final class PlayerCoordinator {
     func retryLastAttempt() {
         guard let track = currentTrack else { return }
         playNow(track)
+    }
+
+    // MARK: - YT-0192 Active-playback helper
+
+    /// Returns `true` only when `videoId` matches the current track AND playback
+    /// is actively in flight (`.playing` or `.loading`). Use this instead of a
+    /// bare id-equality check when deciding whether to animate EQ bars, so that
+    /// paused or stopped rows stay visually inert.
+    ///
+    /// - Parameter videoId: The video identifier of the candidate row.
+    /// - Returns: `true` when the row's track is the currently-playing (or
+    ///   loading) one; `false` in all other cases including `currentTrack == nil`.
+    func isActivelyPlaying(videoId: String) -> Bool {
+        guard isPlaying else { return false }
+        return currentTrack?.videoId == videoId
     }
 
     // MARK: - Shuffle & Repeat actions (YT-0027 Q10)
@@ -561,6 +691,143 @@ final class PlayerCoordinator {
         prefetchTask?.cancel()
         prefetchTask = nil
         prefetchCache = nil
+    }
+
+    // MARK: YT-0298 — Mix continuation helpers
+
+    /// `true` when a Mix continuation token is held OR a continuation fetch is in
+    /// flight. Used by the autoplay-related gate at the queue tail:
+    /// autoplay-related fires only when this returns `false`.
+    var isMixContinuationActive: Bool {
+        mixContinuationToken != nil || mixContinuationTask != nil
+    }
+
+    /// Triggers a single Mix continuation prefetch when all of the following are
+    /// true at the moment of the call:
+    ///   1. A continuation token is held.
+    ///   2. No fetch is already in flight (`mixContinuationTask == nil`).
+    ///   3. The current queue index is within `mixPrefetchThreshold` slots of the tail.
+    ///
+    /// On success: appends filtered + deduped items to the queue tail and updates
+    /// `mixContinuationToken`. On failure: keeps the token so a transient network
+    /// blip does not strand the Mix. When the server returns `nil` nextToken:
+    /// clears the token so the autoplay-related fallback takes over.
+    private func maybePrefetchMixContinuation() {
+        guard let token = mixContinuationToken else { return }
+        guard mixContinuationTask == nil else { return }
+        guard let i = currentIndex else { return }
+        guard queue.count - i <= Self.mixPrefetchThreshold else { return }
+
+        mixContinuationTask = Task { @MainActor [weak self] in
+            await self?.fetchMixContinuation(token: token)
+        }
+    }
+
+    /// Performs the continuation HTTP call, filters/dedupes results, appends
+    /// novel items to the queue tail, and refreshes `mixContinuationToken`.
+    ///
+    /// On cancellation: propagates cleanly (Task cooperative cancellation). The
+    /// token is NOT cleared on cancellation — the `cancelMixContinuation` call
+    /// site in `playNow` already zeroes both token and task.
+    ///
+    /// On non-cancellation error: keeps the token so the next near-tail
+    /// transition can retry. On `nextToken == nil` (terminal): clears the token.
+    private func fetchMixContinuation(token: String) async {
+        let service = youtubeService
+        let page = await service.getMixContinuation(token: token)
+
+        // Respect structured cancellation — if playNow fired while we were awaiting,
+        // the Task was already cancelled; just clean up the handle.
+        if Task.isCancelled {
+            mixContinuationTask = nil
+            return
+        }
+
+        // Filter Shorts (< 60 s) and zero-duration entries (livestreams).
+        let filtered = page.items.filter { result in
+            !result.videoId.isEmpty && result.durationSec >= Self.minMixDurationSec
+        }
+
+        // Dedup against entries already in the queue — long Mix walks recycle videoIds.
+        if !filtered.isEmpty {
+            let existing = Set(queue.map(\.videoId))
+            let novel = filtered.filter { !existing.contains($0.videoId) }
+            if !novel.isEmpty {
+                let newTracks = novel.map { result in
+                    Track(
+                        videoId: result.videoId,
+                        title: result.title,
+                        channel: result.channel,
+                        durationSec: result.durationSec,
+                        thumbnailUrl: result.thumbnailUrl
+                    )
+                }
+                queue.append(contentsOf: newTracks)
+            }
+        }
+
+        // Refresh or clear the continuation token. nil / empty → terminal.
+        mixContinuationToken = page.nextToken.flatMap { $0.isEmpty ? nil : $0 }
+        mixContinuationTask = nil
+
+        // If we just appended items, check whether another prefetch should fire
+        // (handles the case where the user is already near the tail of the newly
+        // extended queue).
+        maybePrefetchMixContinuation()
+    }
+
+    /// Cancels any in-flight Mix continuation task and clears both the task handle
+    /// and the held token. Called from `playNow(_:)` so a manual track-switch starts
+    /// a fresh Mix walk.
+    private func cancelMixContinuation() {
+        mixContinuationTask?.cancel()
+        mixContinuationTask = nil
+        mixContinuationToken = nil
+    }
+
+    /// Fetches and appends the initial Mix page for `seedVideoId`. Runs
+    /// fire-and-forget after `playNow(_:)`.
+    ///
+    /// Guards:
+    ///   - Only extends when the coordinator is still on the same seed track
+    ///     (guards against a racing `playNow` for a different track).
+    ///   - Only extends when the queue still has exactly one item (the seed).
+    ///   - Captures the first continuation token into `mixContinuationToken`.
+    ///   - Silently returns on HTTP failure or empty result.
+    private func tryLoadMixQueue(seedVideoId: String) async {
+        let page = await youtubeService.getMixQueueWithContinuation(videoId: seedVideoId)
+
+        if Task.isCancelled { return }
+
+        // Skip seed (index 0) — it's already at queue position 0.
+        let tail = page.items.dropFirst().filter { result in
+            !result.videoId.isEmpty && result.durationSec >= Self.minMixDurationSec
+        }
+
+        // Guard: only extend when the controller is still on the same seed and
+        // the queue has not been user-modified.
+        guard currentTrack?.videoId == seedVideoId, queue.count == 1 else { return }
+
+        guard !tail.isEmpty else {
+            // Server returned no usable tail (but may still have a token — store it
+            // for continuations even on an initially-empty tail).
+            mixContinuationToken = page.nextToken.flatMap { $0.isEmpty ? nil : $0 }
+            return
+        }
+
+        let newTracks = tail.map { result in
+            Track(
+                videoId: result.videoId,
+                title: result.title,
+                channel: result.channel,
+                durationSec: result.durationSec,
+                thumbnailUrl: result.thumbnailUrl
+            )
+        }
+        queue.append(contentsOf: newTracks)
+
+        // Retain the first continuation token for lazy pagination.
+        mixContinuationToken = page.nextToken.flatMap { $0.isEmpty ? nil : $0 }
     }
 }
 

@@ -1,0 +1,62 @@
+{
+  "_comment": "Agentic toolkit hooks proposal. NOT loaded by the harness. Reference-only until MVP gate is lifted (see docs/agentic-toolkit.md). To activate: copy the 'hooks' object into .claude/settings.json (merge with existing keys), then verify with 'Stop' a session and re-enter.",
+  "_activation_status": "gated",
+
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/skills/obsidian-project-management/lifecycle.py list --status review --milestone MVP 2>/dev/null | head -20 && echo '---' && python3 .claude/skills/obsidian-project-management/lifecycle.py list --status blocked --milestone MVP 2>/dev/null | head -20",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+
+    "PostToolUse": [
+      {
+        "_comment_purpose": "Surface the validation_command of the in-progress task whenever an Edit hits Android/iOS source. Hint, not a blocker.",
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'PATH=$1; case \"$PATH\" in android/*|ios/*) python3 .claude/skills/obsidian-project-management/lifecycle.py list --status in-progress 2>/dev/null | head -5 ;; esac' _ \"${CLAUDE_TOOL_INPUT_PATH:-}\"",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+
+    "Stop": [
+      {
+        "_comment_purpose": "Warn if there are uncommitted changes while an Obsidian task is still in-progress. Soft signal, never blocks Stop.",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'IN_PROGRESS=$(python3 .claude/skills/obsidian-project-management/lifecycle.py list --status in-progress 2>/dev/null | wc -l); UNCOMMITTED=$(git status --porcelain 2>/dev/null | wc -l); if [ \"$IN_PROGRESS\" -gt 0 ] && [ \"$UNCOMMITTED\" -gt 0 ]; then echo \"warn: $IN_PROGRESS task(s) in-progress with $UNCOMMITTED uncommitted file(s)\"; fi'",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  },
+
+  "_activation_steps": [
+    "1. Lift the gate in docs/agentic-toolkit.md (status: gated -> active).",
+    "2. Open .claude/settings.json.",
+    "3. Add a top-level 'hooks' key with the contents of the 'hooks' object above (drop the _comment_* keys).",
+    "4. Confirm none of the hook commands appear in permissions.deny.",
+    "5. Restart the session and verify SessionStart prints the briefing.",
+    "6. Run a tiny Edit on android/** or ios/** and confirm PostToolUse fires."
+  ],
+
+  "_safety_notes": [
+    "Hooks run as the current user. Inspect each command before merging.",
+    "All three hooks here are read-only and never block tool use.",
+    "If 'lifecycle.py list' is slow on a big vault, raise the timeouts.",
+    "Hook output goes to the user-visible stream; PII in task titles will appear there."
+  ]
+}

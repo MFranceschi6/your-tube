@@ -1,16 +1,29 @@
 package com.yourtube.app.ui
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -30,27 +43,37 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.LibraryMusic
+import com.yourtube.core.designsystem.Icon as MaterialSymbolIcon
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.yourtube.app.BuildConfig
 import com.yourtube.app.navigation.TopLevelDestination
 import com.yourtube.app.sharing.PlaylistImportResult
 import com.yourtube.app.sharing.PlaylistShareLauncher
 import com.yourtube.app.sharing.SharingViewModel
 import com.yourtube.core.common.model.PlaybackStatus
+import com.yourtube.core.common.model.SleepTimerPreset
 import com.yourtube.core.common.model.Track
+import com.yourtube.core.data.update.UpdateStatus
 import com.yourtube.core.ui.AppShellSlots
 import com.yourtube.core.ui.LocalAppShellInsets
 import com.yourtube.core.ui.LocalAppShellSlots
+import com.yourtube.core.ui.LocalMiniPlayerHeight
 import com.yourtube.core.ui.LocalPlayerOverlayState
 import com.yourtube.core.ui.LocalReduceMotion
 import com.yourtube.core.ui.MotionSpec
@@ -64,6 +87,7 @@ import com.yourtube.feature.player.PlayerViewModel
 import com.yourtube.feature.search.SearchScreen
 import com.yourtube.feature.settings.SettingsImportOutcome
 import com.yourtube.feature.settings.SettingsScreen
+import com.yourtube.feature.settings.SettingsViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -87,7 +111,19 @@ fun AppShell(
 ) {
     val playerViewModel: PlayerViewModel = hiltViewModel()
     val playerState by playerViewModel.playerState.collectAsState()
+    // YT-0093 — sleep timer state for the NowPlaying action row icon + sheet.
+    val sleepTimerState by playerViewModel.sleepTimerState.collectAsState()
     val navController = rememberNavController()
+
+    // YT-0251 — update check. SettingsViewModel is scoped to the Activity (via hiltViewModel()
+    // here in AppShell) so the same instance is reused by the Settings destination.
+    // The initial check fires once on first composition; subsequent checks are triggered by
+    // the Settings "Check for updates" row.
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val updateStatus by settingsViewModel.updateStatus.collectAsState()
+    LaunchedEffect(Unit) {
+        settingsViewModel.checkForUpdates(BuildConfig.VERSION_CODE.toLong())
+    }
 
     if (openNowPlayingRequests != null) {
         LaunchedEffect(openNowPlayingRequests, navController) {
@@ -224,6 +260,16 @@ fun AppShell(
         if (isNowPlayingActive) overlayState.autoOpen() else overlayState.autoClose()
     }
 
+    // YT-0286 — when the last queue item is removed while NowPlaying is open,
+    // `currentTrack` becomes null but the NowPlaying route stays on the back stack.
+    // The PlayerOverlay is gated on `currentTrack != null` so it unmounts, leaving a
+    // blank screen. Pop back automatically so the user lands on the previous destination.
+    LaunchedEffect(currentTrack) {
+        if (currentTrack == null && isNowPlayingActive) {
+            navController.popBackStack()
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -232,6 +278,7 @@ fun AppShell(
         CompositionLocalProvider(
             LocalAppShellSlots provides slots,
             LocalAppShellInsets provides shellInsets,
+            LocalMiniPlayerHeight provides effectiveMiniPlayerHeight,
             LocalPlayerOverlayState provides overlayState,
         ) {
             Scaffold(
@@ -320,6 +367,8 @@ fun AppShell(
                                     share.payload,
                                 )
                             },
+                            onPlayNext = { playlist -> playlist.tracks.forEach { playerViewModel.playNext(it) } },
+                            onAddToQueue = { playlist -> playlist.tracks.forEach { playerViewModel.addToQueue(it) } },
                         )
                     }
                     composable("${AppRoute.PlaylistDetail.route}/{playlistId}") {
@@ -351,6 +400,18 @@ fun AppShell(
                                     restoreState = true
                                 }
                             },
+                            onPlayNext = { track -> playerViewModel.playNext(track) },
+                            onAddToQueue = { track -> playerViewModel.addToQueue(track) },
+                            onShareTrack = { track ->
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(
+                                        Intent.EXTRA_TEXT,
+                                        "https://www.youtube.com/watch?v=${track.videoId}",
+                                    )
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Share"))
+                            },
                             currentTrackVideoId = currentTrack?.videoId,
                         )
                     }
@@ -374,6 +435,10 @@ fun AppShell(
                         SettingsScreen(
                             onImportFromUri = { uri -> sharingViewModel.import(uri) },
                             importEvents = settingsImportEvents,
+                            // YT-0251: thread BuildConfig.VERSION_CODE from :app into :feature:settings
+                            // so the settings module doesn't need an :app dependency.
+                            installedVersionCode = BuildConfig.VERSION_CODE.toLong(),
+                            viewModel = settingsViewModel,
                         )
                     }
                     composable(route = AppRoute.NowPlaying.route) {
@@ -407,6 +472,8 @@ fun AppShell(
                         isPlaying = isPlaying,
                         isBuffering = isBuffering,
                         progressFraction = progressFraction,
+                        shuffleOn = playerState.shuffleOn,
+                        repeatMode = playerState.repeatMode,
                         onPlayPauseClick = {
                             if (isPlaying) playerViewModel.pause() else playerViewModel.resume()
                         },
@@ -421,12 +488,52 @@ fun AppShell(
                         onSeek = { fraction ->
                             playerViewModel.seekTo((fraction * playerState.durationMs).toLong())
                         },
+                        onShuffleModeChange = { enabled -> playerViewModel.setShuffleMode(enabled) },
+                        onRepeatModeChange = { mode -> playerViewModel.setRepeatMode(mode) },
+                        onShareTrack = {
+                            currentTrack?.let { track ->
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(
+                                        Intent.EXTRA_TEXT,
+                                        "https://www.youtube.com/watch?v=${track.videoId}",
+                                    )
+                                }
+                                context.startActivity(
+                                    Intent.createChooser(intent, "Share"),
+                                )
+                            }
+                        },
+                        onAddToPlaylist = {
+                            currentTrack?.let { addToPlaylistTarget = it }
+                        },
                         navBarHeight = navBarHeightDp,
                         queue = playerState.queue,
                         currentQueueIndex = playerState.currentQueueIndex,
                         onRemoveQueueItem = { id -> playerViewModel.removeQueueItem(id) },
                         onMoveQueueItem = { from, to -> playerViewModel.moveQueueItem(from, to) },
+                        onJumpToQueueItem = { index -> playerViewModel.jumpToQueueItem(index) },
+                        onPlayNextFromQueue = { queueId ->
+                            playerState.queue.find { it.queueId == queueId }?.track?.let {
+                                playerViewModel.playNext(it)
+                            }
+                        },
+                        onAddToQueueFromQueue = { queueId ->
+                            playerState.queue.find { it.queueId == queueId }?.track?.let {
+                                playerViewModel.addToQueue(it)
+                            }
+                        },
                         onMiniPlayerSizeChanged = { miniPlayerHeightDp = it },
+                        playbackSpeed = playerState.playbackSpeed,
+                        onSpeedChange = { speed -> playerViewModel.setPlaybackSpeed(speed) },
+                        durationMs = playerState.durationMs,
+                        positionMs = playerState.positionMs,
+                        // YT-0093 — sleep timer.
+                        sleepTimerState = sleepTimerState,
+                        onSetSleepTimer = { preset: SleepTimerPreset ->
+                            playerViewModel.setSleepTimer(preset)
+                        },
+                        onCancelSleepTimer = { playerViewModel.cancelSleepTimer() },
                     )
                 }
             }
@@ -466,6 +573,98 @@ fun AppShell(
                     onDismiss = { addToPlaylistTarget = null },
                 )
             }
+
+            // YT-0251 — blocking update-required gate. Shown as a full-screen overlay
+            // when the hosted feed reports `minimumSupportedVersionCode > installed`.
+            // The user cannot dismiss it — only the "Update" action is available.
+            // The overlay is rendered LAST so it covers everything (navigation, player, etc.).
+            if (updateStatus is UpdateStatus.UpdateRequired) {
+                val required = updateStatus as UpdateStatus.UpdateRequired
+                UpdateRequiredOverlay(
+                    versionName = required.latestVersionName,
+                    notes = required.notes,
+                    apkUrl = required.apkUrl,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * YT-0251 — full-screen blocking overlay shown when the hosted feed reports that the
+ * installed build is below [minimumSupportedVersionCode].
+ *
+ * The user cannot dismiss this screen. Only the "Update" button is actionable; it opens
+ * [apkUrl] in the system browser via Intent.ACTION_VIEW (browser handoff — no
+ * REQUEST_INSTALL_PACKAGES permission is required or declared in the manifest).
+ *
+ * If the user navigates away from the browser without installing, this overlay will
+ * reappear on next launch because update status is re-fetched on every cold start.
+ */
+@Composable
+internal fun UpdateRequiredOverlay(
+    versionName: String,
+    notes: String,
+    apkUrl: String,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+
+    // Intercept system back — overlay is non-dismissible.
+    BackHandler(enabled = true) {}
+
+    Surface(
+        modifier = modifier
+            .fillMaxSize()
+            .semantics {
+                isTraversalGroup = true
+                traversalIndex = -1f
+            },
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = "Update Required",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.semantics { heading() },
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "Version $versionName is required to continue. Please update to keep using YourTube.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (notes.isNotBlank()) {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = notes,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(32.dp))
+            Button(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(apkUrl))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    try {
+                        context.startActivity(intent)
+                    } catch (e: ActivityNotFoundException) {
+                        Toast.makeText(context, apkUrl, Toast.LENGTH_LONG).show()
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "Update to version $versionName" },
+            ) {
+                Text("Update")
+            }
         }
     }
 }
@@ -486,10 +685,21 @@ private fun AppNavigationBar(
                 ?.any { destination.matchesRoute(it.route) } == true
             NavigationBarItem(
                 icon = {
-                    Icon(
-                        imageVector = destination.icon,
-                        contentDescription = null,
-                    )
+                    // TODO YT-0276: music_note_list (U+F4E6) is absent from the shipped font
+                    //  subset so LIBRARY falls back to Icons.Rounded.LibraryMusic until the
+                    //  font subset is regenerated to include that glyph.
+                    if (destination == TopLevelDestination.LIBRARY) {
+                        Icon(
+                            imageVector = Icons.Rounded.LibraryMusic,
+                            contentDescription = null,
+                        )
+                    } else {
+                        MaterialSymbolIcon(
+                            icon = destination.icon,
+                            filled = selected,
+                            contentDescription = null,
+                        )
+                    }
                 },
                 label = { Text(destination.label) },
                 selected = selected,

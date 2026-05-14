@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT-0029 — States · iOS Recently Played</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #000;
+    --surface: #1C1C1E;
+    --surface2: #2C2C2E;
+    --surface3: #3A3A3C;
+    --fg1: #FFFFFF;
+    --fg2: rgba(235,235,245,0.6);
+    --fg3: rgba(235,235,245,0.4);
+    --hairline: rgba(255,255,255,0.08);
+    --accent: #8B5CF6;
+    --red: #FF453A;
+  }
+  html, body { min-height: 100%; background: #0a0a0a; color: var(--fg1); font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif; }
+  body { padding: 32px 24px 64px; }
+
+  .page-head {
+    max-width: 1480px; margin: 0 auto 28px;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 18px;
+  }
+  .page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #fff; }
+  .page-head .meta { font-size: 12px; color: rgba(235,235,245,0.5); font-family: 'Geist Mono', monospace; }
+  .page-head .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    background: rgba(139,92,246,0.18); color: #B794F6;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-right: 8px;
+  }
+
+  .grid {
+    max-width: 1480px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 36px 28px;
+  }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .cell .caption {
+    font-size: 12px; color: rgba(235,235,245,0.6); line-height: 1.55;
+    text-align: left; max-width: 340px;
+  }
+  .cell .caption strong { color: #fff; font-weight: 600; display: block; margin-bottom: 4px; font-size: 13px; }
+  .cell .caption .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    background: rgba(139,92,246,0.15); color: #B794F6;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+    font-family: 'Geist Mono', monospace; margin-bottom: 6px;
+  }
+
+  .phone {
+    width: 393px; height: 852px;
+    background: var(--bg); border-radius: 52px;
+    box-shadow: 0 0 0 2px #2a2a2a, 0 24px 60px rgba(0,0,0,0.6), inset 0 0 0 1px #444;
+    position: relative; overflow: hidden;
+    transform: scale(0.82); transform-origin: top center;
+    margin-bottom: -160px;
+    font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  }
+  .island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 124px; height: 36px; background: #000; border-radius: 20px; z-index: 30; }
+  .statusbar { position: absolute; top: 0; left: 0; right: 0; height: 54px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 28px 10px; z-index: 20; pointer-events: none; font-size: 15px; font-weight: 600; color: #fff; }
+  .statusbar .right { display: flex; align-items: center; gap: 6px; }
+
+  .navbar {
+    position: absolute; top: 54px; left: 0; right: 0; height: 44px;
+    display: flex; align-items: center; padding: 0 8px;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    z-index: 22; border-bottom: 0.5px solid var(--hairline);
+  }
+  .nav-back { color: var(--accent); display: flex; align-items: center; gap: 4px; padding: 6px 4px; font-size: 17px; font-weight: 400; }
+  .nav-back svg { width: 22px; height: 22px; }
+  .nav-spacer { flex: 1; }
+  .nav-icon { width: 44px; height: 44px; display: grid; place-items: center; color: var(--accent); }
+  .nav-icon svg { width: 22px; height: 22px; }
+  .nav-inline-title {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font-size: 17px; font-weight: 600; color: var(--fg1);
+  }
+  .large-title { position: absolute; top: 98px; left: 0; right: 0; padding: 6px 20px 12px; background: var(--bg); z-index: 19; }
+  .large-title h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.4px; color: var(--fg1); line-height: 1.05; }
+
+  .body { position: absolute; top: 164px; bottom: 0; left: 0; right: 0; overflow: hidden; padding-bottom: 130px; }
+  .section-header {
+    background: var(--bg); padding: 14px 20px 6px;
+    font-size: 15px; font-weight: 400; color: var(--fg2);
+  }
+  .row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 16px; min-height: 78px; background: var(--bg); position: relative;
+  }
+  .row + .row { border-top: 0.5px solid var(--hairline); }
+  .section-header + .row { border-top: none; }
+  /* artwork color comes from .a1–.a8 — DO NOT set background here, or single-class
+     artwork rules (0,1,0) lose to .row .thumb (0,2,0). */
+  .row .thumb { width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0; }
+  .row .text { flex: 1; min-width: 0; padding-top: 2px; }
+  .row .title { font-size: 16px; font-weight: 600; color: var(--fg1); line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .meta { font-size: 14px; color: var(--fg2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .time { font-size: 13px; color: var(--fg2); margin-top: 4px; opacity: 0.85; }
+
+  .a1 { background: linear-gradient(135deg, #5B2A86 0%, #2B6CB0 100%); }
+  .a2 { background: linear-gradient(135deg, #C05621 0%, #742A2A 100%); }
+  .a3 { background: linear-gradient(135deg, #2D3748 0%, #1A202C 100%); }
+  .a4 { background: linear-gradient(135deg, #38A169 0%, #1A4731 100%); }
+  .a5 { background: linear-gradient(135deg, #D69E2E 0%, #744210 100%); }
+  .a6 { background: linear-gradient(135deg, #4A5568 0%, #2D3748 100%); }
+  .a7 { background: linear-gradient(135deg, #B83280 0%, #44337A 100%); }
+  .a8 { background: linear-gradient(135deg, #319795 0%, #234E52 100%); }
+
+  /* Swipe peek (iOS) */
+  .swipe-wrap { position: relative; overflow: hidden; height: 78px; }
+  .swipe-bg {
+    position: absolute; top: 0; right: 0; bottom: 0; width: 100px;
+    background: var(--red); display: flex; align-items: center; justify-content: center;
+    color: #fff; flex-direction: column; gap: 2px;
+  }
+  .swipe-bg svg { width: 22px; height: 22px; }
+  .swipe-bg .label { font-size: 13px; font-weight: 500; }
+  .swipe-row { position: absolute; inset: 0; transform: translateX(-100px); transition: transform 200ms ease; border-top: none !important; }
+
+  /* MiniPlayer + tab bar */
+  .miniplayer { position: absolute; left: 0; right: 0; bottom: 49px; background: rgba(28,28,30,0.94); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--hairline); padding: 8px 12px; display: flex; align-items: center; gap: 12px; z-index: 10; }
+  .miniplayer .mp-cover { width: 44px; height: 44px; border-radius: 6px; }
+  .miniplayer .mp-text { flex: 1; min-width: 0; }
+  .miniplayer .mp-title { font-size: 14px; font-weight: 600; color: var(--fg1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .miniplayer .mp-channel { font-size: 12px; color: var(--fg2); }
+  .miniplayer .mp-btn { width: 36px; height: 36px; display: grid; place-items: center; color: var(--fg1); }
+  .miniplayer .mp-btn svg { width: 18px; height: 18px; }
+  .tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: 49px; background: rgba(28,28,30,0.94); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--hairline); display: flex; align-items: flex-start; padding-top: 6px; z-index: 11; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--fg2); font-size: 10px; font-weight: 500; }
+  .tab.active { color: var(--accent); }
+  .tab svg { width: 22px; height: 22px; }
+
+  /* Scrim */
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.45); z-index: 50; }
+  /* Alert (iOS-style) */
+  .alert {
+    position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%);
+    width: 270px;
+    background: rgba(54,54,56,0.92); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    z-index: 60;
+  }
+  .alert .head { padding: 18px 16px 14px; text-align: center; }
+  .alert .head .t { font-size: 17px; font-weight: 600; color: var(--fg1); margin-bottom: 4px; }
+  .alert .head .m { font-size: 13px; color: var(--fg1); opacity: 0.85; line-height: 1.4; }
+  .alert .btns { display: flex; border-top: 0.5px solid rgba(255,255,255,0.18); }
+  .alert .btn { flex: 1; padding: 11px 0; font-size: 17px; text-align: center; }
+  .alert .btn + .btn { border-left: 0.5px solid rgba(255,255,255,0.18); }
+  .alert .btn.cancel { color: var(--accent); font-weight: 400; }
+  .alert .btn.destructive { color: var(--red); font-weight: 600; }
+
+  /* Context menu (iOS) */
+  .ctx-scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.35); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); z-index: 50; }
+  .ctx-card-wrap { position: absolute; top: 220px; left: 16px; right: 16px; z-index: 60; display: flex; flex-direction: column; gap: 8px; }
+  .ctx-preview {
+    background: var(--surface);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+  .ctx-preview .row { background: var(--surface); border-top: none; border-radius: 14px; }
+  .ctx-menu {
+    background: rgba(54,54,56,0.92); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+  }
+  .ctx-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; font-size: 17px; color: var(--fg1);
+  }
+  .ctx-item + .ctx-item { border-top: 0.5px solid rgba(255,255,255,0.10); }
+  .ctx-item .icon { display: grid; place-items: center; width: 22px; height: 22px; }
+  .ctx-item .icon svg { width: 20px; height: 20px; }
+  .ctx-item.destructive { color: var(--red); }
+  .ctx-item.destructive .icon { color: var(--red); }
+
+  /* Menu (toolbar) — dropdown pinned to ellipsis */
+  .menu-dropdown {
+    position: absolute; top: 98px; right: 10px;
+    width: 220px; background: rgba(54,54,56,0.92); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.55); z-index: 55;
+  }
+  .menu-dropdown .item { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; font-size: 17px; color: var(--red); }
+  .menu-dropdown .item .icon svg { width: 20px; height: 20px; }
+
+  /* ContentUnavailableView centered */
+  .cuv {
+    position: absolute; top: 164px; bottom: 98px; left: 0; right: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 0 32px; gap: 14px;
+  }
+  .cuv .icon { color: var(--fg2); }
+  .cuv .icon svg { width: 56px; height: 56px; }
+  .cuv .title { font-size: 22px; font-weight: 700; color: var(--fg1); }
+  .cuv .body { font-size: 15px; line-height: 1.4; color: var(--fg2); max-width: 280px; }
+  .cuv .cta {
+    margin-top: 8px; height: 50px; padding: 0 24px; border-radius: 12px;
+    background: var(--accent); color: #fff; font-weight: 600; font-size: 16px;
+    border: none; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(139,92,246,0.3);
+  }
+
+  /* Skeleton */
+  .skel-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; min-height: 78px; background: var(--bg); }
+  .skel-row + .skel-row { border-top: 0.5px solid var(--hairline); }
+  .skel-thumb { width: 56px; height: 56px; border-radius: 8px; background: var(--surface2); position: relative; overflow: hidden; flex-shrink: 0; }
+  .skel-lines { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .skel-line { height: 12px; border-radius: 4px; background: var(--surface2); position: relative; overflow: hidden; }
+  .skel-line.w-1 { width: 70%; }
+  .skel-line.w-2 { width: 50%; }
+  .skel-line.w-3 { width: 35%; }
+  @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+  .skel-thumb::after, .skel-line::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%);
+    animation: shimmer 1.4s infinite linear;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div>
+    <span class="badge">YT-0029 · STATES</span>
+    <h1 style="display:inline-block;">Recently Played · iOS — all states</h1>
+  </div>
+  <div class="meta">YourTube · iOS 26 · 393 × 852 pt · #8B5CF6</div>
+</div>
+
+<div class="grid">
+
+  <!-- 1: Populated -->
+  <div class="cell">
+    <div class="phone" data-screen-label="01 Populated · Today + Yesterday + earlier">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right"></div></div>
+      <div class="navbar">
+        <a class="nav-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,6 9,12 15,18"/></svg>Library</a>
+        <div class="nav-spacer"></div>
+        <button class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="7" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="17" cy="12" r="1.2" fill="currentColor"/></svg></button>
+      </div>
+      <div class="large-title"><h1>Recently Played</h1></div>
+      <div class="body">
+        <div class="section-header">Today</div>
+        <div class="row"><div class="thumb a1"></div><div class="text"><div class="title">Sunset Avenue</div><div class="meta">Lofi Girl · 3:42</div><div class="time">2 minutes ago</div></div></div>
+        <div class="row"><div class="thumb a2"></div><div class="text"><div class="title">Coffee &amp; Rain</div><div class="meta">Lofi Girl · 3:58</div><div class="time">14 minutes ago</div></div></div>
+        <div class="row"><div class="thumb a7"></div><div class="text"><div class="title">Quiet Mornings</div><div class="meta">ChillHop · 4:15</div><div class="time">1 hour ago</div></div></div>
+        <div class="row"><div class="thumb a3"></div><div class="text"><div class="title">Tokyo Drift Slow</div><div class="meta">Nujabes Tribute · 5:21</div><div class="time">Today, 11:08</div></div></div>
+        <div class="row"><div class="thumb a4"></div><div class="text"><div class="title">Late Train Home</div><div class="meta">ChillHop · 3:09</div><div class="time">Today, 09:42</div></div></div>
+        <div class="section-header">Yesterday</div>
+        <div class="row"><div class="thumb a5"></div><div class="text"><div class="title">Midnight Library</div><div class="meta">Lofi Girl · 2:54</div><div class="time">Yesterday, 23:17</div></div></div>
+        <div class="row"><div class="thumb a6"></div><div class="text"><div class="title">Empty Subway</div><div class="meta">ChillHop · 3:32</div><div class="time">Yesterday, 21:02</div></div></div>
+        <div class="row"><div class="thumb a1"></div><div class="text"><div class="title">Soft Rain on Glass</div><div class="meta">Nightowl · 4:01</div><div class="time">Yesterday, 18:55</div></div></div>
+      </div>
+      <div class="miniplayer"><div class="mp-cover a1"></div><div class="mp-text"><div class="mp-title">Sunset Avenue</div><div class="mp-channel">Lofi Girl</div></div><button class="mp-btn"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 21,12 6,21"/></svg></button></div>
+      <div class="tabbar"><div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg>Library</div></div>
+    </div>
+    <div class="caption">
+      <span class="tag">Q1 · Q2 · Q9</span>
+      <strong>1 · Populated · Today + Yesterday</strong>
+      Sticky <code>Section</code> headers anchor the time scale. Three-line <code>TrackRow</code> with
+      timestamp on the third line per Q2. Tab bar + MiniPlayer carry iOS 26 Liquid Glass; the list itself
+      stays on <code>Color(.systemBackground)</code>.
+    </div>
+  </div>
+
+  <!-- 2: Swipe peek -->
+  <div class="cell">
+    <div class="phone" data-screen-label="02 Row swiped · destructive peek">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right"></div></div>
+      <div class="navbar">
+        <a class="nav-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,6 9,12 15,18"/></svg>Library</a>
+        <div class="nav-spacer"></div>
+        <button class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="7" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="17" cy="12" r="1.2" fill="currentColor"/></svg></button>
+      </div>
+      <div class="large-title"><h1>Recently Played</h1></div>
+      <div class="body">
+        <div class="section-header">Today</div>
+        <div class="row"><div class="thumb a1"></div><div class="text"><div class="title">Sunset Avenue</div><div class="meta">Lofi Girl · 3:42</div><div class="time">2 minutes ago</div></div></div>
+        <div class="swipe-wrap">
+          <div class="swipe-bg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+            <span class="label">Remove</span>
+          </div>
+          <div class="row swipe-row"><div class="thumb a2"></div><div class="text"><div class="title">Coffee &amp; Rain</div><div class="meta">Lofi Girl · 3:58</div><div class="time">14 minutes ago</div></div></div>
+        </div>
+        <div class="row"><div class="thumb a7"></div><div class="text"><div class="title">Quiet Mornings</div><div class="meta">ChillHop · 4:15</div><div class="time">1 hour ago</div></div></div>
+        <div class="row"><div class="thumb a3"></div><div class="text"><div class="title">Tokyo Drift Slow</div><div class="meta">Nujabes Tribute · 5:21</div><div class="time">Today, 11:08</div></div></div>
+      </div>
+      <div class="miniplayer"><div class="mp-cover a1"></div><div class="mp-text"><div class="mp-title">Sunset Avenue</div><div class="mp-channel">Lofi Girl</div></div></div>
+      <div class="tabbar"><div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg>Library</div></div>
+    </div>
+    <div class="caption">
+      <span class="tag">Q4</span>
+      <strong>2 · Native swipe to remove</strong>
+      <code>.swipeActions(edge: .trailing, allowsFullSwipe: true) { Button(role: .destructive) }</code> —
+      the system renders the red background + trash glyph + "Remove" label and announces the destructive
+      role to VoiceOver. No undo banner — recovery is replay-via-search.
+    </div>
+  </div>
+
+  <!-- 3: Toolbar Menu open + .alert -->
+  <div class="cell">
+    <div class="phone" data-screen-label="03 Clear all confirm · Menu + alert">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right"></div></div>
+      <div class="navbar">
+        <a class="nav-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,6 9,12 15,18"/></svg>Library</a>
+        <div class="nav-spacer"></div>
+        <button class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="7" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="17" cy="12" r="1.2" fill="currentColor"/></svg></button>
+      </div>
+      <div class="large-title"><h1>Recently Played</h1></div>
+      <div class="body" style="opacity:0.55">
+        <div class="section-header">Today</div>
+        <div class="row"><div class="thumb a1"></div><div class="text"><div class="title">Sunset Avenue</div><div class="meta">Lofi Girl · 3:42</div><div class="time">2 minutes ago</div></div></div>
+        <div class="row"><div class="thumb a2"></div><div class="text"><div class="title">Coffee &amp; Rain</div><div class="meta">Lofi Girl · 3:58</div><div class="time">14 minutes ago</div></div></div>
+      </div>
+      <div class="scrim"></div>
+      <div class="alert">
+        <div class="head">
+          <div class="t">Clear watch history?</div>
+          <div class="m">This permanently removes all entries from your history. Tracks themselves stay in your library.</div>
+        </div>
+        <div class="btns">
+          <button class="btn cancel">Cancel</button>
+          <button class="btn destructive">Clear</button>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="tag">Q6</span>
+      <strong>3 · "Clear watch history?" .alert</strong>
+      Trailing toolbar <code>Menu</code> (<code>ellipsis.circle</code>) → <code>Button(role: .destructive)</code>
+      → <code>.alert</code>. Question-form title; body explains the side effect; destructive button is right
+      and red. <em>Visible only when entries are non-empty.</em>
+    </div>
+  </div>
+
+  <!-- 3b: Menu dropdown open (variant) -->
+  <div class="cell">
+    <div class="phone" data-screen-label="04 Toolbar Menu open · destructive role">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right"></div></div>
+      <div class="navbar">
+        <a class="nav-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,6 9,12 15,18"/></svg>Library</a>
+        <div class="nav-spacer"></div>
+        <button class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="7" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="17" cy="12" r="1.2" fill="currentColor"/></svg></button>
+      </div>
+      <div class="large-title"><h1>Recently Played</h1></div>
+      <div class="body">
+        <div class="section-header">Today</div>
+        <div class="row"><div class="thumb a1"></div><div class="text"><div class="title">Sunset Avenue</div><div class="meta">Lofi Girl · 3:42</div><div class="time">2 minutes ago</div></div></div>
+        <div class="row"><div class="thumb a2"></div><div class="text"><div class="title">Coffee &amp; Rain</div><div class="meta">Lofi Girl · 3:58</div><div class="time">14 minutes ago</div></div></div>
+        <div class="row"><div class="thumb a7"></div><div class="text"><div class="title">Quiet Mornings</div><div class="meta">ChillHop · 4:15</div><div class="time">1 hour ago</div></div></div>
+      </div>
+      <div class="menu-dropdown">
+        <div class="item">
+          Clear All
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></span>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="tag">Q6 · variant</span>
+      <strong>4 · Toolbar Menu — destructive role item</strong>
+      Trailing <code>Menu</code> open. Single destructive item "Clear All" with the system's destructive
+      tint. Tapping it triggers the <code>.alert</code> in card #3. No other items live here — keep the menu single-purpose.
+    </div>
+  </div>
+
+  <!-- 5: Empty C13 -->
+  <div class="cell">
+    <div class="phone" data-screen-label="05 Empty C13 · nothing played yet">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right"></div></div>
+      <div class="navbar">
+        <a class="nav-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,6 9,12 15,18"/></svg>Library</a>
+        <!-- Ellipsis hidden — list is empty -->
+        <div class="nav-spacer"></div>
+      </div>
+      <div class="large-title"><h1>Recently Played</h1></div>
+      <div class="cuv">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12,7 12,12 15.5,14"/><path d="M3 9a9 9 0 0 1 14 0"/></svg></span>
+        <div class="title">Nothing played yet</div>
+        <div class="body">Tracks you play will show up here.</div>
+        <button class="cta">Browse search</button>
+      </div>
+      <div class="tabbar"><div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg>Library</div></div>
+    </div>
+    <div class="caption">
+      <span class="tag">Q7 · C13</span>
+      <strong>5 · Empty · ContentUnavailableView</strong>
+      <code>ContentUnavailableView</code> with <code>clock.arrow.circlepath</code>, title + body verbatim
+      from state-catalog C13, prominent "Browse search" CTA. The toolbar ellipsis is hidden — there's nothing to clear.
+    </div>
+  </div>
+
+  <!-- 6: Error C14 -->
+  <div class="cell">
+    <div class="phone" data-screen-label="06 Error C14 · retry">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right"></div></div>
+      <div class="navbar">
+        <a class="nav-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,6 9,12 15,18"/></svg>Library</a>
+        <div class="nav-spacer"></div>
+      </div>
+      <div class="large-title"><h1>Recently Played</h1></div>
+      <div class="cuv">
+        <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+        <div class="title">Couldn't load history</div>
+        <div class="body">Try again in a moment.</div>
+        <button class="cta">Try Again</button>
+      </div>
+      <div class="tabbar"><div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg>Library</div></div>
+    </div>
+    <div class="caption">
+      <span class="tag">Q10 · C14</span>
+      <strong>6 · Error · retry</strong>
+      <code>ContentUnavailableView</code> with <code>exclamationmark.triangle</code> tinted
+      <code>.secondary</code> — NOT red. Red is reserved for destructive surfaces (Q4 / Q6); a failed
+      load is recoverable. Offline is N/A — history is local.
+    </div>
+  </div>
+
+  <!-- 7: Loading C12 -->
+  <div class="cell">
+    <div class="phone" data-screen-label="07 Loading C12 · 8 skeleton rows">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right"></div></div>
+      <div class="navbar">
+        <a class="nav-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,6 9,12 15,18"/></svg>Library</a>
+        <div class="nav-spacer"></div>
+      </div>
+      <div class="large-title"><h1>Recently Played</h1></div>
+      <div class="body">
+        <div class="skel-row"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w-1"></div><div class="skel-line w-2"></div><div class="skel-line w-3"></div></div></div>
+        <div class="skel-row"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w-1"></div><div class="skel-line w-2"></div><div class="skel-line w-3"></div></div></div>
+        <div class="skel-row"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w-1"></div><div class="skel-line w-2"></div><div class="skel-line w-3"></div></div></div>
+        <div class="skel-row"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w-1"></div><div class="skel-line w-2"></div><div class="skel-line w-3"></div></div></div>
+        <div class="skel-row"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w-1"></div><div class="skel-line w-2"></div><div class="skel-line w-3"></div></div></div>
+        <div class="skel-row"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w-1"></div><div class="skel-line w-2"></div><div class="skel-line w-3"></div></div></div>
+        <div class="skel-row"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w-1"></div><div class="skel-line w-2"></div><div class="skel-line w-3"></div></div></div>
+        <div class="skel-row"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w-1"></div><div class="skel-line w-2"></div><div class="skel-line w-3"></div></div></div>
+      </div>
+      <div class="tabbar"><div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg>Library</div></div>
+    </div>
+    <div class="caption">
+      <span class="tag">Q10 · C12</span>
+      <strong>7 · Loading · 8 skeleton rows</strong>
+      Shared <code>SkeletonTrackRow</code> via <code>.redacted(.placeholder)</code> + shimmer modifier
+      (1400 ms linear infinite). No section headers — the date scale is unknown until data arrives.
+    </div>
+  </div>
+
+  <!-- 8: Context menu (long-press) -->
+  <div class="cell">
+    <div class="phone" data-screen-label="08 Long-press · context menu (5 actions)">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right"></div></div>
+      <div class="navbar">
+        <a class="nav-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,6 9,12 15,18"/></svg>Library</a>
+        <div class="nav-spacer"></div>
+        <button class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="7" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="17" cy="12" r="1.2" fill="currentColor"/></svg></button>
+      </div>
+      <div class="large-title"><h1>Recently Played</h1></div>
+      <div class="body" style="opacity:0.4">
+        <div class="section-header">Today</div>
+        <div class="row"><div class="thumb a1"></div><div class="text"><div class="title">Sunset Avenue</div><div class="meta">Lofi Girl · 3:42</div><div class="time">2 minutes ago</div></div></div>
+        <div class="row"><div class="thumb a2"></div><div class="text"><div class="title">Coffee &amp; Rain</div><div class="meta">Lofi Girl · 3:58</div><div class="time">14 minutes ago</div></div></div>
+      </div>
+      <div class="ctx-scrim"></div>
+      <div class="ctx-card-wrap">
+        <div class="ctx-preview">
+          <div class="row"><div class="thumb a2"></div><div class="text"><div class="title">Coffee &amp; Rain</div><div class="meta">Lofi Girl · 3:58</div><div class="time">14 minutes ago</div></div></div>
+        </div>
+        <div class="ctx-menu">
+          <div class="ctx-item">
+            Play Next
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="14" y2="6"/><line x1="3" y1="12" x2="14" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/><polygon points="18,8 22,12 18,16" fill="currentColor"/></svg></span>
+          </div>
+          <div class="ctx-item">
+            Add to Queue
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="12" x2="13" y2="12"/><line x1="3" y1="18" x2="13" y2="18"/><line x1="18" y1="9" x2="18" y2="15"/><line x1="15" y1="12" x2="21" y2="12"/></svg></span>
+          </div>
+          <div class="ctx-item">
+            Add to Playlist
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><rect x="7" y="7" width="14" height="14" rx="2"/></svg></span>
+          </div>
+          <div class="ctx-item destructive">
+            Remove from History
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></span>
+          </div>
+          <div class="ctx-item">
+            Share
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V3"/><polyline points="8,7 12,3 16,7"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="tag">Q5</span>
+      <strong>8 · Long-press · context menu</strong>
+      <code>.contextMenu</code> with 5 actions in shipped order. <strong>Remove from History</strong> uses
+      <code>role: .destructive</code> (red tint, system haptic). <code>Share</code> uses
+      <code>ShareLink</code> for the native share sheet. Mirrors Android Q5.
+    </div>
+  </div>
+
+  <!-- 9: Single-row edge case -->
+  <div class="cell">
+    <div class="phone" data-screen-label="09 Edge · one row · one header">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right"></div></div>
+      <div class="navbar">
+        <a class="nav-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,6 9,12 15,18"/></svg>Library</a>
+        <div class="nav-spacer"></div>
+        <button class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="7" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="17" cy="12" r="1.2" fill="currentColor"/></svg></button>
+      </div>
+      <div class="large-title"><h1>Recently Played</h1></div>
+      <div class="body">
+        <div class="section-header">Today</div>
+        <div class="row"><div class="thumb a1"></div><div class="text"><div class="title">Sunset Avenue</div><div class="meta">Lofi Girl · 3:42</div><div class="time">just now</div></div></div>
+      </div>
+      <div class="miniplayer"><div class="mp-cover a1"></div><div class="mp-text"><div class="mp-title">Sunset Avenue</div><div class="mp-channel">Lofi Girl</div></div></div>
+      <div class="tabbar"><div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg>Library</div></div>
+    </div>
+    <div class="caption">
+      <span class="tag">Q1 · edge case</span>
+      <strong>9 · Single row · one section header</strong>
+      A group with zero entries does not render. The list shows exactly one "Today" header and one row —
+      the day grouping doesn't force chrome onto sparse lists. The toolbar ellipsis remains visible (entries.isEmpty == false).
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

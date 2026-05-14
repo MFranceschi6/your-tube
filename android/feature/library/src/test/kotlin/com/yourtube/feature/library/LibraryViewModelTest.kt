@@ -12,6 +12,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -161,4 +162,31 @@ class LibraryViewModelTest {
             Dispatchers.resetMain()
         }
     }
+
+    // YT-0063a v2 Q9 cross-cutting — empty → non-empty → empty transition
+    @Test
+    fun `uiState transitions correctly through empty then content then empty`() =
+        runTest(dispatcher) {
+            Dispatchers.setMain(dispatcher)
+            val playlistsFlow = MutableStateFlow<List<Playlist>>(emptyList())
+            every { repository.observePlaylists() } returns playlistsFlow
+            val viewModel = LibraryViewModel(repository, codec)
+            try {
+                // 1. starts empty
+                advanceUntilIdle()
+                assertIs<LibraryUiState.Empty>(viewModel.uiState.value)
+
+                // 2. playlist appears → Content
+                playlistsFlow.value = listOf(samplePlaylist)
+                advanceUntilIdle()
+                assertIs<LibraryUiState.Content>(viewModel.uiState.value)
+
+                // 3. last playlist removed → back to Empty
+                playlistsFlow.value = emptyList()
+                advanceUntilIdle()
+                assertIs<LibraryUiState.Empty>(viewModel.uiState.value)
+            } finally {
+                Dispatchers.resetMain()
+            }
+        }
 }

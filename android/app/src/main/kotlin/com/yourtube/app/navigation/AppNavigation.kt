@@ -1,10 +1,6 @@
 package com.yourtube.app.navigation
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.ui.graphics.vector.ImageVector
+import com.yourtube.core.designsystem.IconKey
 
 /**
  * Top-level navigation destinations for the bottom navigation bar.
@@ -13,25 +9,25 @@ import androidx.compose.ui.graphics.vector.ImageVector
 enum class TopLevelDestination(
     val route: String,
     val label: String,
-    val icon: ImageVector,
+    val icon: IconKey,
     val contentDescription: String,
 ) {
     SEARCH(
         route = "search",
         label = "Search",
-        icon = Icons.Rounded.Search,
+        icon = IconKey.Search,
         contentDescription = "Search tab",
     ),
     LIBRARY(
         route = "library",
         label = "Library",
-        icon = Icons.Rounded.LibraryMusic,
+        icon = IconKey.Library,
         contentDescription = "Library tab",
     ),
     SETTINGS(
         route = "settings",
         label = "Settings",
-        icon = Icons.Rounded.Settings,
+        icon = IconKey.Settings,
         contentDescription = "Settings tab",
     ),
 }

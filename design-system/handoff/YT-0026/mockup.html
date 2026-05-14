@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT-0026 — iOS Search · Mockup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-page: #0a0a0a;
+    --bg: #000000;
+    --surface: #1C1C1E;
+    --surface-variant: #2C2C2E;
+    --surface-high: #3A3A3C;
+    --fg-1: #FFFFFF;
+    --fg-2: rgba(235,235,245,0.60);
+    --fg-3: rgba(235,235,245,0.30);
+    --hairline: rgba(255,255,255,0.08);
+    --accent: #8B5CF6;
+    --accent-tint: rgba(139,92,246,0.16);
+    --field-fill: rgba(118,118,128,0.24);
+    --field-fill-focused: rgba(118,118,128,0.36);
+  }
+  html, body {
+    min-height: 100%; background: var(--bg-page); color: var(--fg-1);
+    font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  }
+  body { padding: 40px 24px 64px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+
+  .page-head {
+    width: min(900px, 100%);
+    display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+    border-bottom: 1px solid var(--hairline); padding-bottom: 16px;
+  }
+  .page-head h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .page-head .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    background: var(--accent-tint); color: #B794F6;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-right: 8px;
+  }
+  .page-head .meta {
+    font-size: 12px; color: var(--fg-3);
+    font-family: 'SF Mono', 'Menlo', monospace;
+  }
+
+  .stage {
+    display: grid; grid-template-columns: auto 1fr; gap: 40px; align-items: start;
+    width: min(900px, 100%);
+  }
+  @media (max-width: 760px) { .stage { grid-template-columns: 1fr; } }
+
+  /* ── iOS 393 phone frame ─────────────────────────────────────── */
+  .phone {
+    width: 393px; height: 852px;
+    background: var(--bg);
+    border-radius: 52px;
+    box-shadow: 0 0 0 2px #2a2a2a, 0 24px 60px rgba(0,0,0,0.6), inset 0 0 0 1px #444;
+    position: relative; overflow: hidden;
+    font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  }
+  .island {
+    position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+    width: 124px; height: 36px; background: #000; border-radius: 20px; z-index: 30;
+  }
+  .statusbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 54px;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    padding: 0 28px 10px; z-index: 20; pointer-events: none;
+    font-size: 15px; font-weight: 600; color: #fff;
+  }
+  .statusbar .right { display: flex; gap: 6px; align-items: center; }
+
+  /* ── Navigation title + searchable drawer ────────────────────── */
+  .nav-area { padding-top: 54px; }
+  .nav-title {
+    padding: 8px 16px 6px;
+    font-size: 34px; font-weight: 700; letter-spacing: -0.4px;
+    color: var(--fg-1); line-height: 1.05;
+  }
+  .search-drawer { padding: 4px 16px 10px; display: flex; align-items: center; gap: 8px; }
+  .search-field {
+    flex: 1;
+    height: 36px; padding: 0 8px 0 30px;
+    background: var(--field-fill);
+    border-radius: 10px;
+    display: flex; align-items: center;
+    position: relative;
+    font-size: 17px;
+    color: var(--fg-1);
+  }
+  .search-field .lead {
+    position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+    color: var(--fg-2);
+  }
+  .search-field input {
+    background: transparent; border: 0; outline: 0;
+    color: var(--fg-1); font-size: 17px; font-family: inherit;
+    flex: 1; min-width: 0;
+    caret-color: var(--accent);
+  }
+  .search-field input::placeholder { color: var(--fg-3); }
+  .search-field .clear {
+    color: var(--fg-3);
+    margin-left: 6px;
+    display: grid; place-items: center;
+  }
+
+  /* ── Chip strip ──────────────────────────────────────────────── */
+  .chip-row {
+    display: flex; gap: 8px; padding: 8px 16px 12px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .chip-row::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0;
+    height: 30px; padding: 0 14px;
+    background: var(--field-fill);
+    border-radius: 999px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 14px; font-weight: 500;
+    color: var(--fg-1);
+  }
+  .chip.recent::before {
+    content: ''; width: 12px; height: 12px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23BFBFBF' stroke-width='2.2' stroke-linecap='round'><circle cx='12' cy='12' r='9'/><polyline points='12,7 12,12 15,14'/></svg>") center/contain no-repeat;
+    opacity: 0.7;
+  }
+  .chip.selected {
+    background: var(--accent); color: #fff;
+  }
+  .chip.selected::before { display: none; }
+
+  /* ── Result rows ─────────────────────────────────────────────── */
+  .results { padding: 0 0 130px; }
+  .row {
+    position: relative;
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; min-height: 60px;
+    border-bottom: 0.5px solid var(--hairline);
+  }
+  .row.active { background: var(--accent-tint); }
+
+  .thumb { width: 60px; height: 44px; border-radius: 6px; flex-shrink: 0; position: relative; overflow: hidden; }
+  .thumb .dur {
+    position: absolute; right: 3px; bottom: 3px;
+    background: rgba(0,0,0,0.65); color: #fff;
+    font-size: 10px; padding: 1px 4px; border-radius: 3px;
+    font-feature-settings: "tnum";
+  }
+  .t1 { background: linear-gradient(135deg, #5B2A86, #2B6CB0); }
+  .t2 { background: linear-gradient(135deg, #C05621, #742A2A); }
+  .t3 { background: linear-gradient(135deg, #2D3748, #1A202C); }
+  .t4 { background: linear-gradient(135deg, #38A169, #1A4731); }
+  .t5 { background: linear-gradient(135deg, #D69E2E, #744210); }
+  .t6 { background: linear-gradient(135deg, #4A5568, #2D3748); }
+
+  .meta { flex: 1; min-width: 0; }
+  .title {
+    color: var(--fg-1); font-size: 15px; font-weight: 500;
+    line-height: 1.25;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sub {
+    color: var(--fg-2); font-size: 13px; margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-feature-settings: "tnum";
+  }
+  .ellipsis {
+    width: 44px; height: 44px; display: grid; place-items: center;
+    color: var(--fg-2);
+  }
+
+  /* ── EQ indicator (TimelineView equivalent in CSS) ──────────── */
+  .eq {
+    position: absolute; right: 3px; bottom: 3px;
+    width: 22px; height: 22px;
+    background: rgba(0,0,0,0.55); border-radius: 4px;
+    display: flex; align-items: flex-end; justify-content: center; gap: 2px;
+    padding: 4px 4px 3px;
+  }
+  .eq .bar { width: 3px; background: var(--accent); border-radius: 1.5px; }
+  .eq .b1 { animation: eq1 600ms ease-in-out infinite alternate; }
+  .eq .b2 { animation: eq2 600ms ease-in-out 120ms infinite alternate; }
+  .eq .b3 { animation: eq3 600ms ease-in-out 240ms infinite alternate; }
+  @keyframes eq1 { from { height: 6px; } to { height: 14px; } }
+  @keyframes eq2 { from { height: 4px; } to { height: 12px; } }
+  @keyframes eq3 { from { height: 8px; } to { height: 11px; } }
+
+  /* ── MiniPlayer + TabBar ─────────────────────────────────────── */
+  .miniplayer {
+    position: absolute; left: 0; right: 0; bottom: 83px;
+    background: rgba(28,28,30,0.78);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border-top: 0.5px solid var(--hairline);
+    padding: 8px 12px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .mp-cover {
+    width: 40px; height: 40px; border-radius: 6px;
+    background: linear-gradient(135deg, #5B2A86, #2B6CB0);
+    flex-shrink: 0;
+  }
+  .mp-text { flex: 1; min-width: 0; }
+  .mp-title { font-size: 14px; font-weight: 600; color: var(--fg-1);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mp-sub { font-size: 12px; color: var(--fg-2); margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mp-play { width: 36px; height: 36px; display: grid; place-items: center; color: var(--fg-1); }
+
+  .tabbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 83px;
+    background: rgba(28,28,30,0.78);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border-top: 0.5px solid var(--hairline);
+    display: flex; padding-top: 8px;
+  }
+  .tab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    color: var(--fg-2); font-size: 10px; font-weight: 500;
+  }
+  .tab.active { color: var(--accent); }
+
+  /* ── Caption / legend ────────────────────────────────────────── */
+  .legend {
+    display: flex; flex-direction: column; gap: 14px;
+    max-width: 460px; padding-top: 24px;
+    color: var(--fg-2); font-size: 14px; line-height: 1.55;
+  }
+  .legend h2 {
+    color: var(--fg-1); font-size: 14px; font-weight: 600; letter-spacing: 0.01em;
+    margin-bottom: 4px;
+  }
+  .legend ul { padding-left: 18px; }
+  .legend li { margin-bottom: 6px; }
+  .legend code {
+    background: var(--surface-variant); color: var(--fg-1);
+    padding: 1px 6px; border-radius: 4px; font-size: 12.5px;
+    font-family: 'SF Mono', monospace;
+  }
+  .legend .pill {
+    display: inline-block; padding: 1px 7px; border-radius: 6px;
+    background: var(--accent-tint); color: #B794F6;
+    font-size: 11px; font-weight: 600;
+    font-family: 'SF Mono', monospace;
+  }
+  .legend a { color: #B794F6; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div>
+    <span class="badge">YT-0026 · iOS SEARCH</span>
+    <h1 style="display:inline-block;">Mockup — idle chips, results, active EQ row</h1>
+  </div>
+  <div class="meta">iOS 17+ · SwiftUI · .searchable(text:) · #8B5CF6</div>
+</div>
+
+<div class="stage">
+
+  <!-- ── Phone frame ─────────────────────────────────────────── -->
+  <div class="phone">
+    <div class="island"></div>
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="right">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.5"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.7"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.5"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+      </span>
+    </div>
+
+    <!-- Nav title + searchable drawer -->
+    <div class="nav-area">
+      <div class="nav-title">Search</div>
+      <div class="search-drawer">
+        <div class="search-field">
+          <span class="lead">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>
+          </span>
+          <input value="lofi" />
+          <span class="clear" aria-label="Clear text">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="11" fill="rgba(118,118,128,0.5)"/><line x1="8" y1="8" x2="16" y2="16" stroke="rgba(0,0,0,0.6)" stroke-width="2" stroke-linecap="round"/><line x1="8" y1="16" x2="16" y2="8" stroke="rgba(0,0,0,0.6)" stroke-width="2" stroke-linecap="round"/></svg>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chip strip (selected: "lofi") -->
+    <div class="chip-row">
+      <div class="chip selected">lofi</div>
+      <div class="chip recent">focus mix</div>
+      <div class="chip recent">ambient</div>
+      <div class="chip">podcasts</div>
+      <div class="chip">jazz</div>
+      <div class="chip">study</div>
+    </div>
+
+    <div class="results">
+      <div class="row active">
+        <div class="thumb t1">
+          <div class="eq" aria-hidden="true">
+            <div class="bar b1"></div>
+            <div class="bar b2"></div>
+            <div class="bar b3"></div>
+          </div>
+        </div>
+        <div class="meta">
+          <div class="title">Late Night Lofi Mix — Deep Focus</div>
+          <div class="sub">ChillHop Music · 1:24:18</div>
+        </div>
+        <div class="ellipsis">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+        </div>
+      </div>
+      <div class="row">
+        <div class="thumb t2"><div class="dur">3:42</div></div>
+        <div class="meta"><div class="title">Sunset Avenue (Slowed)</div><div class="sub">Lofi Girl · 3:42</div></div>
+        <div class="ellipsis"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
+      </div>
+      <div class="row">
+        <div class="thumb t3"><div class="dur">4:15</div></div>
+        <div class="meta"><div class="title">Quiet Mornings · Piano + Rain</div><div class="sub">Soulection · 4:15</div></div>
+        <div class="ellipsis"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
+      </div>
+      <div class="row">
+        <div class="thumb t4"><div class="dur">5:21</div></div>
+        <div class="meta"><div class="title">Tokyo Drift Slow Edit</div><div class="sub">Nujabes Tribute · 5:21</div></div>
+        <div class="ellipsis"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
+      </div>
+      <div class="row">
+        <div class="thumb t5"><div class="dur">3:58</div></div>
+        <div class="meta"><div class="title">Coffee &amp; Rain — Lofi Hip-Hop</div><div class="sub">Lofi Girl · 3:58</div></div>
+        <div class="ellipsis"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
+      </div>
+      <div class="row">
+        <div class="thumb t6"><div class="dur">2:09</div></div>
+        <div class="meta"><div class="title">Vinyl Crackle (Background Loop)</div><div class="sub">Soulection · 2:09</div></div>
+        <div class="ellipsis"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
+      </div>
+    </div>
+
+    <!-- MiniPlayer -->
+    <div class="miniplayer">
+      <div class="mp-cover"></div>
+      <div class="mp-text">
+        <div class="mp-title">Late Night Lofi Mix — Deep Focus</div>
+        <div class="mp-sub">ChillHop Music</div>
+      </div>
+      <div class="mp-play">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+      </div>
+    </div>
+
+    <!-- TabBar -->
+    <div class="tabbar">
+      <div class="tab active">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>
+        <span>Search</span>
+      </div>
+      <div class="tab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="13" y2="6"/><line x1="3" y1="12" x2="13" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/><circle cx="17" cy="17" r="3" fill="currentColor"/><path d="M20 17V7l-3 1"/></svg>
+        <span>Library</span>
+      </div>
+      <div class="tab">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        <span>Settings</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Legend ─────────────────────────────────────────────── -->
+  <div class="legend">
+    <div>
+      <h2>What's shown</h2>
+      <ul>
+        <li>Native <code>.searchable(text:)</code> on the <code>NavigationStack</code> — placement <code>.navigationBarDrawer(displayMode: .always)</code>. <span class="pill">D1</span></li>
+        <li>System-provided clear button (<code>xmark.circle.fill</code>) appears when the field is non-blank. <span class="pill">D9</span></li>
+        <li>Chip strip below: 6 chips, recents (clock affordance) first, then curated fillers. <span class="pill">D3</span></li>
+        <li>Selected chip <code>"lofi"</code> renders <code>.buttonStyle(.borderedProminent)</code> with <code>.tint(.accent)</code>. <span class="pill">D10</span></li>
+        <li>Results list — top row is the currently-playing track: <code>Color.accent.opacity(0.16)</code> tint, animated EQ overlays the duration badge. <span class="pill">D4</span></li>
+        <li>The EQ indicator's three bars animate via <code>TimelineView(.animation)</code> with phase offsets 0 / 0.2 / 0.4 over a 600 ms period. <span class="pill">D4</span></li>
+        <li>MiniPlayer + TabBar render in their system <code>.regularMaterial</code> Liquid-Glass-ready surfaces.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>What it deliberately omits</h2>
+      <ul>
+        <li>No microphone glyph in the field — voice search deferred (<span class="pill">D8</span>). The system keyboard already exposes dictation.</li>
+        <li>No "Clear search history" inline button — that lives in <a href="#">Settings § Data</a> (<span class="pill">D6</span>).</li>
+        <li>No custom Liquid Glass surface — the field already participates via system chrome (README §"Liquid Glass on iOS 26+").</li>
+        <li>No skeleton, no error, no offline copy — see <a href="mockup-states.html"><code>mockup-states.html</code></a> for all nine states.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Read order</h2>
+      <ul>
+        <li><a href="README.md"><code>README.md</code></a></li>
+        <li><a href="decision-log.md"><code>decision-log.md</code></a> — D1–D10</li>
+        <li><a href="swiftui-spec.md"><code>swiftui-spec.md</code></a></li>
+        <li><a href="haptics-and-a11y.md"><code>haptics-and-a11y.md</code></a></li>
+        <li><a href="mockup-states.html"><code>mockup-states.html</code></a></li>
+        <li>Cross-platform: <a href="../YT-0012/"><code>YT-0012/</code></a> · <a href="../state-catalog/"><code>state-catalog/</code></a> · <a href="../symbol-map/"><code>symbol-map/</code></a></li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

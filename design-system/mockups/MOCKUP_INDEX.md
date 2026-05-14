@@ -124,6 +124,7 @@ Handoff packages sono la **source of truth** per l'implementazione. Vivono in `d
 |---|---|---|
 | YT-0073 | Empty/Loading/Error state catalog | `design-system/handoff/state-catalog/` |
 | YT-0074 | MiniPlayer ↔ NowPlaying motion spec | `design-system/handoff/YT-0074/` |
+| YT-0180 | App icon production (Android adaptive + iOS icon set + favicons) | `design-system/handoff/app-icon/` |
 
 ### YT-0014 v2 redo notice
 

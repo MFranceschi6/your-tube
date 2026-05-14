@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT-0016 — Android Playlist Sharing · states</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  min-height: 100%;
+  background: #0a0a0a;
+  font-family: 'Roboto', 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #EBEBF5;
+}
+body { padding: 32px 24px 64px; }
+
+.page-head {
+  max-width: 1640px; margin: 0 auto 22px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 18px;
+}
+.page-head .lhs { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #fff; }
+.page-head .meta { font-size: 12px; color: rgba(235,235,245,0.55); font-family: 'Geist Mono', 'JetBrains Mono', 'SF Mono', monospace; }
+.page-head .badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  background: rgba(139,92,246,0.18); color: #B794F6;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+}
+.subhead {
+  max-width: 1640px; margin: 0 auto 28px;
+  font-size: 13px; color: rgba(235,235,245,0.55); line-height: 1.55;
+}
+.subhead a { color: #B794F6; text-decoration: none; }
+.subhead a:hover { text-decoration: underline; }
+
+.grid {
+  max-width: 1640px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 28px;
+}
+
+.cell { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.cell .caption {
+  font-size: 12.5px; color: rgba(235,235,245,0.6); line-height: 1.55;
+  text-align: left; max-width: 360px; align-self: stretch; padding: 0 4px;
+}
+.cell .caption strong { color: #fff; font-weight: 600; display: block; margin-bottom: 4px; font-size: 13px; }
+.cell .caption .tag {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  background: rgba(139,92,246,0.15); color: #B794F6;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+  font-family: 'Geist Mono', monospace; margin-right: 6px;
+}
+.cell .caption .ref {
+  font-family: 'Geist Mono', monospace; font-size: 10.5px;
+  color: rgba(235,235,245,0.4);
+}
+
+/* Android frame — 360x800 dp */
+.phone {
+  width: 360px; height: 760px;
+  background: #000;
+  border-radius: 36px;
+  box-shadow: 0 0 0 2px #2a2a2a, 0 24px 60px rgba(0,0,0,0.6), inset 0 0 0 1px #444;
+  position: relative; overflow: hidden;
+  font-family: 'Roboto', -apple-system, sans-serif;
+}
+.phone .punch {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 14px; height: 14px; background: #0a0a0a; border-radius: 50%; z-index: 30;
+}
+.statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px; z-index: 20; pointer-events: none;
+  font-size: 13px; font-weight: 500; color: #fff; font-family: 'Roboto', sans-serif;
+}
+.statusbar .right { display: flex; align-items: center; gap: 5px; }
+
+.screen {
+  position: absolute; inset: 0;
+  background: #0F0F0F;
+}
+
+/* M3 top-app-bar */
+.topbar {
+  position: absolute; top: 32px; left: 0; right: 0; height: 64px;
+  display: flex; align-items: center; padding: 0 4px 0 16px;
+  color: #fff;
+}
+.topbar .title { font-size: 22px; font-weight: 500; letter-spacing: 0; flex: 1; }
+.iconbtn {
+  width: 48px; height: 48px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; cursor: pointer; border-radius: 50%;
+}
+.iconbtn:hover { background: rgba(255,255,255,0.06); }
+
+/* Library list (under top-app-bar) */
+.librarylist { position: absolute; top: 96px; left: 0; right: 0; bottom: 0; padding: 4px 8px; overflow: hidden; }
+.row {
+  display: flex; align-items: center; gap: 16px;
+  padding: 8px 8px; min-height: 72px;
+}
+.row .cover {
+  width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+  background: linear-gradient(135deg, #4F378B, #B794F6);
+  position: relative; overflow: hidden;
+}
+.row .cover.b { background: linear-gradient(135deg, #1E40AF, #38BDF8); }
+.row .cover.c { background: linear-gradient(135deg, #B45309, #F59E0B); }
+.row .cover.d { background: linear-gradient(135deg, #047857, #34D399); }
+.row .cover.e { background: linear-gradient(135deg, #BE185D, #F472B6); }
+.row .meta { flex: 1; min-width: 0; }
+.row .name {
+  font-size: 16px; color: #fff; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.row .sub {
+  font-size: 14px; color: rgba(235,235,245,0.6); margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* M3 dropdown menu (anchor-attached) */
+.menu {
+  position: absolute;
+  background: #2A2A2C;
+  border-radius: 4px;
+  padding: 8px 0;
+  min-width: 224px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.25);
+  z-index: 40;
+}
+.menu .item {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 16px;
+  font-size: 14px; color: #fff;
+  cursor: pointer;
+}
+.menu .item:hover { background: rgba(255,255,255,0.06); }
+.menu .item.destructive { color: #FF453A; }
+.menu .item svg { color: rgba(235,235,245,0.7); flex-shrink: 0; }
+.menu .item.destructive svg { color: #FF453A; }
+.menu .sep { height: 1px; background: rgba(255,255,255,0.08); margin: 4px 0; }
+
+/* Scrim + bottom sheet */
+.scrim {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 10;
+}
+.scrim.glass-loading {
+  background: rgba(0,0,0,0.6);
+  z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+}
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: #2A2A2C;
+  border-radius: 28px 28px 0 0;
+  z-index: 20;
+  padding: 8px 0 24px;
+  box-shadow: 0 -2px 16px rgba(0,0,0,0.4);
+}
+.sheet .grabber {
+  width: 32px; height: 4px; border-radius: 2px;
+  background: rgba(235,235,245,0.4);
+  margin: 14px auto 18px;
+}
+.sheet h2 {
+  font-size: 22px; font-weight: 500; color: #fff;
+  letter-spacing: 0; line-height: 1.2;
+  padding: 0 24px;
+  text-wrap: pretty;
+}
+.sheet .metaline {
+  margin-top: 6px;
+  font-size: 14px; color: rgba(235,235,245,0.6);
+  padding: 0 24px;
+  font-variant-numeric: tabular-nums;
+}
+.sheet .metaline .mono { font-family: 'Geist Mono', monospace; font-size: 13px; color: rgba(235,235,245,0.5); }
+
+.sheet .actions { padding: 22px 24px 0; display: flex; flex-direction: column; gap: 12px; }
+.btn {
+  height: 56px; border-radius: 28px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 14px; font-weight: 500; letter-spacing: 0.06em;
+  cursor: pointer; user-select: none;
+  font-family: 'Roboto', sans-serif;
+}
+.btn.filled {
+  background: #8B5CF6; color: #fff;
+}
+.btn.filled:hover { background: #7C3AED; }
+.btn.outlined {
+  background: transparent; color: #B794F6;
+  border: 1px solid rgba(255,255,255,0.18);
+}
+.btn.outlined:hover { background: rgba(255,255,255,0.04); }
+.btn.text {
+  height: 48px;
+  background: transparent; color: #B794F6;
+  border: none;
+}
+.btn.text:hover { background: rgba(139,92,246,0.10); }
+
+/* Spinner (C15) */
+.spinner {
+  width: 48px; height: 48px;
+  border: 3px solid rgba(139,92,246,0.25);
+  border-top-color: #8B5CF6;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Loading overlay caption */
+.c15-label {
+  position: absolute; top: calc(50% + 38px);
+  left: 0; right: 0;
+  text-align: center;
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px; color: rgba(139,92,246,0.7);
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* System file picker (Android Documents UI) */
+.docui {
+  position: absolute; inset: 0;
+  background: #1A1A1C;
+  z-index: 40;
+  display: flex; flex-direction: column;
+}
+.docui .titlebar {
+  height: 56px; background: #1A1A1C;
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.docui .titlebar .label {
+  font-size: 18px; font-weight: 500; color: #fff;
+}
+.docui .pathbar {
+  height: 44px; display: flex; align-items: center; gap: 8px;
+  padding: 0 16px;
+  font-size: 14px; color: rgba(235,235,245,0.7);
+  font-family: 'Roboto', sans-serif;
+}
+.docui .pathbar .crumb { color: #B794F6; }
+.docui .files { flex: 1; overflow: hidden; padding: 8px 0; }
+.docui .filerow {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 16px;
+  font-size: 15px;
+}
+.docui .filerow .icon {
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  color: #B794F6;
+}
+.docui .filerow .icon.warn { color: rgba(235,235,245,0.4); }
+.docui .filerow .fname { color: #fff; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.docui .filerow .fsize { font-size: 12px; color: rgba(235,235,245,0.5); font-variant-numeric: tabular-nums; }
+
+/* Share-target picker (Android system chooser) */
+.chooser {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: #2A2A2C; border-radius: 28px 28px 0 0;
+  padding: 24px 0 16px; z-index: 20;
+}
+.chooser .grabber {
+  width: 32px; height: 4px; border-radius: 2px;
+  background: rgba(235,235,245,0.4);
+  margin: 0 auto 16px;
+}
+.chooser .h {
+  padding: 0 24px 8px;
+  display: flex; align-items: center; gap: 12px;
+}
+.chooser .h .icn {
+  width: 32px; height: 32px; border-radius: 4px;
+  background: #1C1C1E;
+  display: flex; align-items: center; justify-content: center;
+  color: #B794F6;
+}
+.chooser .h .title {
+  font-size: 14px; color: #fff; font-weight: 500;
+}
+.chooser .h .sub {
+  font-size: 12px; color: rgba(235,235,245,0.55);
+  font-family: 'Geist Mono', monospace;
+}
+.chooser .targets {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+  padding: 12px 12px 4px;
+}
+.chooser .target {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 4px; border-radius: 8px;
+}
+.chooser .target:hover { background: rgba(255,255,255,0.04); }
+.chooser .target .tg-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; color: #fff;
+}
+.chooser .target .tg-icon.files { background: linear-gradient(135deg,#3B82F6,#1E40AF); }
+.chooser .target .tg-icon.gmail { background: #fff; color: #EA4335; }
+.chooser .target .tg-icon.msgs { background: #00C853; }
+.chooser .target .tg-icon.drive { background: #0F9D58; }
+.chooser .target .tg-icon.nearby { background: linear-gradient(135deg,#4285F4,#0F9D58); color: #fff; }
+.chooser .target .tg-icon.tg { background: #29B6F6; }
+.chooser .target .tg-icon.wa { background: #25D366; }
+.chooser .target .tg-icon.more {
+  background: #1C1C1E; color: rgba(235,235,245,0.7);
+}
+.chooser .target .tg-label {
+  font-size: 11px; color: rgba(235,235,245,0.85);
+  text-align: center;
+  line-height: 1.2;
+  max-width: 70px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Import success preview sheet */
+.preview-list {
+  margin-top: 16px;
+  padding: 0 4px 0 24px;
+}
+.preview-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0;
+}
+.preview-row .th {
+  width: 40px; height: 40px; border-radius: 6px;
+  flex-shrink: 0; overflow: hidden;
+}
+.preview-row .th.a { background: linear-gradient(135deg, #4F378B, #B794F6); }
+.preview-row .th.b { background: linear-gradient(135deg, #1E40AF, #38BDF8); }
+.preview-row .th.c { background: linear-gradient(135deg, #B45309, #F59E0B); }
+.preview-row .th.d { background: linear-gradient(135deg, #047857, #34D399); }
+.preview-row .th.e { background: linear-gradient(135deg, #BE185D, #F472B6); }
+.preview-row .ti { flex: 1; min-width: 0; }
+.preview-row .ti .t {
+  font-size: 14px; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.preview-row .ti .c {
+  font-size: 12px; color: rgba(235,235,245,0.55);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;
+}
+.preview-more {
+  padding: 8px 24px 4px;
+  font-size: 13px; color: rgba(235,235,245,0.55);
+}
+
+/* Error variant — full-screen */
+.errstate {
+  position: absolute; inset: 32px 0 0;
+  background: #0F0F0F; z-index: 30;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px 24px;
+  text-align: center;
+}
+.errstate .ic {
+  width: 56px; height: 56px; color: rgba(235,235,245,0.4);
+  margin-bottom: 24px;
+}
+.errstate .et {
+  font-size: 22px; font-weight: 500; color: #fff;
+  margin-bottom: 12px; line-height: 1.25;
+  text-wrap: pretty;
+}
+.errstate .eb {
+  font-size: 14px; color: rgba(235,235,245,0.7);
+  line-height: 1.5; max-width: 280px;
+  text-wrap: pretty;
+  margin-bottom: 32px;
+}
+.errstate .btn { width: 100%; max-width: 280px; }
+
+/* Annotation pins */
+.pin-track {
+  position: absolute; pointer-events: none;
+  font-family: 'Geist Mono', monospace;
+  font-size: 9.5px; color: rgba(139,92,246,0.95);
+  letter-spacing: 0.05em;
+}
+.pin {
+  position: absolute; pointer-events: none;
+  font-family: 'Geist Mono', monospace;
+  font-size: 9.5px; color: rgba(139,92,246,0.95);
+  letter-spacing: 0.04em;
+  padding-left: 12px;
+  max-width: 140px;
+  line-height: 1.4;
+}
+.pin::before {
+  content: ''; position: absolute; left: 0; top: 7px;
+  width: 8px; height: 1px; background: rgba(139,92,246,0.6);
+}
+.pin .sub {
+  display: block; color: rgba(235,235,245,0.5); font-weight: 500;
+  margin-top: 2px;
+}
+
+/* Number badge on caption */
+.caption .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 6px;
+  background: rgba(139,92,246,0.22); color: #B794F6;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; font-weight: 600;
+  margin-right: 8px;
+  vertical-align: -4px;
+}
+
+::-webkit-scrollbar { width: 0; height: 0; }
+</style>
+</head>
+<body data-screen-label="00 Mockup states">
+
+<div class="page-head">
+  <div class="lhs">
+    <span class="badge">YT-0016 · STATES</span>
+    <h1>Android Playlist Sharing — All states</h1>
+  </div>
+  <div class="meta">YourTube · Android 360×800 dp · Material 3 · #8B5CF6</div>
+</div>
+
+<div class="subhead">
+  Every state called out in the handoff package, on the Android-360 frame in dark theme. Read alongside
+  <a href="decision-log.md">decision-log.md</a> · <a href="compose-spec.md">compose-spec.md</a> ·
+  <a href="haptics-and-a11y.md">haptics-and-a11y.md</a>. Catalog cells referenced: state-catalog C15 (op loading),
+  C16 (op inline error), toast-catalog T05 / T06 / T13.
+</div>
+
+<div class="grid">
+
+  <!-- ═══════════════════════════ 01 EXPORT SHEET — IDLE ═══════════════════════════ -->
+  <div class="cell" data-screen-label="01 Export sheet idle">
+    <div class="phone">
+      <div class="punch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <div class="right">
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.3" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="8.6" y="1" width="3" height="10" rx="0.8"/><rect x="12.9" y="0" width="3" height="11" rx="0.8" opacity="0.4"/></svg>
+          <svg width="22" height="11" viewBox="0 0 24 12" fill="none"><rect x="0.5" y="0.5" width="20" height="11" rx="2.5" stroke="white" stroke-opacity="0.5"/><rect x="2" y="2" width="14" height="8" rx="1.5" fill="white"/><path d="M22 4.5V7.5C22.6 7.2 23 6.6 23 6S22.6 4.8 22 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+      <div class="screen">
+        <!-- background: Library blurred -->
+        <div class="topbar" style="opacity:0.45;"><div class="title">Library</div><div class="iconbtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="18" r="1.8"/></svg></div></div>
+        <div class="librarylist" style="opacity:0.35;">
+          <div class="row"><div class="cover"></div><div class="meta"><div class="name">My Mix</div><div class="sub">12 tracks</div></div></div>
+          <div class="row"><div class="cover b"></div><div class="meta"><div class="name">Late nights</div><div class="sub">42 tracks</div></div></div>
+        </div>
+
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="grabber"></div>
+          <h2>My Mix</h2>
+          <div class="metaline">12 tracks · 4.2 KB · <span class="mono">.ytplaylist.json</span></div>
+          <div class="actions">
+            <div class="btn filled">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              SHARE
+            </div>
+            <div class="btn outlined">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              SAVE TO FILES
+            </div>
+            <div class="btn text">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Copy link
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">01</span>Export sheet — idle</strong>
+      <span class="tag">Q2</span> ModalBottomSheet anchored at <span class="ref">skipPartiallyExpanded = true</span>, surfaceContainerHigh. Title + metadata row + 3-button action stack. Primary <span class="ref">Intent.ACTION_SEND</span>, secondary <span class="ref">ACTION_CREATE_DOCUMENT</span>, tertiary copies the <em>deep link</em>, not the file URI.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 02 SHARE-TARGET PICKER ═══════════════════════════ -->
+  <div class="cell" data-screen-label="02 Share target picker">
+    <div class="phone">
+      <div class="punch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <div class="right">
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.3" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="8.6" y="1" width="3" height="10" rx="0.8"/><rect x="12.9" y="0" width="3" height="11" rx="0.8" opacity="0.4"/></svg>
+          <svg width="22" height="11" viewBox="0 0 24 12" fill="none"><rect x="0.5" y="0.5" width="20" height="11" rx="2.5" stroke="white" stroke-opacity="0.5"/><rect x="2" y="2" width="14" height="8" rx="1.5" fill="white"/><path d="M22 4.5V7.5C22.6 7.2 23 6.6 23 6S22.6 4.8 22 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+      <div class="screen">
+        <div class="scrim"></div>
+        <!-- system chooser -->
+        <div class="chooser">
+          <div class="grabber"></div>
+          <div class="h">
+            <div class="icn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 12h6M12 9v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+            <div>
+              <div class="title">My Mix.ytplaylist.json</div>
+              <div class="sub">application/json · 4.2 KB</div>
+            </div>
+          </div>
+          <div class="targets">
+            <div class="target"><div class="tg-icon nearby">∞</div><div class="tg-label">Nearby Share</div></div>
+            <div class="target"><div class="tg-icon files">F</div><div class="tg-label">Files</div></div>
+            <div class="target"><div class="tg-icon gmail">M</div><div class="tg-label">Gmail</div></div>
+            <div class="target"><div class="tg-icon drive">D</div><div class="tg-label">Drive</div></div>
+            <div class="target"><div class="tg-icon msgs">●</div><div class="tg-label">Messages</div></div>
+            <div class="target"><div class="tg-icon wa">●</div><div class="tg-label">WhatsApp</div></div>
+            <div class="target"><div class="tg-icon tg">T</div><div class="tg-label">Telegram</div></div>
+            <div class="target"><div class="tg-icon more">⋯</div><div class="tg-label">More</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">02</span>Share-target picker (system chooser)</strong>
+      <span class="tag">Q2</span> System <span class="ref">Intent.createChooser</span> — owned by the OS. We do not draw this; the schematic shows what the user sees after tapping <strong>Share</strong> in state 01. Targets, ordering, and theming are platform-owned.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 03 OP LOADING (C15) ═══════════════════════════ -->
+  <div class="cell" data-screen-label="03 Op loading C15">
+    <div class="phone">
+      <div class="punch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <div class="right">
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.3" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="8.6" y="1" width="3" height="10" rx="0.8"/><rect x="12.9" y="0" width="3" height="11" rx="0.8" opacity="0.4"/></svg>
+          <svg width="22" height="11" viewBox="0 0 24 12" fill="none"><rect x="0.5" y="0.5" width="20" height="11" rx="2.5" stroke="white" stroke-opacity="0.5"/><rect x="2" y="2" width="14" height="8" rx="1.5" fill="white"/><path d="M22 4.5V7.5C22.6 7.2 23 6.6 23 6S22.6 4.8 22 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+      <div class="screen">
+        <div class="topbar" style="opacity:0.4;"><div class="title">Library</div></div>
+        <div class="librarylist" style="opacity:0.3;">
+          <div class="row"><div class="cover"></div><div class="meta"><div class="name">My Mix</div><div class="sub">12 tracks</div></div></div>
+        </div>
+        <div class="scrim glass-loading">
+          <div class="spinner"></div>
+          <div class="c15-label">C15 · op loading · non-cancellable</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">03</span>Op loading overlay (C15)</strong>
+      <span class="tag">Q10</span> Full-screen, non-cancellable scrim + <span class="ref">CircularProgressIndicator</span>. Posts <em>"Loading"</em> to TalkBack on appear; nothing on dismiss. Covers (a) export file generation and (b) import parse. No cancel in MVP.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 04 SYSTEM FILE PICKER ═══════════════════════════ -->
+  <div class="cell" data-screen-label="04 Import file picker">
+    <div class="phone">
+      <div class="punch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <div class="right">
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.3" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="8.6" y="1" width="3" height="10" rx="0.8"/><rect x="12.9" y="0" width="3" height="11" rx="0.8" opacity="0.4"/></svg>
+          <svg width="22" height="11" viewBox="0 0 24 12" fill="none"><rect x="0.5" y="0.5" width="20" height="11" rx="2.5" stroke="white" stroke-opacity="0.5"/><rect x="2" y="2" width="14" height="8" rx="1.5" fill="white"/><path d="M22 4.5V7.5C22.6 7.2 23 6.6 23 6S22.6 4.8 22 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+      <div class="screen">
+        <div class="docui">
+          <div class="titlebar">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff;"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            <div class="label">Documents</div>
+            <div style="margin-left:auto; display:flex; gap: 16px; color: rgba(235,235,245,0.7);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="18" r="1.8"/></svg>
+            </div>
+          </div>
+          <div class="pathbar">
+            <span>Downloads</span>
+            <span style="color:rgba(235,235,245,0.4);">›</span>
+            <span class="crumb">YourTube</span>
+          </div>
+          <div class="files">
+            <div class="filerow">
+              <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <div class="fname">My Mix.ytplaylist.json</div>
+              <div class="fsize">4.2 KB</div>
+            </div>
+            <div class="filerow">
+              <div class="icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <div class="fname">Late nights.ytplaylist.json</div>
+              <div class="fsize">14.8 KB</div>
+            </div>
+            <div class="filerow">
+              <div class="icon warn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <div class="fname" style="color: rgba(235,235,245,0.5);">notes.txt</div>
+              <div class="fsize">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">04</span>System file picker (<span class="ref">ACTION_OPEN_DOCUMENT</span>)</strong>
+      <span class="tag">Q1</span> MIME array narrowed by YT-0068 to <span class="ref">["application/json", "application/octet-stream"]</span>. <em>notes.txt</em> appears greyed because it's outside the MIME filter — the post-YT-0068 fix.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 05 IMPORT SUCCESS SHEET ═══════════════════════════ -->
+  <div class="cell" data-screen-label="05 Import success">
+    <div class="phone">
+      <div class="punch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <div class="right">
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.3" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="8.6" y="1" width="3" height="10" rx="0.8"/><rect x="12.9" y="0" width="3" height="11" rx="0.8" opacity="0.4"/></svg>
+          <svg width="22" height="11" viewBox="0 0 24 12" fill="none"><rect x="0.5" y="0.5" width="20" height="11" rx="2.5" stroke="white" stroke-opacity="0.5"/><rect x="2" y="2" width="14" height="8" rx="1.5" fill="white"/><path d="M22 4.5V7.5C22.6 7.2 23 6.6 23 6S22.6 4.8 22 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+      <div class="screen">
+        <div class="topbar" style="opacity:0.4;"><div class="title">Library</div></div>
+        <div class="librarylist" style="opacity:0.3;"><div class="row"><div class="cover"></div><div class="meta"><div class="name">My Mix</div></div></div></div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="grabber"></div>
+          <h2>Imported "My Mix" — 12 tracks</h2>
+          <div class="preview-list">
+            <div class="preview-row"><div class="th a"></div><div class="ti"><div class="t">Chill Lofi Mix — Deep Focus</div><div class="c">ChillHop Music</div></div></div>
+            <div class="preview-row"><div class="th b"></div><div class="ti"><div class="t">Comfortably Numb</div><div class="c">Pink Floyd · The Wall</div></div></div>
+            <div class="preview-row"><div class="th c"></div><div class="ti"><div class="t">Hotel California</div><div class="c">Eagles</div></div></div>
+            <div class="preview-row"><div class="th d"></div><div class="ti"><div class="t">Bohemian Rhapsody</div><div class="c">Queen</div></div></div>
+            <div class="preview-row"><div class="th e"></div><div class="ti"><div class="t">November Rain</div><div class="c">Guns N' Roses</div></div></div>
+          </div>
+          <div class="preview-more">+ 7 more tracks</div>
+          <div class="actions" style="padding-top: 16px;">
+            <div class="btn filled">DONE</div>
+            <div class="btn text">View Playlist</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">05</span>Import success preview sheet</strong>
+      <span class="tag">Q4</span> ModalBottomSheet — title, 5-row preview LazyColumn, <em>+ N more</em> rollup. <strong>Done</strong> dismisses and stays on Library; <strong>View Playlist</strong> pushes <span class="ref">AppRoute.PlaylistDetail(id)</span>. T06 fires <em>after</em> dismiss.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 06 ERROR — PARSE ═══════════════════════════ -->
+  <div class="cell" data-screen-label="06 Error parse">
+    <div class="phone">
+      <div class="punch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <div class="right">
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.3" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="8.6" y="1" width="3" height="10" rx="0.8"/><rect x="12.9" y="0" width="3" height="11" rx="0.8" opacity="0.4"/></svg>
+          <svg width="22" height="11" viewBox="0 0 24 12" fill="none"><rect x="0.5" y="0.5" width="20" height="11" rx="2.5" stroke="white" stroke-opacity="0.5"/><rect x="2" y="2" width="14" height="8" rx="1.5" fill="white"/><path d="M22 4.5V7.5C22.6 7.2 23 6.6 23 6S22.6 4.8 22 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+      <div class="screen">
+        <div class="errstate">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div class="et">Couldn't import playlist — file is invalid.</div>
+          <div class="eb">This .ytplaylist.json doesn't match the expected format. Make sure you're importing a file that was exported by YourTube.</div>
+          <div class="btn filled" style="width: 100%; max-width: 280px;">TRY AGAIN</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">06</span>Error — parse failure</strong>
+      <span class="tag">Q7.1</span> C16 styling scaled up. Icon at <span class="ref">onSurfaceVariant</span> — NOT red (state-catalog rule). Posts an Assertive announcement on first appearance; re-renders drop to Polite.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 07 ERROR — FUTURE SCHEMA ═══════════════════════════ -->
+  <div class="cell" data-screen-label="07 Error future schema">
+    <div class="phone">
+      <div class="punch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <div class="right">
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.3" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="8.6" y="1" width="3" height="10" rx="0.8"/><rect x="12.9" y="0" width="3" height="11" rx="0.8" opacity="0.4"/></svg>
+          <svg width="22" height="11" viewBox="0 0 24 12" fill="none"><rect x="0.5" y="0.5" width="20" height="11" rx="2.5" stroke="white" stroke-opacity="0.5"/><rect x="2" y="2" width="14" height="8" rx="1.5" fill="white"/><path d="M22 4.5V7.5C22.6 7.2 23 6.6 23 6S22.6 4.8 22 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+      <div class="screen">
+        <div class="errstate">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/></svg>
+          <div class="et">Update YourTube to import this file.</div>
+          <div class="eb">This playlist was exported from a newer version of YourTube. Update the app to import it.</div>
+          <div class="btn filled" style="width: 100%; max-width: 280px;">OPEN PLAY STORE</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">07</span>Error — future-schema rejection</strong>
+      <span class="tag">Q5</span> Hard rejection — no "Import anyway". Primary action diverges from the other 3 variants — <strong>Open Play Store</strong>, not Try Again. Cite <span class="ref">docs/api-contracts.md § Schema versioning</span>.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 08 ERROR — WRONG EXTENSION ═══════════════════════════ -->
+  <div class="cell" data-screen-label="08 Error wrong extension">
+    <div class="phone">
+      <div class="punch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <div class="right">
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.3" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="8.6" y="1" width="3" height="10" rx="0.8"/><rect x="12.9" y="0" width="3" height="11" rx="0.8" opacity="0.4"/></svg>
+          <svg width="22" height="11" viewBox="0 0 24 12" fill="none"><rect x="0.5" y="0.5" width="20" height="11" rx="2.5" stroke="white" stroke-opacity="0.5"/><rect x="2" y="2" width="14" height="8" rx="1.5" fill="white"/><path d="M22 4.5V7.5C22.6 7.2 23 6.6 23 6S22.6 4.8 22 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+      <div class="screen">
+        <div class="errstate">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="12" cy="15" r="1.2"/><path d="M10.5 12.5a1.5 1.5 0 1 1 2.4 1.2c-.5.4-.9.7-.9 1.3"/></svg>
+          <div class="et">Choose a .ytplaylist.json file to import.</div>
+          <div class="eb">Select a YourTube playlist file. The file name should end with .ytplaylist.json.</div>
+          <div class="btn filled" style="width: 100%; max-width: 280px;">TRY AGAIN</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">08</span>Error — wrong extension</strong>
+      <span class="tag">Q7.3</span> The picker's MIME filter is a first gate; the in-app filename suffix check (case-insensitive) is the second. This state shows after the second gate rejects.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 09 LIBRARY OVERFLOW ═══════════════════════════ -->
+  <div class="cell" data-screen-label="09 Library overflow menu">
+    <div class="phone">
+      <div class="punch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <div class="right">
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.3" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="8.6" y="1" width="3" height="10" rx="0.8"/><rect x="12.9" y="0" width="3" height="11" rx="0.8" opacity="0.4"/></svg>
+          <svg width="22" height="11" viewBox="0 0 24 12" fill="none"><rect x="0.5" y="0.5" width="20" height="11" rx="2.5" stroke="white" stroke-opacity="0.5"/><rect x="2" y="2" width="14" height="8" rx="1.5" fill="white"/><path d="M22 4.5V7.5C22.6 7.2 23 6.6 23 6S22.6 4.8 22 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+      <div class="screen">
+        <div class="topbar">
+          <div class="title">Library</div>
+          <div class="iconbtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+          <div class="iconbtn" style="background: rgba(255,255,255,0.06);"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="18" r="1.8"/></svg></div>
+        </div>
+        <div class="librarylist">
+          <div class="row"><div class="cover"></div><div class="meta"><div class="name">My Mix</div><div class="sub">12 tracks</div></div></div>
+          <div class="row"><div class="cover b"></div><div class="meta"><div class="name">Late nights</div><div class="sub">42 tracks</div></div></div>
+          <div class="row"><div class="cover c"></div><div class="meta"><div class="name">Workout</div><div class="sub">28 tracks</div></div></div>
+          <div class="row"><div class="cover d"></div><div class="meta"><div class="name">Roadtrip</div><div class="sub">86 tracks</div></div></div>
+        </div>
+        <div class="menu" style="top: 88px; right: 8px;">
+          <div class="item">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Import playlist…
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">09</span>Library top-app-bar overflow</strong>
+      <span class="tag">Q3.1</span> M3 <span class="ref">DropdownMenu</span> anchored to the overflow icon. Single item "Import playlist…" (trailing ellipsis = opens a picker). Launches the <span class="ref">OpenDocument()</span> contract.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 10 PER-PLAYLIST CONTEXT MENU ═══════════════════════════ -->
+  <div class="cell" data-screen-label="10 Playlist context menu">
+    <div class="phone">
+      <div class="punch"></div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <div class="right">
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.3" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="8.6" y="1" width="3" height="10" rx="0.8"/><rect x="12.9" y="0" width="3" height="11" rx="0.8" opacity="0.4"/></svg>
+          <svg width="22" height="11" viewBox="0 0 24 12" fill="none"><rect x="0.5" y="0.5" width="20" height="11" rx="2.5" stroke="white" stroke-opacity="0.5"/><rect x="2" y="2" width="14" height="8" rx="1.5" fill="white"/><path d="M22 4.5V7.5C22.6 7.2 23 6.6 23 6S22.6 4.8 22 4.5z" fill="white"/></svg>
+        </div>
+      </div>
+      <div class="screen">
+        <div class="topbar">
+          <div class="title">Library</div>
+          <div class="iconbtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+          <div class="iconbtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="18" r="1.8"/></svg></div>
+        </div>
+        <div class="librarylist">
+          <div class="row" style="background: rgba(139,92,246,0.12); border-radius: 12px;"><div class="cover"></div><div class="meta"><div class="name">My Mix</div><div class="sub">12 tracks</div></div></div>
+          <div class="row" style="opacity: 0.35;"><div class="cover b"></div><div class="meta"><div class="name">Late nights</div><div class="sub">42 tracks</div></div></div>
+          <div class="row" style="opacity: 0.35;"><div class="cover c"></div><div class="meta"><div class="name">Workout</div><div class="sub">28 tracks</div></div></div>
+        </div>
+        <div class="menu" style="top: 140px; left: 72px;">
+          <div class="item">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+            Play next
+          </div>
+          <div class="item">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="13" y2="18"/><line x1="17" y1="15" x2="22" y2="15"/><line x1="19.5" y1="12.5" x2="19.5" y2="17.5"/></svg>
+            Add to queue
+          </div>
+          <div class="sep"></div>
+          <div class="item">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Share…
+          </div>
+          <div class="item">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Rename…
+          </div>
+          <div class="sep"></div>
+          <div class="item destructive">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+            Delete…
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">10</span>Per-playlist long-press context menu</strong>
+      <span class="tag">Q3.2</span> M3 anchored <span class="ref">DropdownMenu</span> opened by long-press on a <span class="ref">PlaylistRow</span>. Order: Play next · Add to queue · <strong>Share…</strong> · Rename… · Delete… The trailing ellipsis on Share signals "opens a sheet, not an immediate send".
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

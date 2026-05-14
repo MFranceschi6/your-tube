@@ -77,6 +77,23 @@ interface PlaybackTransportListener {
      * compiling with no source changes.
      */
     fun onBufferingStateChanged(isBuffering: Boolean) = Unit
+
+    /**
+     * YT-0309 round-5 — engine dropped to `Player.STATE_IDLE` AFTER having held a playable
+     * MediaItem (the buffer drained, the network died mid-stream, or a hard error untracked
+     * by `STATE_ENDED` made the engine give up). The controller must treat this as
+     * "engineLoaded is now false" so the next `resume()` re-enters the `playQueueItem` path
+     * (and its 15s `withTimeoutOrNull` ceiling) rather than calling `playbackTransport.resume()`
+     * against a now-empty engine — which is the bug that left the spinner stuck during the
+     * airplane-mode round-5 smoke.
+     *
+     * Pre-prepare IDLE is filtered upstream in the transport (a `@Volatile` "has ever been
+     * non-IDLE" guard) so this callback only fires for real "engine gave up after running"
+     * transitions, not for cold-start / release transitions.
+     *
+     * Default body: pre-existing fakes / call sites that do not need to react keep compiling.
+     */
+    fun onEngineUnloaded() = Unit
 }
 
 interface PlaybackTransport {
@@ -127,4 +144,11 @@ interface PlaybackTransport {
      * `REPEAT_MODE_ONE` = 1, `REPEAT_MODE_ALL` = 2).
      */
     suspend fun setRepeatMode(mode: Int)
+
+    /**
+     * Applies [speed] to the underlying player's `PlaybackParameters`. Values outside the
+     * 0.5–2.0 range are silently clamped by ExoPlayer; callers should validate before calling.
+     * No-op default so pre-existing fakes and test doubles compile without changes.
+     */
+    suspend fun setPlaybackSpeed(speed: Float) = Unit
 }

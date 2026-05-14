@@ -31,6 +31,9 @@ dependencies {
     // Hilt provides the javax.inject annotations used on @Inject constructors.
     // Hilt graph generation still happens in :app (no ksp here).
     implementation(libs.hilt.android)
+    // YT-0251: OkHttp is already on the version catalog; used by RemoteUpdateCheckRepository
+    // for the hosted update-feed fetch. No new library is introduced.
+    implementation(libs.okhttp)
 
     testImplementation(libs.kotlin.test)
     testImplementation(libs.junit4)
@@ -39,4 +42,6 @@ dependencies {
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
+    // YT-0251: MockWebServer for RemoteUpdateCheckRepositoryTest — same version as OkHttp.
+    testImplementation(libs.okhttp.mockwebserver)
 }

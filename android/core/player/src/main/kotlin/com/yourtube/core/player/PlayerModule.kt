@@ -29,6 +29,16 @@ abstract class PlayerModule {
     @Singleton
     abstract fun bindLogger(impl: AndroidLogger): Logger
 
+    /** YT-0093 — Sleep timer. */
+    @Binds
+    @Singleton
+    abstract fun bindSleepTimerController(impl: DefaultSleepTimerController): SleepTimerController
+
+    /** YT-0089 — Autoplay controller. */
+    @Binds
+    @Singleton
+    abstract fun bindAutoplayController(impl: DefaultAutoplayController): AutoplayController
+
     companion object {
 
         /**

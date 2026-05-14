@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.yourtube.core.common.model.Playlist
 import com.yourtube.core.common.model.Track
+import com.yourtube.core.data.repository.AddTrackResult
 import com.yourtube.core.database.PlaylistDatabase
 import java.time.Clock
 import java.time.Instant
@@ -14,6 +15,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.filterNotNull
@@ -301,6 +303,44 @@ class PlaylistRepositoryTest {
         val history = repository.observeHistory().first()
         assertEquals(listOf(trackOne, trackTwo), history.map { it.track })
         assertEquals("2026-05-02T12:00:00Z", history.first { it.track == trackOne }.playedAt)
+    }
+
+    // YT-0264: addTrackToPlaylist returns Added on first insert and AlreadyPresent on duplicate.
+    @Test
+    fun `addTrackToPlaylist returns Added on first insert`() = runTest {
+        val repository = repositoryAt(initialInstant)
+        repository.createPlaylist(name = "P", playlistId = "p-add-result")
+
+        val result = repository.addTrackToPlaylist("p-add-result", trackOne)
+
+        assertIs<AddTrackResult.Added>(result)
+        assertEquals(listOf(trackOne), repository.observePlaylist("p-add-result").first()?.tracks)
+    }
+
+    @Test
+    fun `addTrackToPlaylist returns AlreadyPresent and does not duplicate on second insert`() = runTest {
+        val repository = repositoryAt(initialInstant)
+        repository.createPlaylist(name = "P", tracks = listOf(trackOne), playlistId = "p-dup")
+
+        val result = repository.addTrackToPlaylist("p-dup", trackOne)
+
+        assertIs<AddTrackResult.AlreadyPresent>(result)
+        // Track count must remain 1 — no duplicate inserted.
+        assertEquals(1, repository.observePlaylist("p-dup").first()?.tracks?.size)
+    }
+
+    @Test
+    fun `createPlaylist deduplicates tracks with same videoId`() = runTest {
+        val repository = repositoryAt(initialInstant)
+        val duplicate = trackOne.copy(title = "Different title, same videoId")
+        val playlist = repository.createPlaylist(
+            name = "Deduplicated",
+            tracks = listOf(trackOne, trackTwo, duplicate),
+            playlistId = "p-dedup",
+        )
+
+        assertEquals(2, playlist.tracks.size)
+        assertEquals(listOf(trackOne, trackTwo), playlist.tracks)
     }
 
     private fun repositoryAt(now: Instant): PlaylistRepository =

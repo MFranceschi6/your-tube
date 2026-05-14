@@ -38,10 +38,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.yourtube.core.common.model.QueueItem
+import com.yourtube.core.common.model.SleepTimerPreset
+import com.yourtube.core.common.model.SleepTimerState
 import com.yourtube.core.common.model.Track
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -234,18 +237,35 @@ fun PlayerOverlay(
     isPlaying: Boolean,
     isBuffering: Boolean,
     progressFraction: Float,
+    shuffleOn: Boolean = false,
+    repeatMode: Int = 0,
     onPlayPauseClick: () -> Unit,
     onSkipNextClick: () -> Unit,
     onSkipPreviousClick: () -> Unit,
     onExpandClick: () -> Unit,
     onCollapseClick: () -> Unit,
     onSeek: (Float) -> Unit,
+    onShuffleModeChange: (Boolean) -> Unit = {},
+    onRepeatModeChange: (Int) -> Unit = {},
+    onShareTrack: () -> Unit = {},
+    onAddToPlaylist: () -> Unit = {},
     navBarHeight: Dp,
     queue: List<QueueItem> = emptyList(),
     currentQueueIndex: Int = 0,
     onRemoveQueueItem: (queueId: String) -> Unit = {},
     onMoveQueueItem: (Int, Int) -> Unit = { _, _ -> },
+    onJumpToQueueItem: (Int) -> Unit = {},
+    onPlayNextFromQueue: (queueId: String) -> Unit = {},
+    onAddToQueueFromQueue: (queueId: String) -> Unit = {},
     onMiniPlayerSizeChanged: (Dp) -> Unit = {},
+    playbackSpeed: Float = 1.0f,
+    onSpeedChange: (Float) -> Unit = {},
+    durationMs: Long = 0L,
+    positionMs: Long = 0L,
+    /** YT-0093 — current sleep-timer state, forwarded to NowPlayingChrome. */
+    sleepTimerState: SleepTimerState = SleepTimerState.Inactive,
+    onSetSleepTimer: (SleepTimerPreset) -> Unit = {},
+    onCancelSleepTimer: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (currentTrack == null) return
@@ -281,15 +301,31 @@ fun PlayerOverlay(
                 isPlaying = isPlaying,
                 isBuffering = isBuffering,
                 progressFraction = progressFraction,
+                shuffleOn = shuffleOn,
+                repeatMode = repeatMode,
                 onPlayPauseClick = onPlayPauseClick,
                 onSkipNextClick = onSkipNextClick,
                 onSkipPreviousClick = onSkipPreviousClick,
                 onCollapseClick = onCollapseClick,
                 onSeek = onSeek,
+                onShuffleModeChange = onShuffleModeChange,
+                onRepeatModeChange = onRepeatModeChange,
+                onShareTrack = onShareTrack,
+                onAddToPlaylist = onAddToPlaylist,
                 queue = queue,
                 currentQueueIndex = currentQueueIndex,
                 onRemoveQueueItem = onRemoveQueueItem,
                 onMoveQueueItem = onMoveQueueItem,
+                onJumpToQueueItem = onJumpToQueueItem,
+                onPlayNextFromQueue = onPlayNextFromQueue,
+                onAddToQueueFromQueue = onAddToQueueFromQueue,
+                playbackSpeed = playbackSpeed,
+                onSpeedChange = onSpeedChange,
+                durationMs = durationMs,
+                positionMs = positionMs,
+                sleepTimerState = sleepTimerState,
+                onSetSleepTimer = onSetSleepTimer,
+                onCancelSleepTimer = onCancelSleepTimer,
                 chromeAlphaProvider = {
                     clampNorm(state.progressProvider(), 80f / 320f, 280f / 320f)
                 },
@@ -436,7 +472,7 @@ private fun ArtworkBox(
             if (track.thumbnailUrl.isNotEmpty()) {
                 AsyncImage(
                     model = track.thumbnailUrl,
-                    contentDescription = "Album art for ${track.title}",
+                    contentDescription = stringResource(R.string.cd_now_playing_artwork, track.title),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )

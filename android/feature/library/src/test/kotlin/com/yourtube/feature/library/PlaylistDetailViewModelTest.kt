@@ -5,10 +5,15 @@ import com.yourtube.core.common.model.Playlist
 import com.yourtube.core.common.model.Track
 import com.yourtube.core.data.codec.PlaylistCodec
 import com.yourtube.core.data.model.PlaybackHistoryEntry
+import com.yourtube.core.data.repository.AddTrackResult
 import com.yourtube.core.data.repository.PlaylistRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -129,7 +135,7 @@ class PlaylistDetailViewModelTest {
         ): Playlist = error("unused")
         override suspend fun renamePlaylist(playlistId: String, newName: String) = Unit
         override suspend fun deletePlaylist(playlistId: String) = Unit
-        override suspend fun addTrackToPlaylist(playlistId: String, track: Track) = Unit
+        override suspend fun addTrackToPlaylist(playlistId: String, track: Track): AddTrackResult = AddTrackResult.Added
         override suspend fun removeTrackFromPlaylist(playlistId: String, position: Int) = Unit
         override suspend fun removeTrackFromPlaylist(playlistId: String, trackVideoId: String) = Unit
         override suspend fun reorderTracks(playlistId: String, fromIndex: Int, toIndex: Int) = Unit
@@ -189,7 +195,7 @@ class PlaylistDetailViewModelTest {
         ): Playlist = error("unused")
         override suspend fun renamePlaylist(playlistId: String, newName: String) = Unit
         override suspend fun deletePlaylist(playlistId: String) = Unit
-        override suspend fun addTrackToPlaylist(playlistId: String, track: Track) = Unit
+        override suspend fun addTrackToPlaylist(playlistId: String, track: Track): AddTrackResult = AddTrackResult.Added
         override suspend fun removeTrackFromPlaylist(playlistId: String, position: Int) = Unit
         override suspend fun removeTrackFromPlaylist(playlistId: String, trackVideoId: String) {
             mutex.withLock {
@@ -204,6 +210,216 @@ class PlaylistDetailViewModelTest {
             error("unused")
         override suspend fun clearHistory() = Unit
         override suspend fun removeHistoryEntry(entryId: String) = Unit
+    }
+
+    // ── YT-0063a v2 Q3 — reorder tests ───────────────────────────────────────
+
+    @Test
+    fun `reorderTracks calls repository with correct from and to args`() = runTest(dispatcher) {
+        val playlist = Playlist("p", "P", "now", "now", listOf(trackOne, trackTwo, trackThree))
+        val repo = RecordingRepository(playlist)
+        val viewModel = PlaylistDetailViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("playlistId" to "p")),
+            repository = repo,
+            codec = NoopPlaylistCodec(),
+        )
+        viewModel.reorderTracks(0, 2)
+        advanceUntilIdle()
+        assertEquals(listOf(Triple("p", 0, 2)), repo.reorderCalls)
+    }
+
+    @Test
+    fun `queueRemoval records oldPosition and undoRemoval cancels the pending delete`() =
+        runTest(dispatcher) {
+            val playlist = Playlist("p", "P", "now", "now", listOf(trackOne, trackTwo, trackThree))
+            val repo = RecordingRepository(playlist)
+            val viewModel = PlaylistDetailViewModel(
+                savedStateHandle = SavedStateHandle(mapOf("playlistId" to "p")),
+                repository = repo,
+                codec = NoopPlaylistCodec(),
+            )
+
+            // Queue a removal at position 1 (trackTwo)
+            viewModel.queueRemoval(trackTwo, oldPosition = 1, commitDelayMs = 5_000L)
+
+            // Verify pending removal is recorded with the right oldPosition (state updates synchronously)
+            val pending = viewModel.pendingRemovals.value[trackTwo.videoId]
+            assertNotNull(pending)
+            assertEquals(1, pending.oldPosition)
+            assertEquals(trackTwo.videoId, pending.trackId)
+
+            // Undo: the commit job should be cancelled and the track NOT deleted
+            viewModel.undoRemoval(trackTwo.videoId)
+            advanceUntilIdle()
+
+            assertNull(viewModel.pendingRemovals.value[trackTwo.videoId])
+            // Repository should NOT have been called for removal since we undid it
+            assertFalse(repo.removedVideoIds.contains(trackTwo.videoId))
+        }
+
+    @Test
+    fun `snackbar dismissal commits Room delete after delay`() = runTest(dispatcher) {
+        val playlist = Playlist("p", "P", "now", "now", listOf(trackOne, trackTwo, trackThree))
+        val repo = RecordingRepository(playlist)
+        val viewModel = PlaylistDetailViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("playlistId" to "p")),
+            repository = repo,
+            codec = NoopPlaylistCodec(),
+        )
+
+        // Simulate a 4 s snackbar window with no Undo tap
+        viewModel.queueRemoval(trackOne, oldPosition = 0, commitDelayMs = 4_000L)
+
+        // Before delay: not yet committed
+        advanceTimeBy(3_999L)
+        assertFalse(repo.removedVideoIds.contains(trackOne.videoId))
+
+        // After delay: committed
+        advanceTimeBy(2L)
+        advanceUntilIdle()
+        assertTrue(repo.removedVideoIds.contains(trackOne.videoId))
+        assertNull(viewModel.pendingRemovals.value[trackOne.videoId])
+    }
+
+    /**
+     * Recording repository for v2 Q3 tests: tracks reorder calls and video-id removals.
+     */
+    private class RecordingRepository(initial: Playlist) : PlaylistRepository {
+        private val state = MutableStateFlow(listOf(initial))
+        val reorderCalls = mutableListOf<Triple<String, Int, Int>>()
+        val removedVideoIds = mutableListOf<String>()
+
+        override fun observePlaylists(): Flow<List<Playlist>> = state
+        override fun observePlaylist(playlistId: String): Flow<Playlist?> =
+            state.map { it.firstOrNull { p -> p.id == playlistId } }
+        override fun observeHistory(): Flow<List<PlaybackHistoryEntry>> =
+            MutableStateFlow(emptyList())
+        override suspend fun createPlaylist(name: String, tracks: List<Track>, playlistId: String?): Playlist =
+            error("unused")
+        override suspend fun renamePlaylist(playlistId: String, newName: String) = Unit
+        override suspend fun deletePlaylist(playlistId: String) = Unit
+        override suspend fun addTrackToPlaylist(playlistId: String, track: Track): AddTrackResult = AddTrackResult.Added
+        override suspend fun removeTrackFromPlaylist(playlistId: String, position: Int) = Unit
+        override suspend fun removeTrackFromPlaylist(playlistId: String, trackVideoId: String) {
+            removedVideoIds.add(trackVideoId)
+            state.value = state.value.map { p ->
+                if (p.id == playlistId) p.copy(tracks = p.tracks.filterNot { it.videoId == trackVideoId }) else p
+            }
+        }
+        override suspend fun reorderTracks(playlistId: String, fromIndex: Int, toIndex: Int) {
+            reorderCalls.add(Triple(playlistId, fromIndex, toIndex))
+        }
+        override suspend fun importPlaylist(playlist: Playlist) = Unit
+        override suspend fun recordPlayback(track: Track, playedAt: String?): PlaybackHistoryEntry =
+            error("unused")
+        override suspend fun clearHistory() = Unit
+        override suspend fun removeHistoryEntry(entryId: String) = Unit
+    }
+
+    // ── M2 — batched-undo snackbar ────────────────────────────────────────────
+
+    @Test
+    fun `two removals both commit when not undone`() = runTest(dispatcher) {
+        val playlist = Playlist("p", "P", "now", "now", listOf(trackOne, trackTwo, trackThree))
+        val repo = RecordingRepository(playlist)
+        val viewModel = PlaylistDetailViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("playlistId" to "p")),
+            repository = repo,
+            codec = NoopPlaylistCodec(),
+        )
+
+        viewModel.queueRemoval(trackOne, oldPosition = 0, commitDelayMs = 4_000L)
+        viewModel.queueRemoval(trackTwo, oldPosition = 1, commitDelayMs = 4_000L)
+
+        // Neither committed before delay
+        advanceTimeBy(3_999L)
+        assertFalse(repo.removedVideoIds.contains(trackOne.videoId))
+        assertFalse(repo.removedVideoIds.contains(trackTwo.videoId))
+
+        // Both committed after delay
+        advanceTimeBy(2L)
+        advanceUntilIdle()
+        assertTrue(repo.removedVideoIds.contains(trackOne.videoId))
+        assertTrue(repo.removedVideoIds.contains(trackTwo.videoId))
+    }
+
+    @Test
+    fun `two removals both restored when undoRemoval called for each`() = runTest(dispatcher) {
+        val playlist = Playlist("p", "P", "now", "now", listOf(trackOne, trackTwo, trackThree))
+        val repo = RecordingRepository(playlist)
+        val viewModel = PlaylistDetailViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("playlistId" to "p")),
+            repository = repo,
+            codec = NoopPlaylistCodec(),
+        )
+
+        viewModel.queueRemoval(trackOne, oldPosition = 0, commitDelayMs = 4_000L)
+        viewModel.queueRemoval(trackTwo, oldPosition = 1, commitDelayMs = 4_000L)
+
+        viewModel.undoRemoval(trackOne.videoId)
+        viewModel.undoRemoval(trackTwo.videoId)
+
+        advanceUntilIdle()
+
+        assertFalse(repo.removedVideoIds.contains(trackOne.videoId))
+        assertFalse(repo.removedVideoIds.contains(trackTwo.videoId))
+        assertNull(viewModel.pendingRemovals.value[trackOne.videoId])
+        assertNull(viewModel.pendingRemovals.value[trackTwo.videoId])
+    }
+
+    // ── M1 VM part — commitAllPendingRemovals race ────────────────────────────
+
+    @Test
+    fun `commitAllPendingRemovals does not drop concurrently queued removal`() =
+        runTest(dispatcher) {
+            val playlist = Playlist("p", "P", "now", "now", listOf(trackOne, trackTwo, trackThree))
+            val repo = RecordingRepository(playlist)
+            val viewModel = PlaylistDetailViewModel(
+                savedStateHandle = SavedStateHandle(mapOf("playlistId" to "p")),
+                repository = repo,
+                codec = NoopPlaylistCodec(),
+            )
+
+            // Queue A, then call commitAllPendingRemovals (snapshots {A}),
+            // then queue B before the clear propagates.
+            viewModel.queueRemoval(trackOne, oldPosition = 0, commitDelayMs = 4_000L)
+            viewModel.commitAllPendingRemovals()
+            viewModel.queueRemoval(trackTwo, oldPosition = 1, commitDelayMs = 4_000L)
+
+            // Advance past B's commit delay so both are committed
+            advanceTimeBy(4_001L)
+            advanceUntilIdle()
+
+            assertTrue(repo.removedVideoIds.contains(trackOne.videoId))
+            assertTrue(repo.removedVideoIds.contains(trackTwo.videoId))
+        }
+
+    // ── NF2 — straddling-deadline batched-undo regression ────────────────────
+
+    @Test
+    fun `undo after straddled deadline restores both A and B`() = runTest(dispatcher) {
+        val playlist = Playlist("p", "P", "now", "now", listOf(trackOne, trackTwo, trackThree))
+        val repo = RecordingRepository(playlist)
+        val viewModel = PlaylistDetailViewModel(
+            savedStateHandle = SavedStateHandle(mapOf("playlistId" to "p")),
+            repository = repo,
+            codec = NoopPlaylistCodec(),
+        )
+        // Remove A at t=0 (deadline t=4s)
+        viewModel.queueRemoval(trackOne, 0, commitDelayMs = 4_000L)
+        // Advance 2s — A is still pending
+        advanceTimeBy(2_000L)
+        // Remove B at t=2s — re-arms A to t=6s, B also at t=6s
+        viewModel.queueRemoval(trackTwo, 1, commitDelayMs = 4_000L)
+        // Advance to t=5s — under old code A would have committed; under new code both still pending
+        advanceTimeBy(3_000L)
+        // Undo both
+        viewModel.undoRemoval(trackOne.videoId)
+        viewModel.undoRemoval(trackTwo.videoId)
+        advanceUntilIdle()
+        // Neither should have been deleted
+        assertFalse(repo.removedVideoIds.contains(trackOne.videoId))
+        assertFalse(repo.removedVideoIds.contains(trackTwo.videoId))
     }
 
     private class NoopPlaylistCodec : PlaylistCodec {

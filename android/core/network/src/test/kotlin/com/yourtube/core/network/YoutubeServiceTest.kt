@@ -256,7 +256,7 @@ class YoutubeServiceTest {
     private class ThrowingYoutubeExtractorClient(
         private val throwable: Throwable,
     ) : YoutubeExtractorClient {
-        override fun searchVideos(query: String): List<SearchResult> = throw throwable
+        override fun searchVideos(query: String, sp: String?): List<SearchResult> = throw throwable
 
         override suspend fun getAudioStreams(
             videoId: String,
@@ -267,7 +267,7 @@ class YoutubeServiceTest {
     private class FixtureYoutubeExtractorClient : YoutubeExtractorClient {
         val searchInvocations = linkedMapOf<String, Int>()
 
-        override fun searchVideos(query: String): List<SearchResult> {
+        override fun searchVideos(query: String, sp: String?): List<SearchResult> {
             searchInvocations[query] = (searchInvocations[query] ?: 0) + 1
             return loadSearchFixture()
         }

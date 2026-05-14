@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT-0012 — Android Search · State coverage</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-page: #0a0a0a;
+    --bg: #0F0F0F;
+    --surface: #1C1C1E;
+    --surface-variant: #2C2C2E;
+    --surface-high: #3A3A3C;
+    --fg-1: #FFFFFF;
+    --fg-2: rgba(235,235,245,0.80);
+    --fg-3: rgba(235,235,245,0.40);
+    --hairline: rgba(255,255,255,0.08);
+    --accent: #8B5CF6;
+    --accent-tint: rgba(139,92,246,0.16);
+    --secondary-container: rgba(139,92,246,0.30);
+    --on-secondary-container: #E9DDFF;
+    --error: #FF453A;
+  }
+  html, body {
+    min-height: 100%; background: var(--bg-page); color: var(--fg-1);
+    font-family: 'Roboto', -apple-system, system-ui, sans-serif;
+  }
+  body { padding: 32px 24px 64px; }
+
+  .page-head {
+    max-width: 1480px; margin: 0 auto 28px;
+    display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+    border-bottom: 1px solid var(--hairline); padding-bottom: 16px;
+  }
+  .page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+  .page-head .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    background: var(--accent-tint); color: var(--accent);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-right: 8px;
+  }
+  .page-head .meta { font-size: 12px; color: var(--fg-3); font-family: 'Roboto Mono', 'SF Mono', monospace; }
+
+  .grid {
+    max-width: 1480px; margin: 0 auto;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px 28px;
+  }
+  @media (max-width: 1280px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .cell .caption {
+    font-size: 12.5px; color: var(--fg-2); line-height: 1.55;
+    text-align: center; max-width: 360px;
+  }
+  .cell .caption strong { color: var(--fg-1); font-weight: 600; display: block; font-size: 13.5px; margin-bottom: 4px; }
+  .cell .caption .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    background: var(--accent-tint); color: var(--accent);
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+    font-family: 'Roboto Mono', monospace; margin-bottom: 6px;
+  }
+  .cell .caption code {
+    background: var(--surface-variant); color: var(--fg-1);
+    padding: 1px 5px; border-radius: 4px; font-size: 12px;
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  /* ── Phone ───────────────────────────────────────────── */
+  .phone {
+    width: 360px; height: 760px;
+    background: var(--bg);
+    border-radius: 36px;
+    box-shadow: 0 0 0 2px #2a2a2a, 0 18px 40px rgba(0,0,0,0.55), inset 0 0 0 1px #444;
+    position: relative; overflow: hidden;
+    transform: scale(0.84); transform-origin: top center;
+    margin-bottom: -120px;
+  }
+  .statusbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; font-size: 11px; color: var(--fg-1); font-weight: 500; z-index: 30;
+  }
+  .statusbar .right { display: flex; gap: 4px; align-items: center; }
+
+  .topbar { position: relative; padding: 36px 0 8px; background: var(--bg); }
+  .topbar-title {
+    font-size: 28px; font-weight: 400; letter-spacing: -0.01em;
+    padding: 0 16px 12px;
+  }
+
+  .searchbar {
+    margin: 0 16px; height: 56px; padding: 0 4px 0 12px;
+    background: var(--surface-variant);
+    border-radius: 28px;
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid transparent;
+  }
+  .searchbar.focused { border-color: rgba(139,92,246,0.5); }
+  .searchbar .lead, .searchbar .trail { color: var(--fg-2); }
+  .searchbar .lead { width: 32px; height: 32px; display: grid; place-items: center; }
+  .searchbar .trail { width: 48px; height: 48px; display: grid; place-items: center; }
+  .searchbar input {
+    flex: 1; background: transparent; border: 0; outline: 0;
+    color: var(--fg-1); font-size: 16px; font-family: inherit;
+    caret-color: var(--accent);
+  }
+  .searchbar input::placeholder { color: var(--fg-3); }
+  .searchbar .cursor {
+    flex: 1; color: var(--fg-1); font-size: 16px; line-height: 1;
+    display: flex; align-items: center;
+  }
+  .searchbar .cursor::after {
+    content: ''; display: inline-block;
+    width: 1.5px; height: 18px; margin-left: 1px; background: var(--accent);
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .chip-row {
+    display: flex; gap: 8px; padding: 12px 16px;
+    overflow-x: hidden;
+  }
+  .chip {
+    flex-shrink: 0;
+    height: 36px; padding: 0 14px;
+    border-radius: 999px;
+    background: transparent; border: 1px solid var(--surface-high);
+    color: var(--fg-1);
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 500;
+  }
+  .chip.recent::before {
+    content: ''; width: 13px; height: 13px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23BFBFBF' stroke-width='2' stroke-linecap='round'><circle cx='12' cy='12' r='9'/><polyline points='12,7 12,12 15,14'/></svg>") center/contain no-repeat;
+    opacity: 0.7;
+  }
+  .chip.selected {
+    background: var(--secondary-container); color: var(--on-secondary-container);
+    border-color: transparent;
+  }
+
+  .section-label {
+    padding: 8px 16px 4px; font-size: 12px; font-weight: 500;
+    color: var(--fg-3); letter-spacing: 0.06em; text-transform: uppercase;
+  }
+
+  .row {
+    position: relative;
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; min-height: 72px;
+  }
+  .row.active { background: var(--accent-tint); }
+  .thumb { width: 60px; height: 44px; border-radius: 6px; flex-shrink: 0; position: relative; overflow: hidden; }
+  .thumb .dur {
+    position: absolute; right: 3px; bottom: 3px;
+    background: rgba(0,0,0,0.65); color: #fff;
+    font-size: 9.5px; padding: 1px 4px; border-radius: 3px;
+    font-feature-settings: "tnum";
+  }
+  .t1 { background: linear-gradient(135deg, #5B2A86, #2B6CB0); }
+  .t2 { background: linear-gradient(135deg, #C05621, #742A2A); }
+  .t3 { background: linear-gradient(135deg, #2D3748, #1A202C); }
+  .t4 { background: linear-gradient(135deg, #38A169, #1A4731); }
+  .t5 { background: linear-gradient(135deg, #D69E2E, #744210); }
+  .t6 { background: linear-gradient(135deg, #4A5568, #2D3748); }
+
+  .meta { flex: 1; min-width: 0; }
+  .title { color: var(--fg-1); font-size: 14.5px; font-weight: 500; line-height: 1.25;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub { color: var(--fg-2); font-size: 12.5px; margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-feature-settings: "tnum"; }
+  .more-vert { width: 44px; height: 44px; display: grid; place-items: center; color: var(--fg-2); }
+  .more-vert svg { width: 18px; height: 18px; }
+
+  /* EQ animated overlay (state 4 + state 8) */
+  .eq {
+    position: absolute; right: 3px; bottom: 3px;
+    width: 22px; height: 22px;
+    background: rgba(0,0,0,0.55); border-radius: 4px;
+    display: flex; align-items: flex-end; justify-content: center; gap: 2px;
+    padding: 4px 4px 3px;
+  }
+  .eq .bar { width: 3px; background: var(--accent); border-radius: 1.5px; }
+  .eq .b1 { animation: eq1 600ms ease-in-out infinite alternate; }
+  .eq .b2 { animation: eq2 600ms ease-in-out 120ms infinite alternate; }
+  .eq .b3 { animation: eq3 600ms ease-in-out 240ms infinite alternate; }
+  @keyframes eq1 { from { height: 6px; } to { height: 14px; } }
+  @keyframes eq2 { from { height: 4px; } to { height: 12px; } }
+  @keyframes eq3 { from { height: 8px; } to { height: 11px; } }
+
+  /* Skeleton (C1) */
+  .skel-row {
+    display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+    min-height: 72px;
+  }
+  .skel-thumb {
+    width: 60px; height: 44px; border-radius: 6px;
+    background: var(--surface-variant);
+  }
+  .skel-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .skel-line {
+    height: 12px; border-radius: 4px; background: var(--surface-variant);
+    position: relative; overflow: hidden;
+  }
+  .skel-line::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.06) 50%, transparent 70%);
+    background-size: 300% 100%;
+    animation: shimmer 1400ms linear infinite;
+  }
+  .skel-line.w60 { width: 60%; }
+  .skel-line.w35 { width: 35%; height: 10px; }
+  @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -100% 0; } }
+
+  /* State cells (C2/C3/C4/C5) — host from state-catalog */
+  .state-cell {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 32px;
+    gap: 16px;
+  }
+  .state-icon {
+    width: 56px; height: 56px; color: var(--fg-3);
+    display: grid; place-items: center;
+  }
+  .state-icon svg { width: 56px; height: 56px; }
+  .state-title { font-size: 18px; font-weight: 600; color: var(--fg-1); }
+  .state-body { font-size: 14px; color: var(--fg-2); line-height: 1.4; max-width: 280px; }
+  .state-btn {
+    margin-top: 8px;
+    height: 52px; padding: 0 24px; border-radius: 12px; border: 0;
+    background: var(--accent); color: #FFFFFF;
+    font-size: 15px; font-weight: 600; font-family: inherit;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .state-btn.secondary {
+    background: transparent; color: var(--accent);
+    height: 44px; padding: 0 16px; font-weight: 600;
+    border: 0;
+  }
+
+  /* MiniPlayer + NavBar */
+  .miniplayer {
+    position: absolute; left: 8px; right: 8px; bottom: 88px;
+    height: 56px; padding: 8px 12px; border-radius: 12px;
+    background: rgba(208,188,255,0.16);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .miniplayer::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: linear-gradient(to right, var(--accent) 38%, transparent 38%);
+    border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
+  }
+  .mp-cover { width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0;
+    background: linear-gradient(135deg, #5B2A86, #2B6CB0); }
+  .mp-text { flex: 1; min-width: 0; }
+  .mp-title { font-size: 13px; font-weight: 500; color: var(--fg-1);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mp-sub { font-size: 11px; color: var(--fg-2); margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mp-play { width: 32px; height: 32px; display: grid; place-items: center; color: var(--fg-1); }
+
+  .navbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 80px;
+    background: var(--surface);
+    border-top: 1px solid var(--hairline);
+    display: flex; justify-content: space-around; padding-top: 12px;
+  }
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: var(--fg-2); font-size: 11px; font-weight: 500;
+  }
+  .nav-item.active { color: var(--accent); }
+  .nav-item .pill { width: 56px; height: 28px; border-radius: 14px; display: grid; place-items: center; }
+  .nav-item.active .pill { background: var(--secondary-container); color: var(--on-secondary-container); }
+
+  /* Scrollable body container */
+  .body { position: relative; overflow: hidden; height: calc(760px - 232px); }
+  .body.no-mini { height: calc(760px - 80px - 28px); }
+  .body.full { height: calc(760px - 28px); padding-top: 36px; }
+
+  /* IME keyboard */
+  .ime {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 280px;
+    background: #1f1f22;
+    display: grid; gap: 8px; padding: 10px 6px 16px;
+    grid-template-rows: repeat(4, 1fr);
+  }
+  .ime-row { display: flex; gap: 4px; justify-content: center; }
+  .ime-key {
+    flex: 1; max-width: 30px; height: 100%;
+    background: var(--surface-high); border-radius: 5px;
+    display: grid; place-items: center;
+    font-size: 12px; color: var(--fg-1); font-weight: 500;
+  }
+  .ime-key.spacer { flex: 2.5; max-width: none; background: var(--surface-variant); }
+  .ime-key.enter { flex: 1.5; max-width: none; background: var(--accent); color: #fff; }
+  .ime-key.shift { background: var(--surface-variant); }
+  .ime-suggestions {
+    position: absolute; left: 0; right: 0; bottom: 280px; height: 36px;
+    background: #1f1f22; border-top: 1px solid var(--hairline);
+    display: flex; align-items: center; gap: 16px; padding: 0 16px;
+    font-size: 13px; color: var(--fg-1);
+  }
+  .ime-sug { opacity: 0.7; }
+  .ime-sug.strong { opacity: 1; font-weight: 600; color: var(--accent); }
+
+  /* Context menu (state 9) */
+  .ctx-scrim { position: absolute; inset: 28px 0 0; background: rgba(0,0,0,0.45); z-index: 50; }
+  .ctx-menu {
+    position: absolute; top: 220px; left: 20px; right: 20px;
+    background: var(--surface);
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.5);
+    z-index: 51;
+  }
+  .ctx-menu .ctx-row {
+    padding: 14px 16px; display: flex; align-items: center; gap: 14px;
+    color: var(--fg-1); font-size: 15px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .ctx-menu .ctx-row:last-child { border-bottom: 0; }
+  .ctx-menu .ctx-row.destructive { color: var(--error); }
+  .ctx-icon { width: 22px; height: 22px; display: grid; place-items: center; color: var(--fg-2); }
+  .ctx-row.destructive .ctx-icon { color: var(--error); }
+
+  /* Snackbar (chip remove confirm — not currently used, but pattern preserved) */
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div>
+    <span class="badge">YT-0012 · ALL STATES</span>
+    <h1 style="display:inline-block;">Search — nine states</h1>
+  </div>
+  <div class="meta">Android 360 × 800 dp · M3 dark · #8B5CF6</div>
+</div>
+
+<div class="grid">
+
+  <!-- ─────────────────────────────────────────────────────── -->
+  <!-- 1. IDLE — empty query, chips visible, keyboard closed   -->
+  <!-- ─────────────────────────────────────────────────────── -->
+  <div class="cell">
+    <div class="phone">
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="right"><svg width="14" height="10" viewBox="0 0 14 10"><rect x="9" y="1.5" width="2" height="8" rx="0.5" fill="white"/><rect x="12" y="0" width="2" height="9.5" rx="0.5" fill="white"/></svg></span>
+      </div>
+      <div class="topbar">
+        <div class="topbar-title">Search</div>
+        <div class="searchbar">
+          <div class="lead"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div>
+          <input placeholder="Search YourTube" />
+        </div>
+      </div>
+      <div class="chip-row">
+        <div class="chip recent">lofi</div>
+        <div class="chip recent">focus mix</div>
+        <div class="chip recent">ambient</div>
+        <div class="chip">podcasts</div>
+        <div class="chip">jazz</div>
+      </div>
+      <div class="body" style="display:flex; flex-direction: column;">
+        <div class="state-cell">
+          <div class="state-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>
+          </div>
+          <div class="state-title">Search YourTube</div>
+          <div class="state-body">Find tracks, channels, and topics from your subscriptions.</div>
+        </div>
+      </div>
+      <div class="miniplayer">
+        <div class="mp-cover"></div>
+        <div class="mp-text"><div class="mp-title">Late Night Lofi Mix</div><div class="mp-sub">ChillHop Music</div></div>
+        <div class="mp-play"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 21,12 6,21"/></svg></div>
+      </div>
+      <div class="navbar">
+        <div class="nav-item active"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div><span>Search</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg></div><span>Library</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg></div><span>Settings</span></div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="tag">D3 · C2</span>
+      <strong>1 · Idle</strong>
+      Bar empty, 6 chips visible (recents + curated fillers), keyboard closed. Body is state-catalog C2 cell — search glyph + "Search YourTube" + no primary action.
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────── -->
+  <!-- 2. FOCUSED — keyboard open, cursor in field             -->
+  <!-- ─────────────────────────────────────────────────────── -->
+  <div class="cell">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="right"><svg width="14" height="10" viewBox="0 0 14 10"><rect x="12" y="0" width="2" height="9.5" rx="0.5" fill="white"/></svg></span></div>
+      <div class="topbar">
+        <div class="topbar-title">Search</div>
+        <div class="searchbar focused">
+          <div class="lead"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div>
+          <div class="cursor"></div>
+        </div>
+      </div>
+      <div class="chip-row">
+        <div class="chip recent">lofi</div>
+        <div class="chip recent">focus mix</div>
+        <div class="chip recent">ambient</div>
+        <div class="chip">podcasts</div>
+      </div>
+      <div style="height: 60px;"></div>
+      <div class="ime-suggestions">
+        <span class="ime-sug">lofi</span>
+        <span class="ime-sug strong">lofi hip hop</span>
+        <span class="ime-sug">lofi girl</span>
+      </div>
+      <div class="ime">
+        <div class="ime-row">
+          <div class="ime-key">q</div><div class="ime-key">w</div><div class="ime-key">e</div><div class="ime-key">r</div><div class="ime-key">t</div><div class="ime-key">y</div><div class="ime-key">u</div><div class="ime-key">i</div><div class="ime-key">o</div><div class="ime-key">p</div>
+        </div>
+        <div class="ime-row">
+          <div class="ime-key">a</div><div class="ime-key">s</div><div class="ime-key">d</div><div class="ime-key">f</div><div class="ime-key">g</div><div class="ime-key">h</div><div class="ime-key">j</div><div class="ime-key">k</div><div class="ime-key">l</div>
+        </div>
+        <div class="ime-row">
+          <div class="ime-key shift">⇧</div><div class="ime-key">z</div><div class="ime-key">x</div><div class="ime-key">c</div><div class="ime-key">v</div><div class="ime-key">b</div><div class="ime-key">n</div><div class="ime-key">m</div><div class="ime-key shift">⌫</div>
+        </div>
+        <div class="ime-row">
+          <div class="ime-key shift">!#1</div>
+          <div class="ime-key shift">,</div>
+          <div class="ime-key spacer"></div>
+          <div class="ime-key shift">.</div>
+          <div class="ime-key enter">Search</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="tag">D2 · D7</span>
+      <strong>2 · Focused (keyboard open)</strong>
+      Tab activation auto-focuses the bar and opens the IME. The IME's <code>Search</code> action bypasses the 400 ms debounce. Voice-search mic is intentionally absent.
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────── -->
+  <!-- 3. LOADING (C1) — skeleton rows                          -->
+  <!-- ─────────────────────────────────────────────────────── -->
+  <div class="cell">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span></div>
+      <div class="topbar">
+        <div class="topbar-title">Search</div>
+        <div class="searchbar focused">
+          <div class="lead"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div>
+          <input value="lofi mix" readonly />
+          <div class="trail"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></div>
+        </div>
+      </div>
+      <!-- Chip strip is HIDDEN during loading per state-catalog C1 -->
+      <div class="section-label">Results</div>
+      <div class="body">
+        <div class="skel-row"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w60"></div><div class="skel-line w35"></div></div></div>
+        <div class="skel-row" style="opacity:0.95"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w60"></div><div class="skel-line w35"></div></div></div>
+        <div class="skel-row" style="opacity:0.92"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w60"></div><div class="skel-line w35"></div></div></div>
+        <div class="skel-row" style="opacity:0.88"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w60"></div><div class="skel-line w35"></div></div></div>
+        <div class="skel-row" style="opacity:0.82"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w60"></div><div class="skel-line w35"></div></div></div>
+        <div class="skel-row" style="opacity:0.74"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w60"></div><div class="skel-line w35"></div></div></div>
+      </div>
+      <div class="miniplayer">
+        <div class="mp-cover"></div>
+        <div class="mp-text"><div class="mp-title">Late Night Lofi Mix</div><div class="mp-sub">ChillHop Music</div></div>
+        <div class="mp-play"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></div>
+      </div>
+      <div class="navbar">
+        <div class="nav-item active"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div><span>Search</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg></div><span>Library</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg></div><span>Settings</span></div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="tag">D5 · C1</span>
+      <strong>3 · Loading</strong>
+      Six skeleton rows, 1400 ms shimmer per state-catalog. Chip strip <em>disappears</em> during loading (D3 anti-pattern guard). Clear-glyph visible because the query is non-blank (D9).
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────── -->
+  <!-- 4. RESULTS — populated, one row active w/ EQ            -->
+  <!-- ─────────────────────────────────────────────────────── -->
+  <div class="cell">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span></div>
+      <div class="topbar">
+        <div class="topbar-title">Search</div>
+        <div class="searchbar">
+          <div class="lead"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div>
+          <input value="lofi mix" />
+          <div class="trail"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></div>
+        </div>
+      </div>
+      <div class="section-label">Results</div>
+      <div class="body">
+        <div class="row active">
+          <div class="thumb t1"><div class="eq"><div class="bar b1"></div><div class="bar b2"></div><div class="bar b3"></div></div></div>
+          <div class="meta"><div class="title">Late Night Lofi Mix — Deep Focus</div><div class="sub">ChillHop Music · 1:24:18</div></div>
+          <div class="more-vert"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        </div>
+        <div class="row">
+          <div class="thumb t2"><div class="dur">3:42</div></div>
+          <div class="meta"><div class="title">Sunset Avenue (Slowed)</div><div class="sub">Lofi Girl · 3:42</div></div>
+          <div class="more-vert"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        </div>
+        <div class="row">
+          <div class="thumb t3"><div class="dur">4:15</div></div>
+          <div class="meta"><div class="title">Quiet Mornings · Piano + Rain</div><div class="sub">Soulection · 4:15</div></div>
+          <div class="more-vert"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        </div>
+        <div class="row">
+          <div class="thumb t4"><div class="dur">5:21</div></div>
+          <div class="meta"><div class="title">Tokyo Drift Slow Edit</div><div class="sub">Nujabes Tribute · 5:21</div></div>
+          <div class="more-vert"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        </div>
+        <div class="row">
+          <div class="thumb t5"><div class="dur">3:58</div></div>
+          <div class="meta"><div class="title">Coffee &amp; Rain — Lofi Hip-Hop</div><div class="sub">Lofi Girl · 3:58</div></div>
+          <div class="more-vert"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        </div>
+      </div>
+      <div class="miniplayer">
+        <div class="mp-cover"></div>
+        <div class="mp-text"><div class="mp-title">Late Night Lofi Mix</div><div class="mp-sub">ChillHop Music</div></div>
+        <div class="mp-play"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></div>
+      </div>
+      <div class="navbar">
+        <div class="nav-item active"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div><span>Search</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg></div><span>Library</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg></div><span>Settings</span></div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="tag">D4</span>
+      <strong>4 · Results · active row</strong>
+      First row matches the currently-playing track — <code>primaryContainer.copy(alpha = 0.16f)</code> tint and animated 3-bar EQ overlay (<code>tween(600ms)</code>, infinite, staggered 0/120/240 ms).
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────── -->
+  <!-- 5. NO RESULTS (C3)                                       -->
+  <!-- ─────────────────────────────────────────────────────── -->
+  <div class="cell">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span></div>
+      <div class="topbar">
+        <div class="topbar-title">Search</div>
+        <div class="searchbar">
+          <div class="lead"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div>
+          <input value="lofi xyz" />
+          <div class="trail"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></div>
+        </div>
+      </div>
+      <!-- Chip strip stays visible for C3 (per D3 / state-catalog) -->
+      <div class="chip-row">
+        <div class="chip recent">lofi</div>
+        <div class="chip recent">focus mix</div>
+        <div class="chip recent">ambient</div>
+        <div class="chip">podcasts</div>
+      </div>
+      <div class="body">
+        <div class="state-cell">
+          <div class="state-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/>
+              <line x1="4.5" y1="17.5" x2="17.5" y2="4.5" stroke-width="1.6"/>
+            </svg>
+          </div>
+          <div class="state-title">No results for "lofi xyz"</div>
+          <div class="state-body">Check your spelling or try a different search.</div>
+          <button class="state-btn">Clear search</button>
+        </div>
+      </div>
+      <div class="miniplayer">
+        <div class="mp-cover"></div>
+        <div class="mp-text"><div class="mp-title">Late Night Lofi Mix</div><div class="mp-sub">ChillHop Music</div></div>
+        <div class="mp-play"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></div>
+      </div>
+      <div class="navbar">
+        <div class="nav-item active"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div><span>Search</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg></div><span>Library</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg></div><span>Settings</span></div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="tag">D5 · C3</span>
+      <strong>5 · No results</strong>
+      State-catalog C3 cell verbatim. Icon = <code>Icons.Rounded.SearchOff</code>. Query interpolated into the title. "Clear search" primary action returns to C2 idle. Auto-announces politely.
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────── -->
+  <!-- 6. GENERIC ERROR (C4)                                    -->
+  <!-- ─────────────────────────────────────────────────────── -->
+  <div class="cell">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span></div>
+      <div class="topbar">
+        <div class="topbar-title">Search</div>
+        <div class="searchbar">
+          <div class="lead"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div>
+          <input value="lofi mix" />
+          <div class="trail"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="state-cell">
+          <div class="state-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3L2 21h20L12 3z"/>
+              <line x1="12" y1="10" x2="12" y2="14"/>
+              <circle cx="12" cy="17" r="0.6" fill="currentColor"/>
+            </svg>
+          </div>
+          <div class="state-title">Couldn't search</div>
+          <div class="state-body">Something went wrong on our end. Try again in a moment.</div>
+          <button class="state-btn">Try again</button>
+        </div>
+      </div>
+      <div class="miniplayer">
+        <div class="mp-cover"></div>
+        <div class="mp-text"><div class="mp-title">Late Night Lofi Mix</div><div class="mp-sub">ChillHop Music</div></div>
+        <div class="mp-play"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></div>
+      </div>
+      <div class="navbar">
+        <div class="nav-item active"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div><span>Search</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg></div><span>Library</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg></div><span>Settings</span></div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="tag">D5 · C4</span>
+      <strong>6 · Generic error</strong>
+      State-catalog C4. Icon tinted at <code>fg-tertiary</code> (NOT red — red is reserved for destructive). Single "Try again" action re-runs the same request. Live-region polite.
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────── -->
+  <!-- 7. OFFLINE (C5) — wifi_off + secondary "Go to Library"  -->
+  <!-- ─────────────────────────────────────────────────────── -->
+  <div class="cell">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span></div>
+      <div class="topbar">
+        <div class="topbar-title">Search</div>
+        <div class="searchbar">
+          <div class="lead"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div>
+          <input value="lofi mix" />
+          <div class="trail"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="state-cell">
+          <div class="state-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+              <path d="M5 12.5a10 10 0 0 1 14 0"/>
+              <path d="M8 16a6 6 0 0 1 8 0"/>
+              <circle cx="12" cy="19" r="1" fill="currentColor"/>
+              <line x1="3" y1="3" x2="21" y2="21" stroke-width="1.8"/>
+            </svg>
+          </div>
+          <div class="state-title">You're offline</div>
+          <div class="state-body">Connect to the internet to search. Your saved playlists are still available in Library.</div>
+          <button class="state-btn">Try again</button>
+          <button class="state-btn secondary">Go to Library</button>
+        </div>
+      </div>
+      <div class="miniplayer">
+        <div class="mp-cover"></div>
+        <div class="mp-text"><div class="mp-title">Late Night Lofi Mix</div><div class="mp-sub">Offline · cached</div></div>
+        <div class="mp-play"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></div>
+      </div>
+      <div class="navbar">
+        <div class="nav-item active"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div><span>Search</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg></div><span>Library</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg></div><span>Settings</span></div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="tag">D5 · C5</span>
+      <strong>7 · Offline</strong>
+      State-catalog C5. Only cell in the catalog with a secondary CTA — "Go to Library" surfaces the user's local-first refuge. Detection via <code>NetworkMonitor.isOnline</code>, never inferred from a timeout.
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────── -->
+  <!-- 8. CHIP SELECTED — fills bar, results loading           -->
+  <!-- ─────────────────────────────────────────────────────── -->
+  <div class="cell">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span></div>
+      <div class="topbar">
+        <div class="topbar-title">Search</div>
+        <div class="searchbar">
+          <div class="lead"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div>
+          <input value="ambient" />
+          <div class="trail"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></div>
+        </div>
+      </div>
+      <div class="chip-row">
+        <div class="chip recent">lofi</div>
+        <div class="chip recent">focus mix</div>
+        <div class="chip recent selected">ambient</div>
+        <div class="chip">podcasts</div>
+        <div class="chip">jazz</div>
+      </div>
+      <div class="section-label">Results</div>
+      <div class="body" style="height: calc(760px - 232px - 56px);">
+        <div class="skel-row"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w60"></div><div class="skel-line w35"></div></div></div>
+        <div class="skel-row" style="opacity:0.9"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w60"></div><div class="skel-line w35"></div></div></div>
+        <div class="skel-row" style="opacity:0.78"><div class="skel-thumb"></div><div class="skel-lines"><div class="skel-line w60"></div><div class="skel-line w35"></div></div></div>
+      </div>
+      <div class="miniplayer">
+        <div class="mp-cover"></div>
+        <div class="mp-text"><div class="mp-title">Late Night Lofi Mix</div><div class="mp-sub">ChillHop Music</div></div>
+        <div class="mp-play"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></div>
+      </div>
+      <div class="navbar">
+        <div class="nav-item active"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div><span>Search</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg></div><span>Library</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg></div><span>Settings</span></div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="tag">D10 · D3</span>
+      <strong>8 · Suggestion chip selected</strong>
+      Tapping "ambient" fills the bar and submits in the same call — no extra Search press (the historically inconsistent iOS 18/26 behavior). Chip renders <code>secondaryContainer</code>. Body transitions to C1 loading.
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────── -->
+  <!-- 9. ROW LONG-PRESS — context menu                         -->
+  <!-- ─────────────────────────────────────────────────────── -->
+  <div class="cell">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span></div>
+      <div class="topbar">
+        <div class="topbar-title">Search</div>
+        <div class="searchbar">
+          <div class="lead"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div>
+          <input value="lofi mix" />
+          <div class="trail"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg></div>
+        </div>
+      </div>
+      <div class="section-label">Results</div>
+      <div class="body">
+        <div class="row active">
+          <div class="thumb t1"><div class="eq"><div class="bar b1"></div><div class="bar b2"></div><div class="bar b3"></div></div></div>
+          <div class="meta"><div class="title">Late Night Lofi Mix — Deep Focus</div><div class="sub">ChillHop Music · 1:24:18</div></div>
+          <div class="more-vert"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        </div>
+        <div class="row" style="opacity: 0.4;">
+          <div class="thumb t2"><div class="dur">3:42</div></div>
+          <div class="meta"><div class="title">Sunset Avenue (Slowed)</div><div class="sub">Lofi Girl · 3:42</div></div>
+          <div class="more-vert"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        </div>
+        <div class="row" style="opacity: 0.4;">
+          <div class="thumb t3"><div class="dur">4:15</div></div>
+          <div class="meta"><div class="title">Quiet Mornings · Piano + Rain</div><div class="sub">Soulection · 4:15</div></div>
+          <div class="more-vert"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
+        </div>
+      </div>
+      <div class="ctx-scrim"></div>
+      <div class="ctx-menu">
+        <div class="ctx-row"><div class="ctx-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,3 21,12 6,21"/></svg></div>Play now</div>
+        <div class="ctx-row"><div class="ctx-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="6" x2="19" y2="6"/><line x1="5" y1="12" x2="19" y2="12"/><line x1="5" y1="18" x2="13" y2="18"/><line x1="17" y1="16" x2="17" y2="22"/><line x1="14" y1="19" x2="20" y2="19"/></svg></div>Play next</div>
+        <div class="ctx-row"><div class="ctx-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="6" x2="19" y2="6"/><line x1="5" y1="12" x2="19" y2="12"/><line x1="5" y1="18" x2="13" y2="18"/></svg></div>Add to queue</div>
+        <div class="ctx-row"><div class="ctx-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>Add to playlist</div>
+        <div class="ctx-row"><div class="ctx-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polyline points="16,6 12,2 8,6"/><line x1="12" y1="2" x2="12" y2="15"/><path d="M20 17v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3"/></svg></div>Share</div>
+      </div>
+      <div class="navbar">
+        <div class="nav-item active"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg></div><span>Search</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg></div><span>Library</span></div>
+        <div class="nav-item"><div class="pill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg></div><span>Settings</span></div>
+      </div>
+    </div>
+    <div class="caption">
+      <span class="tag">D4 + a11y</span>
+      <strong>9 · Long-press · context menu</strong>
+      Long-press on a result row triggers <code>LongPress</code> haptic and opens the M3 context menu. Active row tint + EQ persist behind the scrim so the user keeps track of what's playing.
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -34,6 +34,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    testImplementation(project(":core:database"))
     testImplementation(libs.kotlin.test)
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)

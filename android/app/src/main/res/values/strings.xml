@@ -8,4 +8,10 @@
     <string name="import_playlist_unsupported">Unsupported playlist file</string>
     <string name="import_playlist_invalid">Couldn’t read playlist file</string>
     <string name="import_playlist_unreadable">Couldn’t open the selected file</string>
+
+    <!-- YT-0104 — PiP media-control action labels (shown as content descriptions in the PiP chrome) -->
+    <string name="pip_action_previous">Previous</string>
+    <string name="pip_action_play">Play</string>
+    <string name="pip_action_pause">Pause</string>
+    <string name="pip_action_next">Next</string>
 </resources>

@@ -199,9 +199,56 @@ class PlaybackPlayerAdapterTest {
         assertTrue(error is IllegalArgumentException, "Expected detached failure, got $error")
     }
 
+    // YT-0291 — regression: restored track must seekTo(startPositionMs) BEFORE prepare()
+    // so ExoPlayer starts buffering at the correct offset rather than at 0:00.
+    @Test
+    fun `queue with non-zero startPositionMs calls seekTo before prepare`() {
+        val adapter = PlaybackPlayerAdapter(hlsMediaSourceFactory = { error("HLS factory must not run") })
+        val queueing = RecordingMediaItemQueueing()
+        adapter.attach(queueing)
+
+        adapter.queue(
+            PreparedPlayback(
+                track = AUDIO_TRACK,
+                streamUrl = "https://cdn.example.com/audio.m4a",
+                bitrateKbps = 128,
+                codec = "mp4a.40.2",
+                container = "m4a",
+                startPositionMs = 45_000L,
+            ),
+        )
+        adapter.prepare()
+
+        assertEquals(listOf(45_000L), queueing.seekToCalls, "seekTo must be called with the restored positionMs")
+        // seekTo must precede prepare(): the seek is recorded before adapter.prepare() is called above.
+        assertEquals(1, queueing.prepareCalls)
+    }
+
+    // YT-0291 — regression: normal (non-restore) play must NOT seek, so it starts at 0:00.
+    @Test
+    fun `queue with zero startPositionMs does not call seekTo`() {
+        val adapter = PlaybackPlayerAdapter(hlsMediaSourceFactory = { error("HLS factory must not run") })
+        val queueing = RecordingMediaItemQueueing()
+        adapter.attach(queueing)
+
+        adapter.queue(
+            PreparedPlayback(
+                track = AUDIO_TRACK,
+                streamUrl = "https://cdn.example.com/audio.m4a",
+                bitrateKbps = 128,
+                codec = "mp4a.40.2",
+                container = "m4a",
+                startPositionMs = 0L,
+            ),
+        )
+
+        assertTrue(queueing.seekToCalls.isEmpty(), "seekTo must NOT be called for a normal (non-restore) play")
+    }
+
     private class RecordingMediaItemQueueing : MediaItemQueueing {
         val setMediaItemCalls = mutableListOf<MediaItem>()
         val setMediaSourceCalls = mutableListOf<MediaSource>()
+        val seekToCalls = mutableListOf<Long>()
         var prepareCalls: Int = 0
             private set
         var playCalls: Int = 0
@@ -213,6 +260,10 @@ class PlaybackPlayerAdapterTest {
 
         override fun setMediaSource(mediaSource: MediaSource) {
             setMediaSourceCalls += mediaSource
+        }
+
+        override fun seekTo(positionMs: Long) {
+            seekToCalls += positionMs
         }
 
         override fun prepare() {

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon background — radial gradient matching SVG source:
+  cx=30% cy=20% r=100%, stops: #A78BFA → #8B5CF6 → #6D28D9 → #4C1D95
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+
+    <path android:pathData="M0,0 L1024,0 L1024,1024 L0,1024 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="307"
+                android:centerY="205"
+                android:gradientRadius="1024">
+                <item android:offset="0.0" android:color="#FFA78BFA" />
+                <item android:offset="0.35" android:color="#FF8B5CF6" />
+                <item android:offset="0.75" android:color="#FF6D28D9" />
+                <item android:offset="1.0" android:color="#FF4C1D95" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+</vector>

@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -52,7 +53,7 @@ fun ErrorState(
             .fillMaxWidth()
             .semantics { liveRegion = regionMode },
         body = body,
-        actionLabel = "Try again",
+        actionLabel = stringResource(R.string.lbl_error_try_again),
         onAction = onRetry,
         iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
         secondaryActionLabel = secondaryActionLabel,

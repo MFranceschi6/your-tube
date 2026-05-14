@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
@@ -69,12 +70,18 @@ fun TrackRow(
     onMoreClick: (() -> Unit)? = null,
     leadingContent: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
+    /** Optional third line below the channel/duration line (e.g. "played 2 minutes ago"). */
+    supportingExtra: String? = null,
 ) {
     val rowDescription = if (showEqIndicator) {
-        "Now playing: ${track.title} by ${track.channel}"
+        stringResource(R.string.cd_track_row_now_playing, track.title, track.channel)
     } else {
-        "${track.title} by ${track.channel}"
+        stringResource(R.string.cd_track_row_idle, track.title, track.channel)
     }
+    val clickLabel = stringResource(R.string.lbl_track_row_play, track.title)
+    val longClickLabel = if (onLongClick != null) {
+        stringResource(R.string.lbl_track_row_long_press, track.title)
+    } else null
 
     Row(
         modifier = modifier
@@ -88,8 +95,8 @@ fun TrackRow(
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
-                onClickLabel = "Play ${track.title}",
-                onLongClickLabel = if (onLongClick != null) "More options for ${track.title}" else null,
+                onClickLabel = clickLabel,
+                onLongClickLabel = longClickLabel,
             )
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .semantics {
@@ -145,6 +152,16 @@ fun TrackRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (supportingExtra != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = supportingExtra,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
 
         // Trailing slot precedence: explicit slot > default overflow icon.
@@ -153,10 +170,11 @@ fun TrackRow(
         when {
             trailingContent != null -> trailingContent()
             onMoreClick != null -> {
+                val moreOptionsContentDescription = stringResource(R.string.cd_more_options_for, track.title)
                 IconButton(
                     onClick = onMoreClick,
                     modifier = Modifier.semantics {
-                        contentDescription = "More options for ${track.title}"
+                        contentDescription = moreOptionsContentDescription
                     },
                 ) {
                     Icon(
@@ -170,7 +188,7 @@ fun TrackRow(
     }
 }
 
-internal fun buildTrackMeta(track: Track): String {
+fun buildTrackMeta(track: Track): String {
     if (track.durationSec <= 0) return track.channel
     val m = track.durationSec / 60
     val s = track.durationSec % 60

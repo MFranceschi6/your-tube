@@ -28,7 +28,13 @@ Use this skill for project planning work in `obsidian-vault/`.
 - Bases folder: `obsidian-vault/Bases/`
 - Template folder: `obsidian-vault/Templates/`
 
-Use stable IDs like `YT-0001`. Reuse existing IDs and avoid duplicates.
+Use stable IDs like `YT-0001`. Never hand-pick an ID. Before creating a new task note you MUST get the next free ID from the lifecycle script:
+
+```bash
+python3 .claude/skills/obsidian-project-management/lifecycle.py next-id
+```
+
+This scans both filenames and frontmatter `id:` and returns `max + 1` (gaps are not reused, to avoid resurrecting stale references in commit messages or links). Use the printed ID for both the filename prefix and the `id:` field. To audit existing duplicates, run `lifecycle.py check-ids`.
 
 Allowed statuses: `backlog`, `ready`, `in-progress`, `blocked`, `review`, `done`, `wont-do`.
 
@@ -62,20 +68,29 @@ Task lifecycle:
 - Blocked: set `status: blocked`, set `blocked_reason`, and add the blocker or incomplete dependency in `Context`.
 - Reviewed complete: set `status: done` only after acceptance criteria and validation are satisfied.
 
-## Post-Done Cascade
+## Lifecycle Script
 
-Whenever one or more tasks move to `status: done`, run the cascade script immediately:
+All status transitions and dep-driven recomputation should go through:
 
 ```bash
-python3 .claude/skills/obsidian-project-management/cascade-done.py YT-XXXX [YT-YYYY ...]
+python3 .claude/skills/obsidian-project-management/lifecycle.py <subcommand> [args]
 ```
 
-The script will:
-1. Find every task whose `depends_on` includes the completed ID(s)
-2. Move each to `ready` if all its deps are now `done`
-3. Keep it `blocked` but refresh `blocked_reason` with the remaining incomplete deps
+Subcommands:
 
-Run this from the repo root. Do not manually update downstream statuses — let the script do it.
+- `set <ID> <status> [--reason "..."] [--force]` — single-task transition with validation. Refuses illegal transitions (e.g. `done → in-progress` without `--force`), refuses to move to `in-progress` or `done` while deps are unmet (without `--force`), requires `--reason` to move to `blocked`. Auto-runs cascade after a `done` write. Refreshes `updated`.
+- `cascade <ID> [<ID> ...]` — recompute the direct dependents of just-completed task IDs. Promotes to `ready` if every dep is now `done`; otherwise sets `blocked` with a refreshed `blocked_reason` listing the unmet dep IDs.
+- `audit [--milestone X] [--platform Y] [--epic Z] [--status S] [--apply]` — full sweep. For every non-active task (not `in-progress` / `review` / `done` / `wont-do`): if all deps done → `ready`; if any dep unmet → `blocked` with reason. Default is dry-run; `--apply` writes. Use this after bulk changes or to reconcile drift.
+- `list [filters]` — quick list of IDs/status/platform/title.
+- `show <ID>` — print one task's deps, dependents, parent/children.
+- `next-id [--prefix YT] [--pad 4]` — print the next free task ID (`max(existing) + 1`). Required before any new task note is created.
+- `check-ids [--prefix YT]` — report duplicate IDs across filenames + frontmatter; exits non-zero if any found.
+
+Run from any cwd; the script resolves the vault relative to its own location.
+
+Do not manually update downstream statuses after a `done` move — `set <ID> done` (or `cascade <ID>`) does it. Do not maintain `blocked_reason` by hand for dep-only blockers — the script writes a canonical `Waiting on <ID>(<status>), ...` reason.
+
+`wont-do` deps are treated as satisfied (deliberately not blocking dependents).
 
 ## Review Rules
 

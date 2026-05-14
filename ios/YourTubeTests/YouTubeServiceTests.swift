@@ -136,6 +136,9 @@ final class FakeYouTubeService: YouTubeServiceProtocol, @unchecked Sendable {
         case .failure(let e): throw e
         }
     }
+    // YT-0298 Mix stubs.
+    func getMixQueueWithContinuation(videoId: String) async -> MixQueueResult { .empty }
+    func getMixContinuation(token: String) async -> MixQueueResult { .empty }
 }
 
 // MARK: - AudioQuality tests

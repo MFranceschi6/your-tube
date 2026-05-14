@@ -32,6 +32,7 @@ struct ContentView: View {
             NavigationStack {
                 SearchScreen(
                     currentTrack: viewModel.currentTrack,
+                    isPlaying: viewModel.isPlaying,
                     onPlay: { viewModel.play($0) },
                     onAddToQueue: { viewModel.appendToQueue($0) }
                 )
@@ -43,6 +44,7 @@ struct ContentView: View {
             // MARK: Library tab
             LibraryScreen(
                 currentVideoId: viewModel.currentTrack?.videoId,
+                isPlaying: viewModel.isPlaying,
                 onPlay: { viewModel.play($0) }
             )
             .miniPlayerInset(viewModel: viewModel, namespace: nowPlayingNamespace)
@@ -318,4 +320,7 @@ private struct PreviewNoopYouTubeService: YouTubeServiceProtocol {
     func resolveStreamURL(videoId: String, quality: AudioQuality) async throws -> ResolvedStream {
         ResolvedStream(url: URL(string: "https://example.invalid/preview")!, isMuxedFallback: false)
     }
+    // YT-0298 Mix stubs — previews don't need real Mix data.
+    func getMixQueueWithContinuation(videoId: String) async -> MixQueueResult { .empty }
+    func getMixContinuation(token: String) async -> MixQueueResult { .empty }
 }

@@ -22,6 +22,19 @@ Before changing code:
 - Network/API contracts should be treated as shared product contracts.
 - Never hardcode secrets, tokens, API keys, bundle identifiers, signing credentials, or provisioning data.
 
+## Agentic toolkit (post-MVP, gated)
+
+A reusable agentic-development kit lives alongside the baseline configuration. Manifest: `docs/agentic-toolkit.md`. Status while the MVP is open: **gated**.
+
+While the toolkit is gated:
+
+- Do not route Obsidian tasks to the post-MVP agents (`test-engineer`, `qa-validator`, `architecture-reviewer`, `release-engineer`, `migration-engineer`, `security-auditor`, `task-search-agent`).
+- Do not invoke the post-MVP skills (`changelog-from-tasks`, `task-graph-viz`, `cross-platform-parity-diff`, `pr-stack`, `flaky-test-triage`, `agent-budget`); they are also disabled via `skillOverrides` in `.claude/settings.json`.
+- Do not merge the proposed hooks in `docs/agentic-toolkit-hooks.json` into `.claude/settings.json`.
+- Do not run `tools/agentic-template/extract.sh` outside of `--dry-run`.
+
+Activation procedure is documented in the toolkit manifest. Lift the gate only after MVP ships.
+
 ## Planning vault
 
 - Local Obsidian vault: `obsidian-vault/`.

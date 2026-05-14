@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- HardcodedText covers XML layouts only. Compose strings enforced via code review until detekt 2.x ships. -->
+<lint>
+    <issue id="HardcodedText" severity="error" />
+</lint>

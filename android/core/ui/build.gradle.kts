@@ -12,10 +12,14 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
     implementation(project(":core:common"))
+    implementation(project(":core:designsystem"))
 
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
@@ -25,6 +29,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.coil.compose)
+    implementation(libs.reorderable)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     // Round 4 — pure-Kotlin unit tests for `PlayerOverlayState` (animatable drivers) and
@@ -35,4 +40,8 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)
+    val testComposeBom = platform(libs.androidx.compose.bom)
+    testImplementation(testComposeBom)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
 }

@@ -27,6 +27,7 @@
 		31727A4DFC155805ED754ECB /* NowPlayingAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18BC679FD85E9729E5A6D8A4 /* NowPlayingAnimation.swift */; };
 		32AD7A520BB34BFE1F844450 /* YouTubeServiceError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07D2429D97391EE748C1C51F /* YouTubeServiceError.swift */; };
 		39007E71360A272AE0123425 /* PlaylistEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6690999A72DDD6B6C6DD86C /* PlaylistEntity.swift */; };
+		3E172DD994D709C39F4D78AD /* NowPlayingTitleHeightStabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8CD4C3048D28853AB061AED /* NowPlayingTitleHeightStabilityTests.swift */; };
 		415DCC2FBF30148E56963FF5 /* InnerTubePlayerClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 233839E702858F00D47AA3A3 /* InnerTubePlayerClientTests.swift */; };
 		434F0BF6D32A0D29B1BA1621 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 099371C9CD336164480E0AE2 /* SettingsStore.swift */; };
 		43B069BBA3B450E38499E523 /* player-fixtures in Resources */ = {isa = PBXBuildFile; fileRef = B4905E0BE9A9360CDF78AEC7 /* player-fixtures */; };
@@ -85,6 +86,8 @@
 		D25E5608BB0FDC312A1177CD /* PlaybackPerfTracer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A857EEAF74B08ECEF320E744 /* PlaybackPerfTracer.swift */; };
 		D296CC28760F086ADFD21BD8 /* PlaylistRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DCE5F95265568C0BA4CA0DB /* PlaylistRow.swift */; };
 		D31CA76070FBD428C06B6282 /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1931ACE1E8E787EC10055597 /* SettingsScreen.swift */; };
+		D48215E8FD6A0E91E465EB01 /* MixContinuationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEDEED7D0E6FB34C16872C13 /* MixContinuationTests.swift */; };
+		D506EFABBF2699FB750809FB /* MixClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B997D013F867D1D7B4E8699B /* MixClient.swift */; };
 		D87C74FA8C3B4E817EA3C8E5 /* PlaylistTrackEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 789EF465F3CB2E85D038AA61 /* PlaylistTrackEntity.swift */; };
 		DBAF957683BB0798FCCACF49 /* HLSProxyAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E65A7BDC08EF0774E1FABC8 /* HLSProxyAsset.swift */; };
 		E1C9257DD1FF927A3AA081B6 /* SearchViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C2A793B7D8A73CB816D9743 /* SearchViewModelTests.swift */; };
@@ -172,6 +175,7 @@
 		B2D37269B2F3DB572647E7E5 /* QueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueView.swift; sourceTree = "<group>"; };
 		B3CBB98EBF2F4BD74AACCE59 /* YourTubeTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = YourTubeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B4905E0BE9A9360CDF78AEC7 /* player-fixtures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "player-fixtures"; path = "YourTubeTests/player-fixtures"; sourceTree = SOURCE_ROOT; };
+		B997D013F867D1D7B4E8699B /* MixClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixClient.swift; sourceTree = "<group>"; };
 		BA7A8EB167FDD8793F44DD19 /* SharingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharingService.swift; sourceTree = "<group>"; };
 		BC9BD63DF1B1417679F22C5A /* HistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStoreTests.swift; sourceTree = "<group>"; };
 		BF3BB5C19835F1BE6B9DC2CA /* TrackRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackRow.swift; sourceTree = "<group>"; };
@@ -184,6 +188,7 @@
 		CF1A7E4F8426BE5066062ED4 /* SystemVolumeSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemVolumeSlider.swift; sourceTree = "<group>"; };
 		D34EAC7A0142CDEB1961484B /* TrackEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackEntity.swift; sourceTree = "<group>"; };
 		D7F18886F18847B969B5DC6B /* YourTubeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = YourTubeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8CD4C3048D28853AB061AED /* NowPlayingTitleHeightStabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingTitleHeightStabilityTests.swift; sourceTree = "<group>"; };
 		DA1D51A7FC685A1CFA5FC732 /* NowPlayingArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingArtworkView.swift; sourceTree = "<group>"; };
 		DB86313A57E85A43A6A16B88 /* YourTubeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YourTubeTests.swift; sourceTree = "<group>"; };
 		DBACB1B0385A264174072C9E /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
@@ -201,6 +206,7 @@
 		F1CD5E42E30BE7AC0AD1377F /* fixtures */ = {isa = PBXFileReference; lastKnownFileType = folder; name = fixtures; path = ../docs/fixtures; sourceTree = SOURCE_ROOT; };
 		F6690999A72DDD6B6C6DD86C /* PlaylistEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistEntity.swift; sourceTree = "<group>"; };
 		FDDF297762EB3C64AC38D38C /* CrossPlatformParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossPlatformParityTests.swift; sourceTree = "<group>"; };
+		FEDEED7D0E6FB34C16872C13 /* MixContinuationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MixContinuationTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -219,6 +225,7 @@
 			children = (
 				DE7A182BE13053EF54D4631D /* InnerTubePlayerClient.swift */,
 				E31D864317997522C98C723C /* LiveYouTubeService.swift */,
+				B997D013F867D1D7B4E8699B /* MixClient.swift */,
 				07D2429D97391EE748C1C51F /* YouTubeServiceError.swift */,
 				1408E9D356398FC301C25168 /* YouTubeServiceProtocol.swift */,
 			);
@@ -468,8 +475,10 @@
 				2ADE8C4DC99D19C7236B5DD3 /* HLSProxyAssetTests.swift */,
 				233839E702858F00D47AA3A3 /* InnerTubePlayerClientTests.swift */,
 				B24D8A76A47A4A27F5336E2C /* ListUiStateTests.swift */,
+				FEDEED7D0E6FB34C16872C13 /* MixContinuationTests.swift */,
 				0D09DB06460FA1F978D90EC3 /* NowPlayingAnimationTests.swift */,
 				72EAAC1446C77224BF2A0304 /* NowPlayingInfoCenterTests.swift */,
+				D8CD4C3048D28853AB061AED /* NowPlayingTitleHeightStabilityTests.swift */,
 				C7AAF4ABFEC0D9E9099E9DCC /* PlaybackPerfTracerTests.swift */,
 				179BC14C38D23063A16B2ED9 /* PlayerCoordinatorShuffleRepeatTests.swift */,
 				25A85EAE54504A96011A9FC7 /* PlayerCoordinatorTests.swift */,
@@ -618,8 +627,10 @@
 				922A8B843B3D3B00A6C73D0E /* HistoryStoreTests.swift in Sources */,
 				415DCC2FBF30148E56963FF5 /* InnerTubePlayerClientTests.swift in Sources */,
 				C3A544A4B92BA030D11681F8 /* ListUiStateTests.swift in Sources */,
+				D48215E8FD6A0E91E465EB01 /* MixContinuationTests.swift in Sources */,
 				95F0BAC4B1ADC9E9BB67C09C /* NowPlayingAnimationTests.swift in Sources */,
 				ABDFB66D8A642654C73AC6CC /* NowPlayingInfoCenterTests.swift in Sources */,
+				3E172DD994D709C39F4D78AD /* NowPlayingTitleHeightStabilityTests.swift in Sources */,
 				CB3DB11DC74E12846D8CBDE9 /* PlaybackPerfTracerTests.swift in Sources */,
 				252788CC03E49BAEDB2CA4F4 /* PlayerCoordinatorShuffleRepeatTests.swift in Sources */,
 				9E80F3ABB96B1DC0E08ED721 /* PlayerCoordinatorTests.swift in Sources */,
@@ -654,6 +665,7 @@
 				09E8623EB7A522FAD7FC6646 /* LibraryViewModel.swift in Sources */,
 				66B98C4397705C1E00639FD4 /* LiveYouTubeService.swift in Sources */,
 				CDE39E088E1171DBA8A562B1 /* MiniPlayer.swift in Sources */,
+				D506EFABBF2699FB750809FB /* MixClient.swift in Sources */,
 				FFCFD3671E5AFBCC4F3A0C1E /* Models.swift in Sources */,
 				F907DB78A24CDA4F1BB2FB0B /* NowPlayingActionRow.swift in Sources */,
 				31727A4DFC155805ED754ECB /* NowPlayingAnimation.swift in Sources */,

@@ -31,6 +31,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -268,11 +269,12 @@ fun LoadingList(
     rowFactory: @Composable (index: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val loadingDescription = stringResource(R.string.cd_loading_list)
     Column(
         modifier = modifier
             .fillMaxSize()
             .semantics(mergeDescendants = true) {
-                stateDescription = "Loading"
+                stateDescription = loadingDescription
                 liveRegion = LiveRegionMode.Polite
             },
     ) {

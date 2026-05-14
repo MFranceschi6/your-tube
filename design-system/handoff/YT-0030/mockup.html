@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT-0030 — iOS Playlist Sharing (handoff)</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  min-height: 100%;
+  background: #0a0a0a;
+  font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  color: #EBEBF5;
+}
+body { padding: 32px 24px 64px; }
+
+.page-head {
+  max-width: 1200px; margin: 0 auto 22px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 18px;
+}
+.page-head .lhs { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #fff; }
+.page-head .meta { font-size: 12px; color: rgba(235,235,245,0.55); font-family: 'Geist Mono', 'SF Mono', monospace; }
+.page-head .badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  background: rgba(139,92,246,0.18); color: #B794F6;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+}
+.subhead {
+  max-width: 1200px; margin: 0 auto 28px;
+  font-size: 13px; color: rgba(235,235,245,0.55); line-height: 1.6;
+}
+.subhead a { color: #B794F6; text-decoration: none; }
+.subhead a:hover { text-decoration: underline; }
+
+.layout {
+  max-width: 1200px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 36px;
+  align-items: start;
+}
+
+.stage {
+  background: radial-gradient(60% 50% at 30% 40%, #1a1a1a 0%, #0a0a0a 70%);
+  border-radius: 18px; padding: 36px 32px; min-height: 860px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* iOS frame — 393×852 pt */
+.phone {
+  width: 393px; height: 800px;
+  background: #000;
+  border-radius: 52px;
+  box-shadow: 0 0 0 2px #2a2a2a, 0 32px 80px rgba(0,0,0,0.7), inset 0 0 0 1px #444;
+  position: relative; overflow: hidden;
+  font-family: -apple-system, 'SF Pro Text', sans-serif;
+}
+.island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 124px; height: 36px; background: #000; border-radius: 20px; z-index: 30;
+}
+.statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 54px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 28px 10px; z-index: 20; pointer-events: none;
+  font-size: 15px; font-weight: 600; color: #fff;
+}
+.statusbar .right { display: flex; align-items: center; gap: 5px; }
+.screen { position: absolute; inset: 0; background: #000; }
+
+.navbar {
+  position: absolute; top: 54px; left: 0; right: 0; height: 44px;
+  display: flex; align-items: center; padding: 0 16px;
+  color: #fff; opacity: 0.4;
+}
+.navbar .center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 17px; font-weight: 600; }
+
+.largetitle { position: absolute; top: 96px; left: 16px; right: 16px; opacity: 0.4; }
+.largetitle .t { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; color: #fff; }
+
+.list { position: absolute; top: 156px; left: 16px; right: 16px; opacity: 0.35; }
+.section { background: #1C1C1E; border-radius: 14px; overflow: hidden; }
+.row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; min-height: 64px; border-bottom: 0.5px solid rgba(84,84,88,0.45); }
+.row:last-child { border-bottom: none; }
+.row .cover { width: 48px; height: 48px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(135deg, #4F378B, #B794F6); }
+.row .cover.b { background: linear-gradient(135deg, #1E40AF, #38BDF8); }
+.row .cover.c { background: linear-gradient(135deg, #B45309, #F59E0B); }
+.row .meta { flex: 1; min-width: 0; }
+.row .name { font-size: 17px; color: #fff; font-weight: 500; }
+.row .sub { font-size: 14px; color: rgba(235,235,245,0.6); margin-top: 2px; }
+.row .chev { color: rgba(235,235,245,0.3); }
+
+.sheet-scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.35); z-index: 10; }
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 540px;
+  background: rgba(36,36,38,0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-radius: 12px 12px 0 0; z-index: 20;
+  padding: 6px 0 32px;
+  box-shadow: 0 -6px 24px rgba(0,0,0,0.4);
+}
+.sheet .grabber { width: 36px; height: 5px; border-radius: 3px; background: rgba(235,235,245,0.4); margin: 8px auto 22px; }
+.sheet h2 {
+  font-size: 22px; font-weight: 700; color: #fff;
+  letter-spacing: -0.015em; line-height: 1.2;
+  padding: 0 20px; text-wrap: pretty;
+}
+.sheet .metaline { margin-top: 8px; font-size: 15px; color: rgba(235,235,245,0.6); padding: 0 20px; }
+.sheet .metaline .mono { font-family: 'SF Mono', monospace; font-size: 14px; color: rgba(235,235,245,0.55); }
+.sheet .actions { padding: 24px 20px 0; display: flex; flex-direction: column; gap: 12px; }
+.ibtn {
+  height: 50px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 17px; font-weight: 600; letter-spacing: -0.01em;
+}
+.ibtn.prominent { background: #8B5CF6; color: #fff; }
+.ibtn.bordered { background: rgba(120,120,128,0.24); color: #fff; }
+.ibtn.borderless { background: transparent; color: #B794F6; height: 44px; }
+
+.panel {
+  background: #141416; border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 22px 24px;
+}
+.panel h2 {
+  font-size: 11px; font-weight: 600; color: rgba(235,235,245,0.55);
+  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 14px;
+}
+.kv { display: grid; grid-template-columns: 150px 1fr; gap: 8px 16px; font-size: 12.5px; line-height: 1.5; }
+.kv .k { color: rgba(139,92,246,0.85); font-family: 'Geist Mono', monospace; font-size: 11.5px; }
+.kv .v { color: rgba(235,235,245,0.85); }
+.kv .v code { font-family: 'Geist Mono', monospace; font-size: 11.5px; color: rgba(235,235,245,0.95); background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 3px; }
+
+.note {
+  font-size: 12.5px; color: rgba(235,235,245,0.65); line-height: 1.6;
+  border-left: 2px solid rgba(139,92,246,0.5); padding: 6px 0 6px 14px;
+  margin-top: 14px;
+}
+.note a { color: #B794F6; text-decoration: none; }
+.note a:hover { text-decoration: underline; }
+.note + .note { margin-top: 10px; }
+.note strong { color: #fff; }
+
+@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .stage { min-height: auto; padding: 24px; } }
+</style>
+</head>
+<body data-screen-label="01 Export sheet idle">
+
+<div class="page-head">
+  <div class="lhs">
+    <span class="badge">YT-0030</span>
+    <h1>iOS Playlist Sharing — Export sheet (idle)</h1>
+  </div>
+  <div class="meta">YourTube · iOS 393×852 pt · iOS 26 + Liquid Glass · #8B5CF6</div>
+</div>
+
+<div class="subhead">
+  Visual anchor for the export <span style="font-family:'SF Mono',monospace;">.sheet</span> at rest. Companion to <a href="decision-log.md">decision-log.md</a> · <a href="swiftui-spec.md">swiftui-spec.md</a> · <a href="haptics-and-a11y.md">haptics-and-a11y.md</a>. For the system share sheet, op overlay, file picker, success preview, error variants, toolbar menu, and context menu, see <a href="mockup-states.html">mockup-states.html</a>.
+</div>
+
+<div class="layout">
+
+  <div class="stage">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+      </div></div>
+      <div class="screen">
+        <div class="navbar"><div class="center">Library</div></div>
+        <div class="largetitle"><div class="t">Library</div></div>
+        <div class="list">
+          <div class="section">
+            <div class="row"><div class="cover"></div><div class="meta"><div class="name">My Mix</div><div class="sub">12 tracks</div></div><div class="chev">›</div></div>
+            <div class="row"><div class="cover b"></div><div class="meta"><div class="name">Late nights</div><div class="sub">42 tracks</div></div><div class="chev">›</div></div>
+            <div class="row"><div class="cover c"></div><div class="meta"><div class="name">Workout</div><div class="sub">28 tracks</div></div><div class="chev">›</div></div>
+          </div>
+        </div>
+
+        <div class="sheet-scrim"></div>
+        <div class="sheet">
+          <div class="grabber"></div>
+          <h2>My Mix</h2>
+          <div class="metaline">12 tracks · 4.2 KB · <span class="mono">.ytplaylist.json</span></div>
+          <div class="actions">
+            <div class="ibtn prominent">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              Share
+            </div>
+            <div class="ibtn bordered">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><polyline points="16 8 12 4 8 8"/><line x1="12" y1="4" x2="12" y2="14"/></svg>
+              Save to Files
+            </div>
+            <div class="ibtn borderless">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Copy link
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Surface tokens</h2>
+      <div class="kv">
+        <div class="k">sheet bg</div><div class="v"><code>.regularMaterial</code> (iOS 17–25) · system Liquid Glass (iOS 26) — do not override</div>
+        <div class="k">detents</div><div class="v"><code>[.medium, .large]</code> with <code>presentationDragIndicator(.visible)</code></div>
+        <div class="k">title</div><div class="v"><code>.title2.weight(.semibold)</code> · lineLimit(2)</div>
+        <div class="k">meta row</div><div class="v"><code>.subheadline</code> · <code>.foregroundStyle(.secondary)</code></div>
+        <div class="k">primary btn</div><div class="v"><code>ShareLink</code> wrapping <code>.borderedProminent</code> · <code>.controlSize(.large)</code></div>
+        <div class="k">secondary btn</div><div class="v"><code>.bordered</code> · <code>.controlSize(.large)</code> → <code>.fileExporter</code></div>
+        <div class="k">tertiary btn</div><div class="v"><code>.borderless</code> · accentColor</div>
+        <div class="k">corner</div><div class="v">native sheet shape — never override</div>
+        <div class="k">tap target</div><div class="v">44 pt min via <code>.contentShape(Rectangle())</code> + <code>.controlSize(.large)</code> = 50 pt</div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:18px;">
+      <h2>Action contracts</h2>
+      <div class="kv">
+        <div class="k">Share</div><div class="v"><code>ShareLink(item: fileURL, preview: SharePreview(name, image:))</code> — system share sheet</div>
+        <div class="k">Save to Files</div><div class="v"><code>.fileExporter(isPresented:, document: PlaylistFile(..), contentType: .ytplaylistJSON, defaultFilename:)</code></div>
+        <div class="k">Copy link</div><div class="v">Copies <strong>deep link</strong> <code>yourtube://playlist/{id}</code> — NOT the temp file URL (which expires on app suspend)</div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:18px;">
+      <h2>Confirmations & follow-ups</h2>
+      <div class="kv">
+        <div class="k">on share return</div><div class="v">Toast <strong>T05</strong> · <code>Exported "{playlistName}"</code> · short, no action</div>
+        <div class="k">on save OK</div><div class="v">Toast T05 (same); on Cancel: no toast</div>
+        <div class="k">on copy link</div><div class="v">Toast <strong>T08</strong> · <code>Link copied</code></div>
+        <div class="k">on dismiss</div><div class="v">No toast — silent</div>
+        <div class="k">on encode fail</div><div class="v">Toast <strong>T13</strong> · <code>Couldn't save</code> · long, Retry</div>
+      </div>
+
+      <div class="note"><strong>Custom UTI.</strong> The Files-app surfacing fix (YT-0047) needs <code>UTExportedTypeDeclarations</code> for <code>com.yourtube.playlist</code> conforming to <code>public.json</code>, AND <code>CFBundleDocumentTypes</code> declaring YourTube as Owner of that UTI. See <a href="decision-log.md#1-file-extension-mime-type-and-fileimporter-content-types">decision-log § 1</a> and <a href="swiftui-spec.md#custom-uttype--decision-1">swiftui-spec § Custom UTType</a>.</div>
+      <div class="note"><strong>AirDrop receive.</strong> Both <code>.onOpenURL</code> (warm-launch) AND <code>scene(_:openURLContexts:)</code> (cold-launch) wire to the same <code>ImportRouter</code>. Missing either is a YT-0047-class regression. See <a href="decision-log.md#8-ios-files--airdrop--onopenurl-placement">decision-log § 8</a>.</div>
+      <div class="note"><strong>Privacy.</strong> Exported file contains <em>only</em> <code>schemaVersion</code>, <code>id</code>, <code>name</code>, <code>createdAt</code>, <code>updatedAt</code>, and a tracks array. No <code>idfv</code>, no <code>idfa</code>, no keychain, no auth tokens. <code>JSONEncoder</code> uses <code>[.prettyPrinted, .sortedKeys]</code> for byte-deterministic output (parity-fixture contract).</div>
+      <div class="note"><strong>Cite, do not redefine.</strong> Format is owned by <a href="../../../docs/api-contracts.md">docs/api-contracts.md</a>. Toast copy lives in <a href="../toast-catalog/copy.md">toast-catalog/copy.md</a>. The op overlay is <a href="../state-catalog/README.md">state-catalog C15</a>; the inline error styling is C16.</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

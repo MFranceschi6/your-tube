@@ -132,6 +132,7 @@ obsidian-vault/
 *.provisionprofile
 GoogleService-Info.plist
 google-services.json
+.mcp.json
 
 # Android / Gradle
 android/.gradle/

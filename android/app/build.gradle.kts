@@ -35,6 +35,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     testOptions {
@@ -55,6 +56,8 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:database"))
     implementation(project(":core:network"))
+    // YT-0251: OkHttp needed directly for Hilt KSP to resolve OkHttpClient in AppModule.
+    implementation(libs.okhttp)
     implementation(project(":core:player"))
     // TODO(nav): :feature:home exists but is not yet wired into the MVP nav graph.
     //            Wire it once the nav scaffold is in place (see YT-0005 or equivalent).
@@ -87,9 +90,12 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.room.runtime)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
 
     testImplementation(composeBom)
     testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.glance.appwidget.testing)
     testImplementation(libs.junit4)
     testImplementation(libs.kotlin.test)
     testImplementation(libs.kotlinx.coroutines.test)

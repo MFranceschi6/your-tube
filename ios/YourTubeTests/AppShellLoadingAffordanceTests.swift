@@ -193,6 +193,9 @@ private final class LoadingNeverResolvingYouTubeService: YouTubeServiceProtocol,
         try await Task.sleep(nanoseconds: .max)
         throw CancellationError()
     }
+    // YT-0298 Mix stubs.
+    func getMixQueueWithContinuation(videoId: String) async -> MixQueueResult { .empty }
+    func getMixContinuation(token: String) async -> MixQueueResult { .empty }
 }
 
 // MARK: - MiniPlayer loading variant

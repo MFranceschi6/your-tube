@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT-0181 — Toast / Snackbar States</title>
+<style>
+  :root {
+    --bg:              #0F0F0F;
+    --surface:         #1C1C1E;
+    --surface-hi:      #2C2C2E;
+    --fg-primary:      #FFFFFF;
+    --fg-secondary:    rgba(235,235,245,0.80);
+    --fg-tertiary:     rgba(235,235,245,0.40);
+    --accent:          #8B5CF6;
+    --accent-hi:       #A78BFA;
+    --error:           #FF453A;
+    --outline:         #3A3A3C;
+    --radius-sm:       8px;
+    --radius-md:       12px;
+    --radius-pill:     999px;
+
+    /* Toast-specific */
+    --toast-bg:        #1C1C1E;
+    --toast-fg:        #FFFFFF;
+    --toast-action:    #A78BFA;
+    --toast-radius:    12px;
+    --toast-shadow:    0 4px 24px rgba(0,0,0,0.60);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.5;
+    padding: 48px 24px 96px;
+    min-height: 100vh;
+  }
+
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  /* ── Header ── */
+  header { margin-bottom: 48px; }
+  .badge {
+    display: inline-block;
+    background: #2A1F4A;
+    color: var(--accent-hi);
+    border: 1px solid #4F378B;
+    padding: 5px 12px;
+    border-radius: var(--radius-pill);
+    font-size: 11px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  h1 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+  }
+  .lede {
+    color: var(--fg-secondary);
+    font-size: 15px;
+    max-width: 600px;
+  }
+
+  /* ── Section ── */
+  .section {
+    margin-bottom: 56px;
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--fg-tertiary);
+    margin-bottom: 20px;
+  }
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--fg-primary);
+  }
+  .desc {
+    font-size: 13px;
+    color: var(--fg-secondary);
+    margin-bottom: 24px;
+    max-width: 520px;
+  }
+
+  /* ── Device frame ── */
+  .device-row {
+    display: flex;
+    gap: 32px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .device {
+    position: relative;
+    border-radius: 40px;
+    border: 2px solid var(--outline);
+    overflow: hidden;
+    background: var(--bg);
+    flex-shrink: 0;
+  }
+  .device.android {
+    width: 360px;
+    height: 540px;
+  }
+  .device.ios {
+    width: 393px;
+    height: 560px;
+  }
+  .device-label {
+    font-size: 11px;
+    color: var(--fg-tertiary);
+    text-align: center;
+    margin-top: 8px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ── Screen content inside device ── */
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* status bar */
+  .status-bar {
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    font-size: 12px;
+    color: var(--fg-secondary);
+    flex-shrink: 0;
+  }
+
+  /* app bar */
+  .app-bar {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--outline);
+  }
+  .app-bar-title {
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  /* body */
+  .body-area {
+    flex: 1;
+    padding: 12px 16px;
+    overflow: hidden;
+  }
+
+  /* Fake list rows */
+  .list-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--outline);
+  }
+  .thumb {
+    width: 48px;
+    height: 36px;
+    border-radius: 4px;
+    background: var(--surface-hi);
+    flex-shrink: 0;
+  }
+  .row-text { flex: 1; }
+  .row-title {
+    font-size: 14px;
+    color: var(--fg-primary);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row-sub {
+    font-size: 12px;
+    color: var(--fg-secondary);
+  }
+  /* Third row shows removed state — dimmed */
+  .list-row.removed {
+    opacity: 0.25;
+    text-decoration: line-through;
+  }
+
+  /* ── Mini player bar ── */
+  .mini-player {
+    height: 64px;
+    background: var(--surface);
+    border-top: 1px solid var(--outline);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .mini-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    background: var(--accent);
+    opacity: 0.6;
+    flex-shrink: 0;
+  }
+  .mini-title {
+    flex: 1;
+    font-size: 13px;
+    color: var(--fg-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .mini-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mini-btn svg { width: 20px; height: 20px; fill: var(--fg-secondary); }
+
+  /* ── Nav bar ── */
+  .nav-bar {
+    height: 56px;
+    background: var(--surface);
+    border-top: 1px solid var(--outline);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    flex-shrink: 0;
+  }
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    color: var(--fg-tertiary);
+  }
+  .nav-item.active { color: var(--accent-hi); }
+  .nav-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    background: currentColor;
+    opacity: 0.5;
+  }
+
+  /* ── Toast ── */
+  .toast-layer {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    /* bottom set per-variant via inline style */
+    z-index: 10;
+  }
+  .toast {
+    background: var(--toast-bg);
+    border-radius: var(--toast-radius);
+    box-shadow: var(--toast-shadow);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--outline);
+  }
+  .toast-message {
+    flex: 1;
+    font-size: 14px;
+    color: var(--toast-fg);
+    line-height: 1.4;
+  }
+  .toast-action {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--toast-action);
+    white-space: nowrap;
+    padding: 4px 0 4px 8px;
+    cursor: pointer;
+    letter-spacing: 0.01em;
+  }
+  .toast-action.error {
+    color: #FF6B6B;
+  }
+
+  /* Annotation callout */
+  .callout-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--outline);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--fg-secondary);
+    flex: 1;
+    min-width: 200px;
+  }
+  .callout strong {
+    display: block;
+    color: var(--fg-primary);
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+
+  /* ── Rules panel ── */
+  .rules {
+    background: var(--surface);
+    border: 1px solid var(--outline);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    margin-top: 40px;
+  }
+  .rules h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fg-primary);
+    margin-bottom: 12px;
+  }
+  .rules ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .rules li {
+    font-size: 13px;
+    color: var(--fg-secondary);
+    padding-left: 16px;
+    position: relative;
+  }
+  .rules li::before {
+    content: "–";
+    position: absolute;
+    left: 0;
+    color: var(--fg-tertiary);
+  }
+  .rules code {
+    font-family: 'Roboto Mono', ui-monospace, monospace;
+    font-size: 12px;
+    background: var(--surface-hi);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--accent-hi);
+  }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--outline);
+    font-size: 12px;
+    color: var(--fg-tertiary);
+  }
+  .footer code {
+    font-family: 'Roboto Mono', ui-monospace, monospace;
+    background: var(--surface);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="badge">docs-maintainer · YT-0181</div>
+    <h1>Toast / Snackbar States</h1>
+    <p class="lede">Dark-theme reference for all three snackbar variants. Intent, not pixel-perfect. Implement using platform-native components per <code style="font-family:monospace;font-size:13px;background:#1C1C1E;padding:2px 6px;border-radius:4px;color:#A78BFA">behavior.md</code>.</p>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- STATE 1 — Simple toast (no action)                      -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">State 1 of 3</div>
+    <h2>Simple confirmation — no action button</h2>
+    <p class="desc">Trigger T08 example: "Link copied". Non-reversible. <code>Short</code> duration (4 s). No action label. <code>LiveRegion.Polite</code> announcement.</p>
+
+    <div class="device-row">
+      <!-- Android frame -->
+      <div>
+        <div class="device android">
+          <div class="screen">
+            <div class="status-bar">
+              <span>9:41</span>
+              <span>●●●</span>
+            </div>
+            <div class="app-bar">
+              <div style="width:20px;height:20px;border-radius:3px;background:var(--surface-hi);"></div>
+              <span class="app-bar-title">Playlist Detail</span>
+            </div>
+            <div class="body-area">
+              <div class="list-row">
+                <div class="thumb"></div>
+                <div class="row-text">
+                  <div class="row-title">Lofi Hip Hop Radio</div>
+                  <div class="row-sub">ChilledCow · 3:42</div>
+                </div>
+              </div>
+              <div class="list-row">
+                <div class="thumb"></div>
+                <div class="row-text">
+                  <div class="row-title">Study Session Vol. 4</div>
+                  <div class="row-sub">Chill Nation · 5:12</div>
+                </div>
+              </div>
+              <div class="list-row">
+                <div class="thumb"></div>
+                <div class="row-text">
+                  <div class="row-title">Midnight Drive</div>
+                  <div class="row-sub">Tycho · 4:08</div>
+                </div>
+              </div>
+            </div>
+            <div class="mini-player">
+              <div class="mini-thumb"></div>
+              <span class="mini-title">Lofi Hip Hop Radio</span>
+              <div class="mini-btn">
+                <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+              </div>
+              <div class="mini-btn">
+                <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+              </div>
+            </div>
+            <div class="nav-bar">
+              <div class="nav-item"><div class="nav-dot"></div><span>Home</span></div>
+              <div class="nav-item"><div class="nav-dot"></div><span>Search</span></div>
+              <div class="nav-item active"><div class="nav-dot"></div><span>Library</span></div>
+              <div class="nav-item"><div class="nav-dot"></div><span>History</span></div>
+            </div>
+          </div>
+          <!-- Toast positioned above MiniPlayer (64dp) + NavBar (56dp) + 8dp gap = 128dp from bottom -->
+          <div class="toast-layer" style="bottom: 128px;">
+            <div class="toast">
+              <span class="toast-message">Link copied</span>
+            </div>
+          </div>
+        </div>
+        <div class="device-label">Android · 360 dp</div>
+      </div>
+
+      <!-- iOS frame -->
+      <div>
+        <div class="device ios">
+          <div class="screen">
+            <div class="status-bar" style="height:48px;">
+              <span>9:41</span>
+              <span style="display:flex;gap:6px;align-items:center;"><span>●●●</span></span>
+            </div>
+            <div class="app-bar">
+              <div style="width:20px;height:20px;border-radius:3px;background:var(--surface-hi);"></div>
+              <span class="app-bar-title">Playlist Detail</span>
+            </div>
+            <div class="body-area">
+              <div class="list-row">
+                <div class="thumb"></div>
+                <div class="row-text">
+                  <div class="row-title">Lofi Hip Hop Radio</div>
+                  <div class="row-sub">ChilledCow · 3:42</div>
+                </div>
+              </div>
+              <div class="list-row">
+                <div class="thumb"></div>
+                <div class="row-text">
+                  <div class="row-title">Study Session Vol. 4</div>
+                  <div class="row-sub">Chill Nation · 5:12</div>
+                </div>
+              </div>
+              <div class="list-row">
+                <div class="thumb"></div>
+                <div class="row-text">
+                  <div class="row-title">Midnight Drive</div>
+                  <div class="row-sub">Tycho · 4:08</div>
+                </div>
+              </div>
+            </div>
+            <div class="mini-player">
+              <div class="mini-thumb"></div>
+              <span class="mini-title">Lofi Hip Hop Radio</span>
+              <div class="mini-btn">
+                <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+              </div>
+              <div class="mini-btn">
+                <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+              </div>
+            </div>
+            <!-- iOS tab bar -->
+            <div class="nav-bar" style="height:49px;">
+              <div class="nav-item"><div class="nav-dot"></div><span>Home</span></div>
+              <div class="nav-item"><div class="nav-dot"></div><span>Search</span></div>
+              <div class="nav-item active"><div class="nav-dot"></div><span>Library</span></div>
+              <div class="nav-item"><div class="nav-dot"></div><span>History</span></div>
+            </div>
+          </div>
+          <!-- Toast positioned above MiniPlayer + TabBar + home indicator area -->
+          <div class="toast-layer" style="bottom: 130px;">
+            <div class="toast">
+              <span class="toast-message">Link copied</span>
+            </div>
+          </div>
+        </div>
+        <div class="device-label">iOS · 393 pt</div>
+      </div>
+    </div><!-- /device-row -->
+
+    <div class="callout-row">
+      <div class="callout">
+        <strong>Trigger</strong>
+        T08 — Link copied
+      </div>
+      <div class="callout">
+        <strong>Duration</strong>
+        Short (4 s). Auto-dismisses. No manual action required.
+      </div>
+      <div class="callout">
+        <strong>Accessibility</strong>
+        LiveRegion.Polite (Android) / delayed UIAccessibility.announcement (iOS).
+      </div>
+    </div>
+  </div><!-- /section 1 -->
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- STATE 2 — Toast with Undo action                        -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">State 2 of 3</div>
+    <h2>Confirmation with Undo</h2>
+    <p class="desc">Trigger T01 example: track removed from playlist. <code>Long</code> duration (10 s). "Undo" action restores the removed track. Collapsed form (T02) replaces this when &ge;2 removes fire within 3 s.</p>
+
+    <div class="device-row">
+      <!-- Android -->
+      <div>
+        <div class="device android">
+          <div class="screen">
+            <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+            <div class="app-bar">
+              <div style="width:20px;height:20px;border-radius:3px;background:var(--surface-hi);"></div>
+              <span class="app-bar-title">Morning Mix (Edit)</span>
+            </div>
+            <div class="body-area">
+              <div class="list-row">
+                <div class="thumb"></div>
+                <div class="row-text">
+                  <div class="row-title">Lofi Hip Hop Radio</div>
+                  <div class="row-sub">ChilledCow · 3:42</div>
+                </div>
+              </div>
+              <div class="list-row">
+                <div class="thumb"></div>
+                <div class="row-text">
+                  <div class="row-title">Study Session Vol. 4</div>
+                  <div class="row-sub">Chill Nation · 5:12</div>
+                </div>
+              </div>
+              <!-- Removed row shown as gap -->
+              <div class="list-row" style="opacity:0.18;pointer-events:none;">
+                <div class="thumb"></div>
+                <div class="row-text">
+                  <div class="row-title" style="text-decoration:line-through;">Midnight Drive</div>
+                  <div class="row-sub">Tycho · 4:08</div>
+                </div>
+              </div>
+            </div>
+            <div class="mini-player">
+              <div class="mini-thumb"></div>
+              <span class="mini-title">Lofi Hip Hop Radio</span>
+              <div class="mini-btn"><svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg></div>
+              <div class="mini-btn"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></div>
+            </div>
+            <div class="nav-bar">
+              <div class="nav-item"><div class="nav-dot"></div><span>Home</span></div>
+              <div class="nav-item"><div class="nav-dot"></div><span>Search</span></div>
+              <div class="nav-item active"><div class="nav-dot"></div><span>Library</span></div>
+              <div class="nav-item"><div class="nav-dot"></div><span>History</span></div>
+            </div>
+          </div>
+          <div class="toast-layer" style="bottom: 128px;">
+            <div class="toast">
+              <span class="toast-message">Removed &#x201C;Midnight Drive&#x201D;</span>
+              <span class="toast-action">Undo</span>
+            </div>
+          </div>
+        </div>
+        <div class="device-label">Android · 360 dp</div>
+      </div>
+
+      <!-- iOS -->
+      <div>
+        <div class="device ios">
+          <div class="screen">
+            <div class="status-bar" style="height:48px;"><span>9:41</span><span>●●●</span></div>
+            <div class="app-bar">
+              <div style="width:20px;height:20px;border-radius:3px;background:var(--surface-hi);"></div>
+              <span class="app-bar-title">Morning Mix (Edit)</span>
+            </div>
+            <div class="body-area">
+              <div class="list-row">
+                <div class="thumb"></div>
+                <div class="row-text">
+                  <div class="row-title">Lofi Hip Hop Radio</div>
+                  <div class="row-sub">ChilledCow · 3:42</div>
+                </div>
+              </div>
+              <div class="list-row">
+                <div class="thumb"></div>
+                <div class="row-text">
+                  <div class="row-title">Study Session Vol. 4</div>
+                  <div class="row-sub">Chill Nation · 5:12</div>
+                </div>
+              </div>
+              <div class="list-row" style="opacity:0.18;pointer-events:none;">
+                <div class="thumb"></div>
+                <div class="row-text">
+                  <div class="row-title" style="text-decoration:line-through;">Midnight Drive</div>
+                  <div class="row-sub">Tycho · 4:08</div>
+                </div>
+              </div>
+            </div>
+            <div class="mini-player">
+              <div class="mini-thumb"></div>
+              <span class="mini-title">Lofi Hip Hop Radio</span>
+              <div class="mini-btn"><svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg></div>
+              <div class="mini-btn"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></div>
+            </div>
+            <div class="nav-bar" style="height:49px;">
+              <div class="nav-item"><div class="nav-dot"></div><span>Home</span></div>
+              <div class="nav-item"><div class="nav-dot"></div><span>Search</span></div>
+              <div class="nav-item active"><div class="nav-dot"></div><span>Library</span></div>
+              <div class="nav-item"><div class="nav-dot"></div><span>History</span></div>
+            </div>
+          </div>
+          <div class="toast-layer" style="bottom: 130px;">
+            <div class="toast">
+              <span class="toast-message">Removed &#x201C;Midnight Drive&#x201D;</span>
+              <span class="toast-action">Undo</span>
+            </div>
+          </div>
+        </div>
+        <div class="device-label">iOS · 393 pt</div>
+      </div>
+    </div><!-- /device-row -->
+
+    <div class="callout-row">
+      <div class="callout">
+        <strong>Trigger</strong>
+        T01 — Track removed from playlist (single)
+      </div>
+      <div class="callout">
+        <strong>Duration</strong>
+        Long (10 s). Undo restores all pending removals.
+      </div>
+      <div class="callout">
+        <strong>Collapse</strong>
+        Second remove within 3 s → message becomes "Removed 2 tracks". Undo reverses both.
+      </div>
+      <div class="callout">
+        <strong>Accessibility</strong>
+        LiveRegion.Polite. Undo button MUST NOT be hidden from a11y tree.
+      </div>
+    </div>
+  </div><!-- /section 2 -->
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- STATE 3 — Error toast with Retry action                 -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-label">State 3 of 3</div>
+    <h2>Error toast with Retry</h2>
+    <p class="desc">Trigger T12 example: transient network error. <code>Short</code> duration. "Retry" re-runs the failed operation. Uses <code>LiveRegion.Assertive</code> to interrupt current speech — errors only.</p>
+
+    <div class="device-row">
+      <!-- Android -->
+      <div>
+        <div class="device android">
+          <div class="screen">
+            <div class="status-bar"><span>9:41</span><span>●●●</span></div>
+            <div class="app-bar">
+              <div style="width:20px;height:20px;border-radius:3px;background:var(--surface-hi);"></div>
+              <span class="app-bar-title">Search</span>
+            </div>
+            <div class="body-area">
+              <!-- Skeleton rows to suggest a search that failed to load -->
+              <div class="list-row" style="opacity:0.35;">
+                <div class="thumb" style="background:var(--surface-hi);"></div>
+                <div class="row-text">
+                  <div style="height:12px;width:70%;background:var(--surface-hi);border-radius:4px;margin-bottom:6px;"></div>
+                  <div style="height:10px;width:45%;background:var(--surface-hi);border-radius:4px;"></div>
+                </div>
+              </div>
+              <div class="list-row" style="opacity:0.25;">
+                <div class="thumb" style="background:var(--surface-hi);"></div>
+                <div class="row-text">
+                  <div style="height:12px;width:55%;background:var(--surface-hi);border-radius:4px;margin-bottom:6px;"></div>
+                  <div style="height:10px;width:38%;background:var(--surface-hi);border-radius:4px;"></div>
+                </div>
+              </div>
+              <div class="list-row" style="opacity:0.18;">
+                <div class="thumb" style="background:var(--surface-hi);"></div>
+                <div class="row-text">
+                  <div style="height:12px;width:62%;background:var(--surface-hi);border-radius:4px;margin-bottom:6px;"></div>
+                  <div style="height:10px;width:42%;background:var(--surface-hi);border-radius:4px;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="mini-player">
+              <div class="mini-thumb"></div>
+              <span class="mini-title">Lofi Hip Hop Radio</span>
+              <div class="mini-btn"><svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg></div>
+              <div class="mini-btn"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></div>
+            </div>
+            <div class="nav-bar">
+              <div class="nav-item"><div class="nav-dot"></div><span>Home</span></div>
+              <div class="nav-item active"><div class="nav-dot"></div><span>Search</span></div>
+              <div class="nav-item"><div class="nav-dot"></div><span>Library</span></div>
+              <div class="nav-item"><div class="nav-dot"></div><span>History</span></div>
+            </div>
+          </div>
+          <div class="toast-layer" style="bottom: 128px;">
+            <div class="toast" style="border-color: rgba(255,99,71,0.30);">
+              <span class="toast-message">Couldn&#x2019;t connect</span>
+              <span class="toast-action error">Retry</span>
+            </div>
+          </div>
+        </div>
+        <div class="device-label">Android · 360 dp</div>
+      </div>
+
+      <!-- iOS -->
+      <div>
+        <div class="device ios">
+          <div class="screen">
+            <div class="status-bar" style="height:48px;"><span>9:41</span><span>●●●</span></div>
+            <div class="app-bar">
+              <div style="width:20px;height:20px;border-radius:3px;background:var(--surface-hi);"></div>
+              <span class="app-bar-title">Search</span>
+            </div>
+            <div class="body-area">
+              <div class="list-row" style="opacity:0.35;">
+                <div class="thumb" style="background:var(--surface-hi);"></div>
+                <div class="row-text">
+                  <div style="height:12px;width:70%;background:var(--surface-hi);border-radius:4px;margin-bottom:6px;"></div>
+                  <div style="height:10px;width:45%;background:var(--surface-hi);border-radius:4px;"></div>
+                </div>
+              </div>
+              <div class="list-row" style="opacity:0.25;">
+                <div class="thumb" style="background:var(--surface-hi);"></div>
+                <div class="row-text">
+                  <div style="height:12px;width:55%;background:var(--surface-hi);border-radius:4px;margin-bottom:6px;"></div>
+                  <div style="height:10px;width:38%;background:var(--surface-hi);border-radius:4px;"></div>
+                </div>
+              </div>
+              <div class="list-row" style="opacity:0.18;">
+                <div class="thumb" style="background:var(--surface-hi);"></div>
+                <div class="row-text">
+                  <div style="height:12px;width:62%;background:var(--surface-hi);border-radius:4px;margin-bottom:6px;"></div>
+                  <div style="height:10px;width:42%;background:var(--surface-hi);border-radius:4px;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="mini-player">
+              <div class="mini-thumb"></div>
+              <span class="mini-title">Lofi Hip Hop Radio</span>
+              <div class="mini-btn"><svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg></div>
+              <div class="mini-btn"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></div>
+            </div>
+            <div class="nav-bar" style="height:49px;">
+              <div class="nav-item"><div class="nav-dot"></div><span>Home</span></div>
+              <div class="nav-item active"><div class="nav-dot"></div><span>Search</span></div>
+              <div class="nav-item"><div class="nav-dot"></div><span>Library</span></div>
+              <div class="nav-item"><div class="nav-dot"></div><span>History</span></div>
+            </div>
+          </div>
+          <div class="toast-layer" style="bottom: 130px;">
+            <div class="toast" style="border-color: rgba(255,99,71,0.30);">
+              <span class="toast-message">Couldn&#x2019;t connect</span>
+              <span class="toast-action error">Retry</span>
+            </div>
+          </div>
+        </div>
+        <div class="device-label">iOS · 393 pt</div>
+      </div>
+    </div><!-- /device-row -->
+
+    <div class="callout-row">
+      <div class="callout">
+        <strong>Trigger</strong>
+        T12 — Network error (transient, retryable)
+      </div>
+      <div class="callout">
+        <strong>Duration</strong>
+        Short (4 s). Deduplicate: if already visible, reset timer rather than stacking.
+      </div>
+      <div class="callout">
+        <strong>Accessibility</strong>
+        LiveRegion.Assertive (Android) / immediate UIAccessibility.announcement (iOS). Errors only.
+      </div>
+      <div class="callout">
+        <strong>Error copy rule</strong>
+        Factual, no blame. "Couldn't connect" not "Network error occurred".
+      </div>
+    </div>
+  </div><!-- /section 3 -->
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- Quick-reference rules panel                             -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <div class="rules">
+    <h3>Quick-reference — non-negotiable rules</h3>
+    <ul>
+      <li>Max <strong>1 toast visible</strong> at a time. New trigger dismisses the current one and commits any pending Undo.</li>
+      <li><strong>Collapse window: 3 s.</strong> Same trigger within 3 s updates the existing toast rather than stacking.</li>
+      <li>Position: bottom edge at <code>safeBottomInset</code> — <strong>152 dp/pt</strong> when MiniPlayer visible, <strong>88 dp/pt</strong> otherwise.</li>
+      <li>Action label is <strong>"Undo"</strong> for reversals, <strong>"Retry"</strong> for failures. Never "Cancel" or "Dismiss".</li>
+      <li>Messages: <strong>past tense, ≤50 chars, no trailing period, no emoji, no "Successfully"</strong>.</li>
+      <li><code>LiveRegion.Assertive</code> / immediate announcement for <strong>errors only</strong>. Confirmations use <code>Polite</code>.</li>
+      <li>Action button (Undo/Retry) is <strong>never hidden</strong> from the accessibility tree.</li>
+      <li>Container colors: Android <code>colorScheme.inverseSurface</code>; iOS <code>#1C1C1E</code> dark surface.</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    Source: <code>design-system/handoff/toast-catalog/</code> &mdash; YT-0181 &mdash; 2026-05-09
+  </div>
+
+</div><!-- /wrap -->
+</body>
+</html>

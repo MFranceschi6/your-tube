@@ -21,7 +21,9 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import com.yourtube.core.common.model.PlayerState
 import com.yourtube.core.common.model.Track
+import com.yourtube.core.data.preferences.AutoplayPreferences
 import com.yourtube.core.data.preferences.PlaybackLifecyclePreferences
+import com.yourtube.core.data.repository.PlayerSnapshotRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +32,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -80,6 +83,32 @@ class PlaybackService : MediaSessionService() {
      */
     @Inject
     lateinit var playbackLifecyclePreferences: PlaybackLifecyclePreferences
+
+    /**
+     * YT-0291 L1 — autoplay preference consulted by [observeQueueBoundaryForCustomLayout]
+     * so the lock-screen skip-next button remains visible at queue end when autoplay is ON.
+     * Injected here so [buildQueueBoundary] can be a pure, testable function that receives
+     * the preference value as a plain `Boolean` rather than coupling to DataStore directly.
+     */
+    @Inject
+    lateinit var autoplayPreferences: AutoplayPreferences
+
+    /**
+     * YT-0093 — Sleep timer. Attached to [serviceScope] in [onCreate] so timers survive
+     * app backgrounding; detached in [onDestroy] to release the scope and cancel any
+     * active timer.
+     */
+    @Inject
+    lateinit var sleepTimerController: SleepTimerController
+
+    /**
+     * YT-0272 — snapshot repository used at cold launch to restore the persisted queue,
+     * current track, seek position, repeat mode, shuffle, and speed into [playerController]
+     * paused. Injected here rather than into [playerController] so the restore is a one-shot
+     * service-lifecycle concern and does not pollute the controller's ongoing state machine.
+     */
+    @Inject
+    lateinit var playerSnapshotRepository: PlayerSnapshotRepository
 
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
@@ -201,6 +230,16 @@ class PlaybackService : MediaSessionService() {
         observeNextTrackForArtworkPrewarm()
         observeCurrentTrackForArtworkPrewarm()
         observeStopOnTaskRemovedPreference()
+        // YT-0093 — hand the sleep timer the service scope so its coroutines outlive the UI.
+        sleepTimerController.attach(serviceScope)
+        // YT-0272 — restore the last-known player state from the persisted snapshot so the
+        // MiniPlayer is visible immediately at cold launch with the persisted metadata.
+        // Runs paused; stream-URL resolution is deferred until the user taps play.
+        // A null snapshot (first launch, corrupt DB) is a silent no-op per the contract.
+        serviceScope.launch {
+            val snapshot = playerSnapshotRepository.loadSnapshot() ?: return@launch
+            playerController.restoreFromSnapshot(snapshot)
+        }
     }
 
     /**
@@ -234,8 +273,8 @@ class PlaybackService : MediaSessionService() {
      * `DefaultMediaNotificationProvider` therefore (a) hides its built-in skip-next icon and
      * (b) collapses the prev icon into a `seekTo(0)` rewind on the current item. The custom
      * buttons bridge that gap without restructuring queue ownership: prev routes to
-     * [PlayerController.skipPrevious] (which keeps the `RESTART_THRESHOLD_MS` rewind-vs-step
-     * rule), next routes to [PlayerController.skipNext].
+     * [PlayerController.skipPrevious] (which keeps the `SKIP_BACK_RESTART_THRESHOLD_MS`
+     * rewind-vs-step rule), next routes to [PlayerController.skipNext].
      *
      * Implementation choice: `MediaSession.setCustomLayout(List<CommandButton>)` is the only
      * layout API on Media3 1.4.1. (The newer `setMediaButtonPreferences(...)` mentioned in
@@ -248,21 +287,12 @@ class PlaybackService : MediaSessionService() {
     @OptIn(UnstableApi::class)
     private fun observeQueueBoundaryForCustomLayout() {
         customLayoutJob?.cancel()
-        customLayoutJob = playerController.playerState
-            .map { state ->
-                // YT-0239 (round-3 spec amendment, 2026-05-08T23:30) — `hasPrev` is now gated
-                // on `currentTrack != null`, NOT on `currentQueueIndex > 0`. The button stays
-                // visible whenever there is a track to operate on; at idx=0 the controller's
-                // `skipPrevious()` falls through to `seekTo(0L)` so the user can rewind the
-                // first track from the lock-screen / notification card. Single source of
-                // truth: both surfaces (NowPlaying skip-prev, lock-screen prev) route through
-                // `playerController.skipPrevious()`, so widening visibility here propagates
-                // automatically.
-                QueueBoundary(
-                    hasPrev = state.currentTrack != null,
-                    hasNext = state.queue.size > state.currentQueueIndex + 1,
-                )
-            }
+        customLayoutJob = combine(
+            playerController.playerState,
+            autoplayPreferences.autoplayEnabled,
+        ) { state, autoplayEnabled ->
+            buildQueueBoundary(state, autoplayEnabled)
+        }
             .distinctUntilChanged()
             .onEach { boundary ->
                 val session = mediaSession ?: return@onEach
@@ -350,6 +380,38 @@ class PlaybackService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         mediaSession
 
+    /**
+     * YT-0285 — cold-rebind restore guard.
+     *
+     * `PlaybackService.onCreate` schedules `restoreFromSnapshot` on [serviceScope] — a
+     * `launch {}` that runs asynchronously. When the Activity (re)binds to the service,
+     * the UI Composition starts collecting `playerController.playerState` immediately. If
+     * `restoreFromSnapshot` has not yet executed, `playerState.currentTrack` is null and
+     * the MiniPlayer gate (`currentTrack != null`) evaluates to false — so the MiniPlayer
+     * never appears until the user interacts with the app again.
+     *
+     * Overriding `onBind` lets us detect the race: if the controller still has no current
+     * track at bind time but a snapshot exists, we trigger an additional restore launch.
+     * [shouldRestoreOnBind] encapsulates the predicate so it is unit-testable.
+     *
+     * `super.onBind(intent)` must be called first so Media3's `MediaSessionService` can
+     * set up its own binder before we schedule work on the service scope.
+     *
+     * Note: `onBind` is called on the main thread; `restoreFromSnapshot` is `suspend`, so
+     * it is launched on [serviceScope] (`Dispatchers.Main.immediate`) — same as the
+     * `onCreate` path.
+     */
+    override fun onBind(intent: android.content.Intent?): android.os.IBinder? {
+        val binder = super.onBind(intent)
+        if (shouldRestoreOnBind(playerController.playerState.value.currentTrack)) {
+            serviceScope.launch {
+                val snapshot = playerSnapshotRepository.loadSnapshot() ?: return@launch
+                playerController.restoreFromSnapshot(snapshot)
+            }
+        }
+        return binder
+    }
+
     override fun onTaskRemoved(rootIntent: Intent?) {
         val session = mediaSession ?: return
         // YT-0241 — branch on the snapshot read of `stopOnTaskRemoved`. The decision is
@@ -381,6 +443,9 @@ class PlaybackService : MediaSessionService() {
         currentPrewarmJob?.cancel()
         currentPrewarmJob = null
         notificationProvider = null
+        // YT-0093 — detach before cancelling serviceScope so cancelInternal() can still
+        // safely clear timerJob (Job.cancel() on an already-cancelled scope is a no-op).
+        sleepTimerController.detach()
         serviceScope.cancel()
         playbackPlayerAdapter.detach()
         val currentListener = perfPlayerListener
@@ -436,13 +501,27 @@ class PlaybackService : MediaSessionService() {
 
             val resultFuture = SettableFuture.create<SessionResult>()
             serviceScope.launch {
-                runCatching {
-                    playbackCommandProcessor.playTrack(request, playbackPlayerAdapter)
-                }.onSuccess {
+                // YT-0309 — mirror the client-side withTimeoutOrNull ceiling on the service
+                // side so the OkHttp call and the launch itself are bounded. Without this, the
+                // service-side coroutine outlives the client timeout and eventually calls
+                // playbackEngine.prepare()/play(), re-driving ExoPlayer into STATE_BUFFERING
+                // after the controller already transitioned to PAUSED.
+                // Recovery vector: tap-to-retry. The controller transitions to PAUSED with
+                // engineLoaded=false on timeout; the user re-taps Play which re-enters
+                // playQueueItem via the engineLoaded=false branch. No ConnectivityManager
+                // callback is registered — the user initiates the retry.
+                var failureReason: String? = null
+                val resolved = kotlinx.coroutines.withTimeoutOrNull(SERVICE_RESOLVE_TIMEOUT_MS) {
+                    runCatching {
+                        playbackCommandProcessor.playTrack(request, playbackPlayerAdapter)
+                    }.onFailure { failureReason = it.message }.isSuccess
+                }
+                if (resolved == true) {
                     logger.debug(TAG, "playTrack ok videoId=${request.track.videoId}")
                     resultFuture.set(SessionResult(SessionResult.RESULT_SUCCESS))
-                }.onFailure { error ->
-                    logger.error(TAG, "playTrack failed videoId=${request.track.videoId}", error)
+                } else {
+                    val reason = if (resolved == null) "timeout" else failureReason ?: "unknown"
+                    logger.error(TAG, "playTrack failed videoId=${request.track.videoId} reason=$reason")
                     resultFuture.set(SessionResult(SessionError.ERROR_UNKNOWN))
                 }
             }
@@ -479,11 +558,12 @@ class PlaybackService : MediaSessionService() {
         /**
          * YT-0239 — delegate the lock-screen / notification skip-prev tap to
          * [PlayerController.skipPrevious]. Routing through the controller (rather than
-         * `Player.seekToPrevious()` directly) keeps the `RESTART_THRESHOLD_MS` rewind-vs-step
-         * policy in one place: positions above the threshold seek the current item to 0,
-         * positions at or below the threshold advance `currentQueueIndex` backward and
-         * trigger the standard stream-resolve + `playTrack` pipeline used by in-app
-         * NowPlaying skip-prev. Same suspending pattern as [handleSkipToNextQueue].
+         * `Player.seekToPrevious()` directly) keeps the `SKIP_BACK_RESTART_THRESHOLD_MS`
+         * rewind-vs-step policy in one place: when engineLoaded and position above the
+         * threshold seeks the current item to 0; at or below the threshold advances
+         * `currentQueueIndex` backward and triggers the standard stream-resolve + `playTrack`
+         * pipeline used by in-app NowPlaying skip-prev. Same suspending pattern as
+         * [handleSkipToNextQueue].
          */
         private fun handleSkipToPrevQueue(): ListenableFuture<SessionResult> {
             val resultFuture = SettableFuture.create<SessionResult>()
@@ -513,6 +593,8 @@ class PlaybackService : MediaSessionService() {
 
         private const val TAG = "YT-PlaybackService"
         private const val MAIN_ACTIVITY_CLASS_NAME = "com.yourtube.app.MainActivity"
+        // YT-0309 — matches the client-side ceiling in DefaultPlayerController.
+        private const val SERVICE_RESOLVE_TIMEOUT_MS = 15_000L
     }
 }
 
@@ -527,6 +609,22 @@ internal data class QueueBoundary(
     val hasPrev: Boolean,
     val hasNext: Boolean,
 )
+
+/**
+ * YT-0291 L1 — derives the lock-screen / notification button boundary from the
+ * current [PlayerState] and the user's `autoplayEnabled` preference.
+ *
+ * `hasNext` is true when the queue has an explicit next item OR when autoplay is ON
+ * and there is a current track (skip-next at queue end triggers the autoplay path).
+ * Extracted as a pure function so the derivation rule is testable without a
+ * live [MediaSession].
+ */
+internal fun buildQueueBoundary(state: PlayerState, autoplayEnabled: Boolean): QueueBoundary =
+    QueueBoundary(
+        hasPrev = state.currentTrack != null,
+        hasNext = state.queue.size > state.currentQueueIndex + 1 ||
+            (state.currentTrack != null && autoplayEnabled),
+    )
 
 /**
  * YT-0239 — builds the `setCustomLayout(...)` button list for a given [boundary].
@@ -584,6 +682,21 @@ internal fun decideOnTaskRemoved(
     !playWhenReady || mediaItemCount == 0 -> OnTaskRemovedAction.StopServiceOnly
     else -> OnTaskRemovedAction.None
 }
+
+/**
+ * YT-0285 — pure predicate used by [PlaybackService.onBind] to decide whether to re-trigger
+ * snapshot restore on the bind path.
+ *
+ * Returns `true` when [currentTrack] is null, meaning the controller has not yet been
+ * populated (the async `restoreFromSnapshot` launched in `onCreate` may not have run yet).
+ * The caller is responsible for checking whether a snapshot actually exists before
+ * invoking `restoreFromSnapshot`; this function only decides whether a check is necessary.
+ *
+ * Extracting the predicate makes it unit-testable without instantiating a
+ * `MediaSession` or `MediaSessionService`.
+ */
+internal fun shouldRestoreOnBind(currentTrack: Track?): Boolean =
+    currentTrack == null
 
 /**
  * YT-0076 review change-request (2026-05-08) — extracts the `PlayerState` → `Track` flow

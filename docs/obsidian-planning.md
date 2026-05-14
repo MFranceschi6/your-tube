@@ -10,6 +10,8 @@ This project uses a local Obsidian vault for planning and task tracking.
 
 Use Obsidian's community plugin installer where possible.
 
+### Core planning
+
 | Plugin | Plugin ID | Use |
 | --- | --- | --- |
 | Tasks | `obsidian-tasks-plugin` | Query tasks across the vault, due dates, recurring work, custom statuses, and dashboard task lists. |
@@ -18,6 +20,83 @@ Use Obsidian's community plugin installer where possible.
 | Dataview | `dataview` | Optional advanced dashboards if Tasks and Bases are not expressive enough. |
 
 Avoid relying on the discontinued Projects plugin for new planning infrastructure. Prefer Bases for database-like views because it is a core Obsidian plugin and stores data in local Markdown properties.
+
+### Agent-friendly plugins
+
+These extend the vault so agents (and the user) can work against it more reliably. None are mandatory; install incrementally.
+
+| Plugin | Plugin ID | Why | Recommended config |
+| --- | --- | --- | --- |
+| Linter | `obsidian-linter` | Auto-format frontmatter property order, list-item style, and date strings. Reduces drift that the agent would otherwise have to detect and correct task-by-task. | `Format on save: OFF` (avoid races while agents edit). `Format on file change: OFF`. Run via the "Lint all files in vault" command on a cadence the user controls. Enable rules: YAML key sort, YAML timestamp, trailing whitespace, consecutive blank lines. Disable any rule that rewrites task-list checkbox text. |
+| Templater | `templater-obsidian` | JS-driven templates. Lets `Daily-Note.md` actually inline the output of `lifecycle.py list --status review` instead of leaving a paste placeholder. Used together with Periodic Notes. | Enable user scripts. Add a user function `lifecycle(status)` that shells out to `python3 .claude/skills/obsidian-project-management/lifecycle.py list --status <status>` and returns Markdown. Trigger on `tp.file.creation_date`. |
+| Periodic Notes | `periodic-notes` | Auto-creates the Daily-Note from the template each day. Without this, `Daily-Note.md` is just a stale skeleton. | Daily Notes folder: `Dashboards/Daily/`. Template: `Templates/Daily-Note.md`. Date format: `YYYY-MM-DD`. Disable Weekly/Monthly until needed. |
+| Local REST API | `obsidian-local-rest-api` | Exposes vault contents over HTTP. Required by some MCP bridges; on its own, lets scripts read backlinks, tags, and the live link graph beyond what raw Markdown reveals. | Bind to `127.0.0.1` only. Token-protected. Do not expose on LAN. Treat the token as a secret per `.claude/rules/security.md`. |
+| MCP Obsidian bridge | `mcp-obsidian` (external MCP server, not an Obsidian plugin) | Exposes the vault as MCP tools so an agent can query, search, and edit notes through a structured interface instead of raw file reads. Best fit when the vault grows beyond what `grep` and `lifecycle.py` cover comfortably. | Run as a local MCP server pointed at this vault. Disable write tools while the toolkit gate is `gated`; re-enable selectively post-MVP. Pair with Local REST API if the bridge requires it. |
+
+### Optional, situational
+
+| Plugin | Plugin ID | When to add | Notes |
+| --- | --- | --- | --- |
+| Smart Connections | `smart-connections` | Vault grows past ~500 notes and `grep` over `Tasks/` becomes noisy. | Embedding-based search. Useful for *your* recall; agents already do this kind of reasoning, so it mostly helps the human side of the workflow. Watch the model + token cost. |
+| Properties View | core plugin | Always. | Already core in current Obsidian. Surfaces frontmatter inline; pairs well with Linter. |
+| QuickAdd | `quickadd` | Manual one-key task creation feels slow. | Personal ergonomics; agents do not consume it. Keep it consistent with `Templates/Task.md`. |
+| File Hider | `obsidian-file-hider` | The vault root gets noisy. | Hides `Templates/`, `Bases/` from the file pane without affecting indexing. Cosmetic. |
+
+### Plugins to avoid for this workflow
+
+- **Projects** — discontinued; superseded by Bases.
+- **Kanban** (legacy) — duplicates Bases card view; introduces a parallel source of truth for task status. Use Task List Kanban over Bases instead if drag-and-drop is needed.
+- **AI co-pilot plugins** that rewrite notes inline (Smart Composer, AI Assistants) — they conflict with agent edits and risk losing the structured frontmatter shape.
+
+### Race-condition note
+
+When agents are running, prefer plugins that **read** the vault over plugins that **rewrite on save**. Linter and Smart Connections both have rewrite modes; keep them in on-demand mode to avoid clobbering an in-flight agent edit. If a plugin must rewrite, scope it to a folder agents do not touch (e.g. `Dashboards/`).
+
+### Installed status
+
+| Plugin | Status | Notes |
+| --- | --- | --- |
+| Tasks | installed (existing) | — |
+| Bases (core) | enabled (existing) | — |
+| Task List Kanban | installed (existing) | — |
+| Kanban (legacy) | installed (existing) | Avoid for new boards; doc recommends Bases. |
+| Linter | installed | `lintOnSave: false`. Run "Lint all files in vault" on demand. |
+| Templater | installed | User scripts at `Templates/Scripts/`. Folder template binds `Dashboards/Daily/` → `Templates/Daily-Note`. System commands enabled. |
+| Periodic Notes | installed | Daily folder `Dashboards/Daily/`, format `YYYY-MM-DD`, template `Templates/Daily-Note`. |
+| Local REST API | installed | **Requires manual step:** open Obsidian → Settings → Local REST API → generate API key. Bind to `127.0.0.1` only. The generated key is a secret — never commit it, never paste it into a tracked file. |
+
+Open Obsidian once after this change to load the plugins. Linter, Templater, and Periodic Notes work immediately. Local REST API needs the key generated via UI before any external client (including the MCP bridge) can connect.
+
+### MCP Obsidian bridge — manual setup
+
+The MCP Obsidian bridge is not an Obsidian plugin; it's a standalone MCP server that talks to the Local REST API. Two implementations exist:
+
+- `MarkusPfundstein/mcp-obsidian` (Python, more mature).
+- `smithery-ai/mcp-obsidian` and similar Node forks.
+
+Install procedure (Python, recommended):
+
+1. Generate the Local REST API key in Obsidian (see above).
+2. `pipx install mcp-obsidian` or `uv tool install mcp-obsidian`.
+3. Add an entry to your Claude Code MCP configuration (per-project `.mcp.json` or user-level config):
+
+   ```json
+   {
+     "mcpServers": {
+       "obsidian": {
+         "command": "mcp-obsidian",
+         "env": {
+           "OBSIDIAN_API_KEY": "<paste-from-obsidian-ui>",
+           "OBSIDIAN_HOST": "127.0.0.1"
+         }
+       }
+     }
+   }
+   ```
+
+4. Reload Claude Code.
+
+While the agentic toolkit (`docs/agentic-toolkit.md`) is `gated`, restrict the MCP server to read tools only — the existing `Read` + `lifecycle.py` flow already covers writes, and giving an agent unbounded write access via MCP introduces drift risk before the toolkit is exercised.
 
 ## Task Model
 
@@ -50,6 +129,7 @@ parent_id: null
 child_tasks: []
 split_reason: ""
 blocked_reason: ""
+needs_smoke: false
 validation_command: ""
 tags:
   - task
@@ -64,9 +144,12 @@ Allowed `status` values:
 - `ready`
 - `in-progress`
 - `blocked`
-- `review`
+- `review` — code/logic review by agent; no device required.
+- `smoke` — manual device or visual test by Matteo required before close.
 - `done`
 - `wont-do`
+
+**`needs_smoke` field** (`true` / `false`, default `false`): tasks that require a real-device or visual smoke test before closing. When `needs_smoke: true`, `lifecycle.py set <ID> done` from `review` auto-routes to `smoke` instead of `done`; the downstream cascade fires only when `smoke → done`. Tasks with `needs_smoke: false` go directly `review → done`.
 
 Allowed `priority` values:
 
@@ -83,7 +166,14 @@ Allowed `platform` values:
 - `docs`
 - `ops`
 
-All current MVP work uses `milestone: MVP`. Use `epic` for roadmap-level grouping inside the MVP milestone. Current MVP epics:
+Allowed `milestone` values:
+
+- `MVP` — work required to ship the first release.
+- `post-MVP` — roadmap work scheduled after MVP cuts. Tasks may reference epics from either list below; do not mix MVP and post-MVP scope inside a single task.
+
+Use `epic` for roadmap-level grouping inside the active milestone.
+
+Current MVP epics:
 
 - `MVP Planning`
 - `Shared Contracts`
@@ -96,6 +186,16 @@ All current MVP work uses `milestone: MVP`. Use `epic` for roadmap-level groupin
 - `iOS Validation`
 - `Cross Platform Validation`
 - `Release Readiness`
+
+Current post-MVP epics:
+
+- `Search Enhancements`
+- `Playlist Integrations`
+- `Album Detection`
+- `Discovery & Subscriptions`
+- `Tags & Smart Playlists`
+- `Search History & Library Polish`
+- `External Sharing`
 
 Allowed `phase` values:
 
@@ -181,15 +281,15 @@ Tasks without `delivery_channel` are picked up by the routed local agent per the
 
 ## Platform Parity Waves
 
-Do not treat Android and iOS as a strict task-by-task ping-pong by default. Prefer short platform waves: complete a small iOS group to a stable checkpoint, then use the corresponding Android tasks as the parity pass. iOS leads because design mockups are produced for iOS first; Android picks up the validated shape afterwards.
+Do not treat Android and iOS as a strict task-by-task ping-pong by default. Prefer short platform waves: complete a small Android group to a stable checkpoint, then use the corresponding iOS tasks as the parity pass. Android leads; iOS picks up the validated shape afterwards.
 
 Rules:
 
 - Prefer one implementation platform at a time for normal feature delivery; only touch both platforms in one turn when the user explicitly asks for parity or when the task itself is cross-platform.
-- Start Android parity after the reference iOS wave is `review` or `done`, not while the iOS shape is still changing heavily.
+- Start iOS parity after the reference Android wave is `review` or `done`, not while the Android shape is still changing heavily.
 - Use shared docs such as `docs/api-contracts.md`, `docs/design-system.md`, and manual validation docs as the product source of truth; do not copy platform-specific implementation details across platforms.
-- When moving from an iOS wave to Android, reuse the accepted behavior, fixtures, validation expectations, and edge cases, but still implement them with Android-native architecture and UI patterns.
-- If the iOS wave reveals missing shared behavior, record that in tracked `docs/` before starting the Android parity wave.
+- When moving from an Android wave to iOS, reuse the accepted behavior, fixtures, validation expectations, and edge cases, but still implement them with iOS-native architecture and UI patterns.
+- If the Android wave reveals missing shared behavior, record that in tracked `docs/` before starting the iOS parity wave.
 
 Current MVP checkpoint guidance:
 
@@ -210,6 +310,22 @@ Task agents must derive their working profile from task metadata so the user doe
 | `platform: shared` | `shared-contract-engineer` | `mobile-reviewer` | Shared contracts, fixtures, parity behavior, cross-platform validation. |
 | `platform: docs` | `docs-maintainer` | `obsidian-task-reviewer` | Product docs, validation checklists, planning conventions, task quality. |
 | `platform: ops` | `build-ops-engineer` | `mobile-reviewer` | Build wiring, CI, release readiness, validation orchestration. |
+
+### Post-MVP profiles (gated)
+
+The agentic toolkit defines additional profiles that are **not** part of the routing table while `docs/agentic-toolkit.md` is `Status: gated`. Do not auto-route tasks to them until the gate is lifted.
+
+| Future profile | Replaces / supplements | Triggered by |
+| --- | --- | --- |
+| `test-engineer` | Supplements platform engineer for test-only diffs | Coverage gaps surfaced in review |
+| `qa-validator` | Supplements `mobile-reviewer` for batch validation | Tasks in `status: review` |
+| `architecture-reviewer` | Pre-implementation review (not PR review) | Proposals that change module boundaries or shared contracts |
+| `release-engineer` | Replaces `build-ops-engineer` for release cuts only | `phase: release` |
+| `migration-engineer` | Supplements platform engineer for schema/codec bumps | `area: model` with version bump |
+| `security-auditor` | Supplements `mobile-reviewer` for sensitive diffs | `area: auth/account/sharing/network/storage` |
+| `task-search-agent` | Read-only assistant; not a routing target | Vault queries |
+
+After lifting the gate, fold these rows into the main routing table and remove `post_mvp: true` from each agent's frontmatter.
 
 Area can refine the profile without overriding the platform:
 
@@ -254,12 +370,14 @@ When implementation is finished:
 
 ### Visual-pass policy for UI tasks
 
-A task with a non-empty `design_mockup` (or any `## Acceptance Criteria` mentioning a mockup or visual pass) does **not** move to `status: done` until both of the following are true:
+A task with `platform` in `{android, ios}` and a non-empty `design_mockup` (or any `## Acceptance Criteria` mentioning a mockup or visual pass) does **not** move to `status: done` until both of the following are true:
 
 1. The required screenshots are present under `design-system/screenshots/<task-id>-*.png` (one per major state listed in the task's Reviewer Instructions or, if absent, one per primary screen state the task ships).
 2. The visual-pass acceptance checkbox is ticked.
 
 Exception: if a hard `depends_on` keeps the build from running, the task remains in `status: review` with `blocked_reason` describing what is missing. It does not silently move to `done` with the visual-pass checkbox unticked.
+
+**`platform: docs` carve-out:** the screenshots requirement does not apply to `platform: docs` handoff tasks where the deliverable is a set of design assets (e.g. `design-system/handoff/<task-id>/`). The assets at the handoff path are themselves the visual record. The task body should still state this exception explicitly under `## Review notes` and reference the handoff folder so reviewers can locate the canonical visual evidence. Audit / verification of the assets in their target context (e.g. assets rendered on a launcher) belongs in dedicated absorption follow-on tasks (`platform: android` or `platform: ios`) which are subject to the standard screenshot rule.
 
 Capture screenshots using the iOS-Simulator workflow currently in use on this Mac (assistant launches the sim, describes the tap sequence, user executes, assistant captures via `xcrun simctl io <udid> screenshot`). Save resampled (`sips --resampleHeightWidthMax 1800`).
 
@@ -277,11 +395,27 @@ This avoids leaving every closed epic with a residual nit trail and keeps the po
 
 When a task moves to `done` — post-done cascade:
 
-1. Find every task in the vault whose `depends_on` includes the just-completed ID.
-2. For each downstream task: if every entry in its `depends_on` is now `done`, move it from `blocked` to `ready`, clear `blocked_reason`, and set `updated` to today.
-3. For each downstream task that still has at least one incomplete dependency, leave it `blocked` but verify `blocked_reason` is current.
-4. Check the `epic` of the completed task: if every task sharing that `epic` is now `done` or `wont-do`, add a completion note to the relevant epic-level context in `docs/` or the vault dashboard, and apply the **Epic polish auto-spawn** rule (see below) if the epic accumulated non-blocking review nits.
-5. Check the `phase` of the completed task: if every task in that `phase` across the same `platform` is now `done` or `wont-do`, confirm the phase is complete before starting the next-phase tasks.
+1. Run `python3 .claude/skills/obsidian-project-management/lifecycle.py set <ID> done` (or `cascade <ID>` if the task was already `done` and the dependents need reconciling). The script:
+   - Finds every task whose `depends_on` includes the completed ID.
+   - Moves each downstream task to `ready` if all its deps are now `done`, clearing `blocked_reason`.
+   - Otherwise sets it to `blocked` with a canonical `Waiting on <ID>(<status>), ...` reason.
+   - Refreshes `updated` on every file it writes.
+2. Check the `epic` of the completed task: if every task sharing that `epic` is now `done` or `wont-do`, add a completion note to the relevant epic-level context in `docs/` or the vault dashboard, and apply the **Epic polish auto-spawn** rule (see below) if the epic accumulated non-blocking review nits.
+3. Check the `phase` of the completed task: if every task in that `phase` across the same `platform` is now `done` or `wont-do`, confirm the phase is complete before starting the next-phase tasks.
+
+### Lifecycle script
+
+`.claude/skills/obsidian-project-management/lifecycle.py` is the only supported way to change task status:
+
+- `set <ID> <status> [--reason "..."] [--force]` — single transition. Validates against the allowed-transitions table (e.g. `done → in-progress` is rejected without `--force`), refuses to go `→ in-progress` or `→ done` while `depends_on` is unmet (or while `child_tasks` are incomplete), requires `--reason` for `→ blocked`. Auto-cascades after a `done` write.
+- `cascade <ID> [<ID> ...]` — recompute the direct dependents of given IDs without changing the seed task itself.
+- `audit [--milestone X] [--platform Y] [--epic Z] [--status S] [--apply]` — sweep the whole vault (or a slice). Promotes ready-able tasks and blocks tasks with unmet deps. Default is dry-run; `--apply` writes.
+- `list [filters]` — quick listing of `id / status / platform / title`.
+- `show <ID>` — print deps, dependents, parent/children.
+
+The script never edits acceptance-criteria checkboxes, body text, or non-status frontmatter beyond `status`, `blocked_reason`, and `updated`. Anything else (epic completion notes, splits, polish auto-spawn) stays a manual editorial action.
+
+`wont-do` is treated as a satisfied dependency: dependents of a `wont-do` task may proceed.
 
 When reviewing a task:
 

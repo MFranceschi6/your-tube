@@ -28,7 +28,10 @@ import kotlinx.coroutines.launch
 sealed interface HistoryUiState {
     data object Loading : HistoryUiState
     data object Empty : HistoryUiState
-    data class Content(val entries: List<PlaybackHistoryEntry>) : HistoryUiState
+    data class Content(
+        val entries: List<PlaybackHistoryEntry>,
+        val groupedEntries: List<HistoryGroup>,
+    ) : HistoryUiState
     data class Error(val cause: Throwable? = null) : HistoryUiState
 }
 
@@ -46,7 +49,10 @@ class HistoryViewModel @Inject constructor(
             repository.observeHistory()
                 .map<_, HistoryUiState> { entries ->
                     if (entries.isEmpty()) HistoryUiState.Empty
-                    else HistoryUiState.Content(entries)
+                    else HistoryUiState.Content(
+                        entries = entries,
+                        groupedEntries = groupByDay(entries),
+                    )
                 }
                 .catch { emit(HistoryUiState.Error(it)) }
         }

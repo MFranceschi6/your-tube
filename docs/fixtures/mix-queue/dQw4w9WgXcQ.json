@@ -1,0 +1,59 @@
+{
+  "contents": {
+    "twoColumnWatchNextResults": {
+      "playlist": {
+        "playlist": {
+          "playlistId": "RDdQw4w9WgXcQ",
+          "title": "Mix - Never Gonna Give You Up",
+          "isInfinite": true,
+          "contents": [
+            {
+              "playlistPanelVideoRenderer": {
+                "videoId": "dQw4w9WgXcQ",
+                "title": {"simpleText": "Rick Astley - Never Gonna Give You Up (Official Video)"},
+                "longBylineText": {"runs": [{"text": "Rick Astley"}]},
+                "lengthText": {"simpleText": "3:34"},
+                "thumbnail": {"thumbnails": [
+                  {"url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg", "width": 168, "height": 94},
+                  {"url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg?sqp=large", "width": 336, "height": 188}
+                ]}
+              }
+            },
+            {
+              "playlistPanelVideoRenderer": {
+                "videoId": "Zi_XLOBDo_Y",
+                "title": {"simpleText": "Michael Jackson - Billie Jean (Official Video)"},
+                "longBylineText": {"runs": [{"text": "Michael Jackson"}]},
+                "lengthText": {"simpleText": "4:56"},
+                "thumbnail": {"thumbnails": [
+                  {"url": "https://i.ytimg.com/vi/Zi_XLOBDo_Y/hqdefault.jpg", "width": 168, "height": 94},
+                  {"url": "https://i.ytimg.com/vi/Zi_XLOBDo_Y/hqdefault.jpg?sqp=large", "width": 336, "height": 188}
+                ]}
+              }
+            },
+            {
+              "playlistPanelVideoRenderer": {
+                "videoId": "oRdxUFDoQe0",
+                "title": {"simpleText": "Michael Jackson - Beat It (Official 4K Video)"},
+                "longBylineText": {"runs": [{"text": "Michael Jackson"}]},
+                "lengthText": {"simpleText": "4:59"},
+                "thumbnail": {"thumbnails": [
+                  {"url": "https://i.ytimg.com/vi/oRdxUFDoQe0/hqdefault.jpg", "width": 168, "height": 94},
+                  {"url": "https://i.ytimg.com/vi/oRdxUFDoQe0/hqdefault.jpg?sqp=large", "width": 336, "height": 188}
+                ]}
+              }
+            }
+          ],
+          "continuations": [
+            {
+              "nextContinuationData": {
+                "continuation": "4qmFsgKfARIPUkRkUXc0dzlXZ1hjURpMQ0FGNkxNS1JoQU01Q3lDeFlLU0F1U1ZuM01wWDV4OHFTdU5KaHFpdklSCkFLakROd25hVUVnPSXSCRpQVHd0Z190QVNHPVNDR0FN",
+                "clickTrackingParams": "SCRUBBED"
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://yourtube.example/design-system/tokens/schema/v1.json",
+  "_note": "YT-0172 additions — merge into design-system/tokens/tokens.json. Resolves every { \"TBD\": true } cell and corrects the D-1 secondary-alpha defect documented in design-system/handoff/light-theme/audit.md. Shape mirrors tokens.json exactly so a deep-merge replaces values in place.",
+  "_target": "design-system/tokens/tokens.json",
+  "_merge_strategy": "deep — replace leaf values; preserve sibling keys (e.g. `dark`, `usage`).",
+
+  "color": {
+    "foreground": {
+      "secondary": {
+        "light": "rgba(60,60,67,0.80)",
+        "_yt0172_note": "D-1 fix. Bumped from 0.60 (3.29:1 on bg) to 0.80 (5.59:1 on bg). Diverges from SF secondaryLabel; recorded exception. See design-system/handoff/light-theme/audit.md § Defects → D-1."
+      }
+    },
+
+    "semantic": {
+      "warning": {
+        "light": "#B45309",
+        "_yt0172_note": "Resolves TBD. iOS systemYellow (#FFCC00) is 1.49:1 on white — unreadable. #B45309 (amber-700) = 5.42:1 on white ✅. Used for warning text and warning glyphs. The warning *surface* in light tints the background at 12% alpha of this value."
+      }
+    },
+
+    "scrubber": {
+      "thumb": {
+        "light": "#FFFFFF",
+        "_yt0172_note": "Resolves TBD. Stays white in light to match dark and platform convention. Mandatory pairing with shadow.sm (0 1px 4px rgba(0,0,0,0.08)) for definition against #D1D1D6 unfilled track — see design-system/handoff/light-theme/tokens.md footnote ⁷ and audit.md § Now Playing."
+      }
+    },
+
+    "motion-scrim": {
+      "miniplayer": {
+        "light": "#FFFFFF",
+        "_yt0172_note": "Resolves TBD. Equals color.background.surface in light (= MiniPlayer container fill at expand start)."
+      },
+      "nowplaying": {
+        "light": "#F2F2F7",
+        "_yt0172_note": "Resolves TBD. Equals color.background.base in light (= NowPlaying base background at expand end)."
+      }
+    }
+  }
+}

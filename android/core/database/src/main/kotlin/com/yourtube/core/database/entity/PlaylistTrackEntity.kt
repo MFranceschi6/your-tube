@@ -23,7 +23,7 @@ import androidx.room.Index
     ],
     indices = [
         Index("playlistId"),
-        Index("trackVideoId"),
+        Index(value = ["playlistId", "trackVideoId"], unique = true),
     ],
 )
 data class PlaylistTrackEntity(

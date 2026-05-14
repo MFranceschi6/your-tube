@@ -88,6 +88,42 @@ If either side starts failing, do not silently update the fixture or the test ex
 - If no match: insert as new.
 - If match: compare `updatedAt`. Keep newer. Older copy is discarded (last-write-wins). User confirmation prompt is OPTIONAL but recommended.
 
+## Related contracts
+
+Cross-platform behaviors that are NOT part of the export shape but ARE shared between clients live in companion documents:
+
+- [docs/playback-state.md](playback-state.md) — what each client persists for cold-launch player restoration.
+- [docs/search-suggest.md](search-suggest.md) — YouTube Suggest endpoint usage and recent-searches behavior.
+- [docs/autoplay.md](autoplay.md) — end-of-queue autoplay selection and loop avoidance.
+- [docs/mix-queue.md](mix-queue.md) — YT-0293 Mix queue endpoint, request shape, response parse path, and field mapping for initial queue population on track tap.
+
+## Search filters
+
+Both clients support three filter groups on the search results screen:
+
+| Group       | Values                                  |
+|-------------|-----------------------------------------|
+| Duration    | Any, Short (< 4 min), Medium (4-20 min), Long (> 20 min) |
+| Upload date | Any, Today, This week, This month, This year |
+| Type        | Any, Video, Playlist, Channel           |
+
+**Filter groups are mutually exclusive for MVP.** Selecting a chip in one group clears the other two groups' selections. Only one `sp` parameter value is submitted to the YouTube search API per request.
+
+### Rationale
+
+The YouTube InnerTube `sp` query parameter encodes a protobuf `SearchFilter` message. Combining selections from multiple groups (e.g. duration = Short AND type = Video) requires building a multi-field protobuf payload. Implementing a protobuf encoder or a 4×5×4 = 80-combination lookup table is deferred post-MVP.
+
+### Behavior contract (both platforms)
+
+- Tapping an unselected chip: selects it, clears sibling groups, re-runs search with the new `sp`.
+- Tapping the already-selected chip in a group: deselects it (group returns to Any), re-runs search without that group's `sp`.
+- Clearing the query (X button or equivalent): resets all filter groups to Any in addition to clearing the query text and returning to the Idle state.
+- No request is issued if the resolved `sp` value is identical to the last submitted one (deduplication on filter toggle).
+
+### Post-MVP
+
+Combining multiple filter groups requires protobuf encoding of the InnerTube `SearchFilter` message. Track in a post-MVP task.
+
 ## Non-goals
 
 - Authentication tokens, signed URLs, server-side state — none. There is no server.

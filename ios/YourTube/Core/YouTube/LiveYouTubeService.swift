@@ -27,6 +27,8 @@ final class LiveYouTubeService: YouTubeServiceProtocol {
     /// Injected to allow faking in tests. Defaults to a direct-InnerTube
     /// ANDROID_VR resolver — no JS signature solver, no `__js` race.
     private let playerClient: any PlayerExtracting
+    /// YT-0298 — Mix queue client (initial page + continuation pages).
+    private let mixClient: MixClient
 
     init(
         transport: any HTTPDataTasking = URLSession.shared,
@@ -34,6 +36,7 @@ final class LiveYouTubeService: YouTubeServiceProtocol {
     ) {
         self.transport = transport
         self.playerClient = playerClient
+        self.mixClient = MixClient(transport: transport)
     }
 
     // MARK: - Search
@@ -102,6 +105,16 @@ final class LiveYouTubeService: YouTubeServiceProtocol {
         } catch {
             return ResolvedStream(url: originURL, isMuxedFallback: false)
         }
+    }
+
+    // MARK: - Mix queue (YT-0298)
+
+    func getMixQueueWithContinuation(videoId: String) async -> MixQueueResult {
+        await mixClient.getMixQueueWithContinuation(videoId: videoId)
+    }
+
+    func getMixContinuation(token: String) async -> MixQueueResult {
+        await mixClient.getMixContinuation(token: token)
     }
 
     // MARK: - Private: InnerTube search

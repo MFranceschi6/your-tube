@@ -24,6 +24,7 @@ import javax.inject.Inject
 internal interface MediaItemQueueing {
     fun setMediaItem(mediaItem: MediaItem)
     fun setMediaSource(mediaSource: MediaSource)
+    fun seekTo(positionMs: Long)
     fun prepare()
     fun play()
 }
@@ -35,6 +36,7 @@ internal class ExoPlayerMediaItemQueueing(
 
     @androidx.annotation.OptIn(UnstableApi::class)
     override fun setMediaSource(mediaSource: MediaSource) = player.setMediaSource(mediaSource)
+    override fun seekTo(positionMs: Long) = player.seekTo(positionMs)
     override fun prepare() = player.prepare()
     override fun play() = player.play()
 }
@@ -95,9 +97,16 @@ class PlaybackPlayerAdapter internal constructor(
         // `HlsMediaSource.Factory` instead. The InnerTube layer marks these
         // resolutions with `container = "hls"` (PlayerResolution.AudioFormat.Livestream).
         if (preparedPlayback.container.equals("hls", ignoreCase = true)) {
+            // HLS (livestream): seeking is not supported for live streams; startPositionMs ignored.
             target.setMediaSource(hlsMediaSourceFactory(mediaItem))
         } else {
             target.setMediaItem(mediaItem)
+        }
+        // YT-0291 — seek BEFORE prepare() so ExoPlayer starts buffering at the restored
+        // position rather than at 0. ExoPlayer honors seekTo() issued after setMediaItem()
+        // but before prepare(); this is more reliable than a post-load seek.
+        if (preparedPlayback.startPositionMs > 0L) {
+            target.seekTo(preparedPlayback.startPositionMs)
         }
     }
 

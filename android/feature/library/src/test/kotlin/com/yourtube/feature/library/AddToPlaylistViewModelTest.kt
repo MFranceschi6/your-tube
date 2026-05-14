@@ -1,8 +1,10 @@
 package com.yourtube.feature.library
 
+import app.cash.turbine.test
 import com.yourtube.core.common.model.Playlist
 import com.yourtube.core.common.model.Track
 import com.yourtube.core.data.model.PlaybackHistoryEntry
+import com.yourtube.core.data.repository.AddTrackResult
 import com.yourtube.core.data.repository.PlaylistRepository
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,7 +34,7 @@ class AddToPlaylistViewModelTest {
     )
 
     @Test
-    fun `addTrack increments target playlist track count`() = runTest(dispatcher) {
+    fun `addTrack increments target playlist track count and emits TrackAdded`() = runTest(dispatcher) {
         Dispatchers.setMain(dispatcher)
         val repo = FakePlaylistRepository(
             initialPlaylists = listOf(
@@ -47,12 +49,47 @@ class AddToPlaylistViewModelTest {
         )
         try {
             val vm = AddToPlaylistViewModel(repo)
-            vm.addTrack("p1", sampleTrack)
-            advanceUntilIdle()
+            vm.events.test {
+                vm.addTrack("p1", sampleTrack)
+                advanceUntilIdle()
 
-            val updated = repo.observePlaylist("p1").first()
-            assertEquals(1, updated?.tracks?.size)
-            assertEquals(sampleTrack, updated?.tracks?.firstOrNull())
+                val updated = repo.observePlaylist("p1").first()
+                assertEquals(1, updated?.tracks?.size)
+                assertEquals(sampleTrack, updated?.tracks?.firstOrNull())
+                assertEquals(AddToPlaylistEvent.TrackAdded, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test
+    fun `addTrack duplicate emits AlreadyInPlaylist and does not add`() = runTest(dispatcher) {
+        Dispatchers.setMain(dispatcher)
+        val repo = FakePlaylistRepository(
+            initialPlaylists = listOf(
+                Playlist(
+                    id = "p1",
+                    name = "Favorites",
+                    createdAt = "2026-01-01T00:00:00Z",
+                    updatedAt = "2026-01-01T00:00:00Z",
+                    tracks = listOf(sampleTrack),
+                ),
+            ),
+        )
+        try {
+            val vm = AddToPlaylistViewModel(repo)
+            vm.events.test {
+                vm.addTrack("p1", sampleTrack)
+                advanceUntilIdle()
+
+                // Track count must remain at 1 (no duplicate inserted).
+                val updated = repo.observePlaylist("p1").first()
+                assertEquals(1, updated?.tracks?.size)
+                assertEquals(AddToPlaylistEvent.AlreadyInPlaylist, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
         } finally {
             Dispatchers.resetMain()
         }
@@ -94,6 +131,9 @@ class AddToPlaylistViewModelTest {
      * Hand-written fake — favours simplicity over the full Room+Robolectric stack used in
      * `core:data` repository tests. Captures only the surface area exercised by
      * [AddToPlaylistViewModel].
+     *
+     * Returns [AddTrackResult.AlreadyPresent] when the track [videoId] is already present in the
+     * playlist (mirrors the production check in [OfflineFirstPlaylistRepository]).
      */
     private class FakePlaylistRepository(
         initialPlaylists: List<Playlist> = emptyList(),
@@ -134,10 +174,16 @@ class AddToPlaylistViewModelTest {
             state.value = state.value.filterNot { it.id == playlistId }
         }
 
-        override suspend fun addTrackToPlaylist(playlistId: String, track: Track) {
+        override suspend fun addTrackToPlaylist(playlistId: String, track: Track): AddTrackResult {
+            val playlist = state.value.firstOrNull { it.id == playlistId }
+                ?: return AddTrackResult.Added
+            if (playlist.tracks.any { it.videoId == track.videoId }) {
+                return AddTrackResult.AlreadyPresent
+            }
             state.value = state.value.map { p ->
                 if (p.id == playlistId) p.copy(tracks = p.tracks + track) else p
             }
+            return AddTrackResult.Added
         }
 
         override suspend fun removeTrackFromPlaylist(playlistId: String, position: Int) {

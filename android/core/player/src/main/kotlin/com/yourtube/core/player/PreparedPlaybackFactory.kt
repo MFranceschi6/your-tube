@@ -13,5 +13,6 @@ class PreparedPlaybackFactory @Inject constructor() {
         bitrateKbps = resolvedAudioStream.bitrateKbps,
         codec = resolvedAudioStream.codec,
         container = resolvedAudioStream.container,
+        startPositionMs = request.startPositionMs,
     )
 }

@@ -26,6 +26,10 @@ struct RecentlyPlayedScreen: View {
 
     /// Currently-playing track id, used to highlight the matching row.
     let currentVideoId: String?
+    /// Whether playback is actively in flight. Combined with `currentVideoId`
+    /// to decide whether to animate EQ bars (YT-0192: id-match alone is
+    /// insufficient — paused rows must remain visually inert).
+    var isPlaying: Bool = false
     /// Closure invoked when the user taps a history entry. The shell maps this
     /// to ``PlayerCoordinator/playNow(_:)`` so playback resumes for that
     /// track. `nil` makes rows non-interactive (used in previews).
@@ -120,10 +124,20 @@ struct RecentlyPlayedScreen: View {
                 List {
                     ForEach(entries) { entry in
                         let track = entry.asTrack()
+                        // YT-0192: combine id-match AND isPlaying so EQ bars
+                        // stay inert when the player is paused.
+                        let rowIsPlaying = isPlaying && track.videoId == currentVideoId
                         TrackRow(
                             track: track,
-                            isPlaying: track.videoId == currentVideoId,
+                            isPlaying: rowIsPlaying,
                             onTap: { onPlay?(track) }
+                            // YT-0194 (History): onMoreTap deferred. A
+                            // per-entry "Remove from history" action does not
+                            // yet exist on HistoryViewModel — swipe-to-delete
+                            // and toolbar "Clear" are the only removal paths
+                            // in the current MVP. Wire onMoreTap once a
+                            // removeEntry(videoId:) method is added to
+                            // HistoryViewModel / HistoryStore.
                         )
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Theme.background)

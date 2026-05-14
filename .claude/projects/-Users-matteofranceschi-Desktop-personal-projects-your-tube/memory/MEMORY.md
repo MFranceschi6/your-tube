@@ -1,0 +1,15 @@
+- [iOS target / Liquid Glass](ios_liquid_glass.md) — Project ships on iOS 26 with Liquid Glass; pre-iOS-26 SwiftUI specs need re-validation against new system rendering.
+- [Screenshot workflow (DEFAULT)](screenshot_workflow.md) — Default flow: assistant launches sim, describes taps, user executes, assistant screenshots via simctl. No AppleScript clicks.
+- [Avoid SwiftUI version rabbit holes](feedback_avoid_rabbit_holes.md) — Verify iOS runtime version before treating "wrong" SwiftUI rendering as a bug; iOS 18 sim available for spec parity checks.
+- [iOS simulator pair](reference_simulators.md) — iPhone 16 on iOS 18.6 (919E4BE5-...) for pre-Liquid-Glass parity; iPhone 16 on iOS 26.4 (6298E816-...) for current target.
+- [Android emulator + adb setup](reference_android_emulator.md) — adb at `~/Library/Android/sdk/platform-tools/adb`; AVD `Pixel_8` (API 35); use `-s emulator-5554` when physical device also connected; `input text` broken in Compose — ask user to type.
+- [Fixes for done tasks → new task](feedback_fix_done_tasks.md) — When a done task has a runtime/behavior bug, spawn a new fix task; do not reopen the original.
+- [User drives app interactions](feedback_user_drives_app.md) — Don't drive `adb input tap`/`input text` for capture sequences; ask user to perform taps and confirm before screenshotting.
+- [Never mark tasks done](feedback_never_close_tasks.md) — Implementer's terminal status is `review` (or `blocked`); reviewer is the only role that closes to `done`.
+- [Mirror functional decisions across iOS/Android](feedback_cross_platform_mirror.md) — Functional UX/behavior changes on one platform must spawn equivalent task on the other unless explicitly scoped to one.
+- [iOS NowPlaying card must not disappear on skip-next](project_ios_nowplaying_no_card_flicker.md) — When iOS NowPlaying parity work starts, mirror YT-0238: card must stay visible across stream-resolve gap.
+- [Change requests on review tasks](feedback_review_change_requests.md) — Gaps found during review go back as new ACs on the SAME task (status → in-progress). Only `done` tasks spawn new tasks.
+- [Prefer standard libraries for UI patterns](feedback_prefer_standard_libraries.md) — For drag-to-reorder, swipe actions, etc. default to community-standard libraries (e.g. `sh.calvin.reorderable`) over hand-rolled. Push back on spec rejections before implementation.
+- [Always use lifecycle.py for task status transitions](feedback_lifecycle_script.md) — Never hand-edit `status` frontmatter; use `lifecycle.py set <ID> <status>` so cascade + validation + `updated` refresh fire automatically.
+- [Visual validation stays in review](feedback_review_visual_validation.md) — Tasks whose only gap is screenshot/in-app smoke stay at `status: review` (interactive with Matteo); only code/test/logic gaps go back to `in-progress`.
+- [YT-0298 iOS mix continuation blockers](project_yt0298_ios_blockers.md) — CR-1: tryExtendMixAtTail not wired; CR-2: continuationFailureRetainsToken test vacuous. iOS paused; resume when Android work is done.

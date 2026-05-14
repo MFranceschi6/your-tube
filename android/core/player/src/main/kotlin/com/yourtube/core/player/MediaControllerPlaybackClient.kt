@@ -116,6 +116,15 @@ class MediaControllerPlaybackClient @Inject constructor(
         }
     }
 
+    override suspend fun setPlaybackSpeed(speed: Float) {
+        val mediaController = controllerMutex.withLock {
+            controller ?: buildController().also { controller = it }
+        }
+        withContext(Dispatchers.Main.immediate) {
+            mediaController.setPlaybackSpeed(speed)
+        }
+    }
+
     suspend fun release() {
         controllerMutex.withLock {
             val currentController = controller
@@ -140,17 +149,43 @@ class MediaControllerPlaybackClient @Inject constructor(
         // so [release] can detach cleanly. The forwarding stays cheap — the
         // transport listener is a `@Volatile` reference so the controller can
         // change ownership across rebuilds without a re-registration race.
+        // YT-0309 round-5 — guard against pre-prepare STATE_IDLE arriving spuriously before
+        // the engine has ever held a playable MediaItem. Only forward STATE_IDLE to
+        // `onEngineUnloaded()` AFTER the engine has been non-IDLE at least once since this
+        // listener attached. Without this guard cold-launch / app-restore could clear
+        // engineLoaded prematurely. `@Volatile` because Media3 dispatches the callback on
+        // the main thread but the transport may be re-built across binds.
+        var hasBeenNonIdle = false
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 // YT-0244 — surface buffering/ready transitions so the controller can show a
                 // loading spinner during in-track seeks + re-buffers without misclassifying
-                // them as PAUSED. STATE_IDLE is intentionally not forwarded: the engine sits
-                // there pre-prepare and on release; treating that as "not buffering" would
-                // race with the controller's own LOADING / IDLE bookkeeping.
+                // them as PAUSED.
+                //
+                // YT-0309 round-5 — STATE_IDLE is also forwarded once the engine has been
+                // non-IDLE at least once. Real-world buffer-drained-to-IDLE (airplane mode
+                // mid-playback) MUST clear `engineLoaded` so the next resume() re-enters the
+                // playQueueItem timeout path instead of calling MediaController.play() against
+                // a now-empty engine. The original "do not forward IDLE" rationale (pre-prepare
+                // quiet, release race) is satisfied by the `hasBeenNonIdle` guard.
                 when (playbackState) {
-                    Player.STATE_ENDED -> transportListener?.onTrackEnded()
-                    Player.STATE_BUFFERING -> transportListener?.onBufferingStateChanged(true)
-                    Player.STATE_READY -> transportListener?.onBufferingStateChanged(false)
+                    Player.STATE_ENDED -> {
+                        hasBeenNonIdle = true
+                        transportListener?.onTrackEnded()
+                    }
+                    Player.STATE_BUFFERING -> {
+                        hasBeenNonIdle = true
+                        transportListener?.onBufferingStateChanged(true)
+                    }
+                    Player.STATE_READY -> {
+                        hasBeenNonIdle = true
+                        transportListener?.onBufferingStateChanged(false)
+                    }
+                    Player.STATE_IDLE -> {
+                        if (hasBeenNonIdle) {
+                            transportListener?.onEngineUnloaded()
+                        }
+                    }
                     else -> Unit
                 }
             }

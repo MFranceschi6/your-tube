@@ -16,6 +16,10 @@ struct PlaylistDetailScreen: View {
     /// when nothing is loaded. Forwarded from ``LibraryScreen`` so the
     /// active-row tint matches Search and Recently Played behavior.
     var currentVideoId: String? = nil
+    /// Whether playback is actively in flight. Combined with `currentVideoId`
+    /// to decide whether to animate EQ bars (YT-0192: id-match alone is
+    /// insufficient — paused rows must remain visually inert).
+    var isPlayingGlobally: Bool = false
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(\.editMode) private var editMode
@@ -28,6 +32,8 @@ struct PlaylistDetailScreen: View {
     @State private var trackToAddToOtherPlaylists: PlaylistTrackEntity? = nil
     @State private var sortByDateAdded = false
     @State private var undoToast: UndoToastItem? = nil
+    /// Track position whose 3-dots overflow menu has been tapped (YT-0194).
+    @State private var positionPendingMoreMenu: PlaylistTrackEntity? = nil
     /// `true` while the initial load gate is pending (C9 skeleton).
     @State private var isInitialLoading = true
     /// Non-nil when the initial load fails (C11 error).
@@ -142,9 +148,15 @@ struct PlaylistDetailScreen: View {
                     } else {
                         // MARK: Track list
                         ForEach(displayedPositions) { position in
+                            // YT-0192: combine id-match AND isPlayingGlobally so
+                            // EQ bars stay inert when the player is paused.
+                            let rowIsPlaying = isPlayingGlobally && currentVideoId == position.track.videoId
                             TrackRow(
                                 track: position.track.asTrack(),
-                                isPlaying: currentVideoId == position.track.videoId
+                                isPlaying: rowIsPlaying,
+                                // YT-0194: wire 3-dots to a confirmationDialog
+                                // that mirrors the long-press contextMenu actions.
+                                onMoreTap: { positionPendingMoreMenu = position }
                             )
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                     Button(role: .destructive) { removeTrack(position) } label: {
@@ -247,6 +259,34 @@ struct PlaylistDetailScreen: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("The tracks will stay in your library. This can't be undone.")
+        }
+        // YT-0194: overflow-menu confirmation dialog triggered by the 3-dots
+        // button on each TrackRow. Surfaces the same actions as the long-press
+        // contextMenu so both affordances behave identically.
+        .confirmationDialog(
+            positionPendingMoreMenu.map { "Options for \"\($0.track.title)\"" } ?? "",
+            isPresented: Binding(
+                get: { positionPendingMoreMenu != nil },
+                set: { if !$0 { positionPendingMoreMenu = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let position = positionPendingMoreMenu {
+                Button("Add to Playlist…") {
+                    trackToAddToOtherPlaylists = position
+                    positionPendingMoreMenu = nil
+                }
+                if let url = URL(string: "https://youtu.be/\(position.track.videoId)") {
+                    ShareLink(item: url, subject: Text(position.track.title)) {
+                        Label("Share Track", systemImage: "square.and.arrow.up")
+                    }
+                }
+                Button("Remove from Playlist", role: .destructive) {
+                    removeTrack(position)
+                    positionPendingMoreMenu = nil
+                }
+                Button("Cancel", role: .cancel) { positionPendingMoreMenu = nil }
+            }
         }
         .sheet(item: $trackToAddToOtherPlaylists) { position in
             AddToPlaylistSheet(track: position.track.asTrack(), excludingPlaylistId: playlist.id)

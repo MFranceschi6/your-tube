@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT-0030 — iOS Playlist Sharing · states</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  min-height: 100%;
+  background: #0a0a0a;
+  font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  color: #EBEBF5;
+}
+body { padding: 32px 24px 64px; }
+
+.page-head {
+  max-width: 1680px; margin: 0 auto 22px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 18px;
+}
+.page-head .lhs { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #fff; }
+.page-head .meta { font-size: 12px; color: rgba(235,235,245,0.55); font-family: 'Geist Mono', 'SF Mono', monospace; }
+.page-head .badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  background: rgba(139,92,246,0.18); color: #B794F6;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+}
+.subhead {
+  max-width: 1680px; margin: 0 auto 28px;
+  font-size: 13px; color: rgba(235,235,245,0.55); line-height: 1.55;
+}
+.subhead a { color: #B794F6; text-decoration: none; }
+.subhead a:hover { text-decoration: underline; }
+
+.grid {
+  max-width: 1680px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 28px;
+}
+.cell { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.cell .caption {
+  font-size: 12.5px; color: rgba(235,235,245,0.6); line-height: 1.55;
+  text-align: left; max-width: 400px; align-self: stretch; padding: 0 4px;
+}
+.cell .caption strong { color: #fff; font-weight: 600; display: block; margin-bottom: 4px; font-size: 13px; }
+.cell .caption .tag {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  background: rgba(139,92,246,0.15); color: #B794F6;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.05em;
+  font-family: 'Geist Mono', monospace; margin-right: 6px;
+}
+.cell .caption .ref { font-family: 'Geist Mono', monospace; font-size: 10.5px; color: rgba(235,235,245,0.4); }
+
+/* iOS frame — 393x852 pt */
+.phone {
+  width: 393px; height: 800px;
+  background: #000;
+  border-radius: 52px;
+  box-shadow: 0 0 0 2px #2a2a2a, 0 24px 60px rgba(0,0,0,0.6), inset 0 0 0 1px #444;
+  position: relative; overflow: hidden;
+  font-family: -apple-system, 'SF Pro Text', sans-serif;
+}
+.island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 124px; height: 36px; background: #000; border-radius: 20px; z-index: 30;
+}
+.statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 54px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 28px 10px; z-index: 20; pointer-events: none;
+  font-size: 15px; font-weight: 600; color: #fff;
+}
+.statusbar .right { display: flex; align-items: center; gap: 5px; }
+
+.screen { position: absolute; inset: 0; background: #000; }
+
+/* iOS navigation bar */
+.navbar {
+  position: absolute; top: 54px; left: 0; right: 0; height: 44px;
+  display: flex; align-items: center; padding: 0 16px;
+  color: #fff;
+}
+.navbar .lhs { flex: 1; display: flex; align-items: center; gap: 4px; color: #B794F6; font-size: 17px; }
+.navbar .center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 17px; font-weight: 600; color: #fff; }
+.navbar .rhs { display: flex; align-items: center; gap: 8px; }
+.navbar .rhs .toolbtn { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #B794F6; }
+
+.largetitle {
+  position: absolute; top: 96px; left: 16px; right: 16px;
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.largetitle .t { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; color: #fff; }
+.largetitle .toolbtn { color: #B794F6; }
+.largetitle .toolbtn svg { width: 24px; height: 24px; }
+
+/* Library list (insetGrouped) */
+.list {
+  position: absolute; top: 156px; left: 0; right: 0; bottom: 0;
+  padding: 0 16px;
+}
+.list .section {
+  background: #1C1C1E; border-radius: 14px; overflow: hidden;
+}
+.row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; min-height: 64px;
+  border-bottom: 0.5px solid rgba(84,84,88,0.45);
+}
+.row:last-child { border-bottom: none; }
+.row .cover {
+  width: 48px; height: 48px; border-radius: 8px; flex-shrink: 0;
+  background: linear-gradient(135deg, #4F378B, #B794F6);
+}
+.row .cover.b { background: linear-gradient(135deg, #1E40AF, #38BDF8); }
+.row .cover.c { background: linear-gradient(135deg, #B45309, #F59E0B); }
+.row .cover.d { background: linear-gradient(135deg, #047857, #34D399); }
+.row .cover.e { background: linear-gradient(135deg, #BE185D, #F472B6); }
+.row .meta { flex: 1; min-width: 0; }
+.row .name { font-size: 17px; color: #fff; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .sub { font-size: 14px; color: rgba(235,235,245,0.6); margin-top: 2px; }
+.row .chev { color: rgba(235,235,245,0.3); }
+
+/* iOS sheet — material */
+.sheet-scrim {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 10;
+}
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 540px;
+  background: rgba(36,36,38,0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-radius: 12px 12px 0 0; z-index: 20;
+  padding: 6px 0 32px;
+  box-shadow: 0 -6px 24px rgba(0,0,0,0.4);
+}
+.sheet .grabber { width: 36px; height: 5px; border-radius: 3px; background: rgba(235,235,245,0.4); margin: 8px auto 22px; }
+.sheet h2 {
+  font-size: 22px; font-weight: 700; color: #fff;
+  letter-spacing: -0.015em; line-height: 1.2;
+  padding: 0 20px; text-wrap: pretty;
+}
+.sheet .metaline {
+  margin-top: 8px; font-size: 15px; color: rgba(235,235,245,0.6);
+  padding: 0 20px;
+}
+.sheet .metaline .mono { font-family: 'SF Mono', 'Geist Mono', monospace; font-size: 14px; color: rgba(235,235,245,0.55); }
+
+.sheet .actions { padding: 24px 20px 0; display: flex; flex-direction: column; gap: 12px; }
+.ibtn {
+  height: 50px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 17px; font-weight: 600; letter-spacing: -0.01em;
+  cursor: pointer; user-select: none;
+}
+.ibtn.prominent { background: #8B5CF6; color: #fff; }
+.ibtn.bordered {
+  background: rgba(120,120,128,0.24); color: #fff;
+}
+.ibtn.borderless {
+  background: transparent; color: #B794F6;
+  height: 44px;
+}
+.ibtn svg { color: currentColor; }
+
+/* Op loading overlay (C15) */
+.op-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+}
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid rgba(255,255,255,0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.c15-label {
+  position: absolute; top: calc(50% + 32px); left: 0; right: 0;
+  text-align: center;
+  font-family: 'Geist Mono', 'SF Mono', monospace;
+  font-size: 10px; color: rgba(139,92,246,0.7);
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* iOS document picker (Files) */
+.docui {
+  position: absolute; inset: 0;
+  background: #000;
+  z-index: 40;
+  display: flex; flex-direction: column;
+}
+.docui .topbar {
+  height: 96px; background: #1C1C1E;
+  display: flex; flex-direction: column;
+  padding: 60px 16px 8px;
+}
+.docui .topbar .row1 {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.docui .topbar .cancel { color: #B794F6; font-size: 17px; }
+.docui .topbar .title { font-size: 17px; font-weight: 600; color: #fff; }
+.docui .topbar .placeholder { width: 50px; }
+.docui .sub {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 16px 8px;
+  font-size: 13px; color: rgba(235,235,245,0.55);
+  background: #1C1C1E;
+}
+.docui .sub .crumb { color: rgba(235,235,245,0.85); }
+
+.docui .files { flex: 1; padding: 8px 0; background: #000; }
+.docui .filerow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  font-size: 15px;
+  border-bottom: 0.5px solid rgba(84,84,88,0.45);
+}
+.docui .filerow:last-child { border-bottom: none; }
+.docui .filerow .icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: #B794F6; flex-shrink: 0; }
+.docui .filerow .icon.warn { color: rgba(235,235,245,0.4); }
+.docui .filerow .fname { color: #fff; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.docui .filerow.disabled { opacity: 0.45; }
+.docui .filerow.disabled .fname { color: rgba(235,235,245,0.5); }
+.docui .filerow .fsize { font-size: 13px; color: rgba(235,235,245,0.55); font-variant-numeric: tabular-nums; }
+
+/* Share sheet (UIActivityViewController) */
+.share-sheet {
+  position: absolute; left: 8px; right: 8px; bottom: 12px;
+  border-radius: 14px; overflow: hidden; z-index: 20;
+}
+.share-sheet .head {
+  background: rgba(58,58,60,0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  padding: 16px 16px 12px;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 0.5px solid rgba(84,84,88,0.5);
+}
+.share-sheet .head .ic {
+  width: 40px; height: 40px; border-radius: 8px;
+  background: rgba(139,92,246,0.2); color: #B794F6;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.share-sheet .head .title { font-size: 14px; font-weight: 600; color: #fff; }
+.share-sheet .head .sub { font-size: 12px; color: rgba(235,235,245,0.55); font-family: 'SF Mono', monospace; margin-top: 2px; }
+
+.share-sheet .targets {
+  background: rgba(58,58,60,0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  padding: 16px 12px; overflow-x: auto; white-space: nowrap;
+  display: flex; gap: 20px;
+}
+.share-sheet .target {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  width: 70px; flex-shrink: 0;
+}
+.share-sheet .target .tg-icon {
+  width: 60px; height: 60px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; color: #fff;
+}
+.share-sheet .target .tg-icon.airdrop { background: linear-gradient(135deg,#3B82F6,#5856D6); }
+.share-sheet .target .tg-icon.imessage { background: #34C759; }
+.share-sheet .target .tg-icon.mail { background: #007AFF; }
+.share-sheet .target .tg-icon.copy { background: #636366; }
+.share-sheet .target .tg-icon.tg { background: #29B6F6; }
+.share-sheet .target .tg-icon.notes { background: #FFCC00; color: #1C1C1E; }
+.share-sheet .target .tg-label {
+  font-size: 11px; color: #fff; text-align: center; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 70px;
+}
+.share-sheet .actions {
+  background: rgba(58,58,60,0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  padding: 8px 0;
+}
+.share-sheet .action-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  font-size: 16px; color: #fff;
+  border-top: 0.5px solid rgba(84,84,88,0.5);
+}
+.share-sheet .action-row:first-child { border-top: none; }
+.share-sheet .action-row svg { color: #B794F6; }
+.share-sheet .cancel-row {
+  background: rgba(58,58,60,0.96);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-radius: 14px;
+  margin-top: 8px;
+  padding: 18px 16px;
+  text-align: center;
+  font-size: 17px; font-weight: 600; color: #B794F6;
+}
+
+/* Context menu (iOS) */
+.ctx-menu {
+  position: absolute;
+  background: rgba(58,58,60,0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-radius: 14px;
+  padding: 0;
+  min-width: 250px;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+  z-index: 60;
+  overflow: hidden;
+}
+.ctx-menu .item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+  font-size: 17px; color: #fff;
+  border-bottom: 0.5px solid rgba(84,84,88,0.5);
+}
+.ctx-menu .item:last-child { border-bottom: none; }
+.ctx-menu .item.destructive { color: #FF453A; }
+.ctx-menu .item .lbl { display: flex; align-items: center; gap: 12px; flex: 1; }
+.ctx-menu .item svg { color: currentColor; }
+
+/* Menu (toolbar) — small popover */
+.toolbar-menu {
+  position: absolute;
+  background: rgba(58,58,60,0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-radius: 14px;
+  padding: 0;
+  min-width: 220px;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.4);
+  z-index: 60;
+  overflow: hidden;
+}
+
+/* Preview list inside import success sheet */
+.preview-list { padding: 16px 4px 0 20px; }
+.preview-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+.preview-row .th { width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0; }
+.preview-row .th.a { background: linear-gradient(135deg, #4F378B, #B794F6); }
+.preview-row .th.b { background: linear-gradient(135deg, #1E40AF, #38BDF8); }
+.preview-row .th.c { background: linear-gradient(135deg, #B45309, #F59E0B); }
+.preview-row .th.d { background: linear-gradient(135deg, #047857, #34D399); }
+.preview-row .th.e { background: linear-gradient(135deg, #BE185D, #F472B6); }
+.preview-row .ti { flex: 1; min-width: 0; }
+.preview-row .ti .t { font-size: 15px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.preview-row .ti .c { font-size: 13px; color: rgba(235,235,245,0.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+.preview-more { padding: 8px 20px 4px; font-size: 14px; color: rgba(235,235,245,0.55); }
+
+/* Error variant (ContentUnavailableView) */
+.errstate {
+  position: absolute; inset: 54px 0 0;
+  background: #000; z-index: 30;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px 24px; text-align: center;
+}
+.errstate .ic { width: 56px; height: 56px; color: rgba(235,235,245,0.4); margin-bottom: 18px; }
+.errstate .et { font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 8px; line-height: 1.25; letter-spacing: -0.015em; text-wrap: pretty; }
+.errstate .eb { font-size: 15px; color: rgba(235,235,245,0.65); line-height: 1.45; max-width: 300px; text-wrap: pretty; margin-bottom: 28px; }
+.errstate .ibtn { width: 100%; max-width: 280px; }
+
+/* Form sections */
+.formsection { background: #1C1C1E; border-radius: 14px; overflow: hidden; margin-bottom: 16px; }
+.formsection .hdr {
+  font-size: 13px; font-weight: 400; color: rgba(235,235,245,0.55);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 0 32px 8px;
+}
+.formrow {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; min-height: 50px;
+  border-bottom: 0.5px solid rgba(84,84,88,0.45);
+  color: #fff; font-size: 17px;
+}
+.formrow:last-child { border-bottom: none; }
+.formrow svg.lead { color: #B794F6; width: 22px; height: 22px; flex-shrink: 0; }
+.formrow .lbl { flex: 1; }
+.formrow .chev { color: rgba(235,235,245,0.3); }
+
+.caption .num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 6px;
+  background: rgba(139,92,246,0.22); color: #B794F6;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; font-weight: 600;
+  margin-right: 8px;
+  vertical-align: -4px;
+}
+
+::-webkit-scrollbar { width: 0; height: 0; }
+</style>
+</head>
+<body data-screen-label="00 Mockup states">
+
+<div class="page-head">
+  <div class="lhs">
+    <span class="badge">YT-0030 · STATES</span>
+    <h1>iOS Playlist Sharing — All states</h1>
+  </div>
+  <div class="meta">YourTube · iOS 393×852 pt · iOS 26 + Liquid Glass · #8B5CF6</div>
+</div>
+
+<div class="subhead">
+  Every state called out in the handoff package, on the iOS-393 frame in dark theme. Read alongside
+  <a href="decision-log.md">decision-log.md</a> · <a href="swiftui-spec.md">swiftui-spec.md</a> ·
+  <a href="haptics-and-a11y.md">haptics-and-a11y.md</a>. Catalog cells referenced: state-catalog C15 (op loading),
+  C16 (op inline error), toast-catalog T05 / T06 / T13.
+</div>
+
+<div class="grid">
+
+  <!-- ═══════════════════════════ 01 EXPORT SHEET — IDLE ═══════════════════════════ -->
+  <div class="cell" data-screen-label="01 Export sheet idle">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+      </div></div>
+      <div class="screen">
+        <div class="navbar" style="opacity:0.4;"><div class="lhs"></div><div class="center">Library</div><div class="rhs"><div class="toolbtn">⋯</div></div></div>
+        <div class="largetitle" style="opacity:0.4;"><div class="t">Library</div></div>
+        <div class="list" style="opacity:0.35;">
+          <div class="section">
+            <div class="row"><div class="cover"></div><div class="meta"><div class="name">My Mix</div><div class="sub">12 tracks</div></div><div class="chev">›</div></div>
+            <div class="row"><div class="cover b"></div><div class="meta"><div class="name">Late nights</div><div class="sub">42 tracks</div></div><div class="chev">›</div></div>
+          </div>
+        </div>
+
+        <div class="sheet-scrim"></div>
+        <div class="sheet">
+          <div class="grabber"></div>
+          <h2>My Mix</h2>
+          <div class="metaline">12 tracks · 4.2 KB · <span class="mono">.ytplaylist.json</span></div>
+          <div class="actions">
+            <div class="ibtn prominent">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              Share
+            </div>
+            <div class="ibtn bordered">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><polyline points="16 8 12 4 8 8"/><line x1="12" y1="4" x2="12" y2="14"/></svg>
+              Save to Files
+            </div>
+            <div class="ibtn borderless">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Copy link
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">01</span>Export sheet — idle</strong>
+      <span class="tag">Q2</span> SwiftUI <span class="ref">.sheet</span> with <span class="ref">presentationDetents([.medium, .large])</span>. Primary <strong>Share</strong> hosts a <span class="ref">ShareLink(item: fileURL, preview:)</span>; secondary opens a <span class="ref">.fileExporter</span>. On iOS 26 + Liquid Glass the sheet background may render as glass — do not override.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 02 SHARE SHEET ═══════════════════════════ -->
+  <div class="cell" data-screen-label="02 System share sheet">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+      </div></div>
+      <div class="screen">
+        <div class="sheet-scrim"></div>
+        <div class="share-sheet">
+          <div class="head">
+            <div class="ic">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <div>
+              <div class="title">My Mix.ytplaylist.json</div>
+              <div class="sub">application/json · 4.2 KB</div>
+            </div>
+          </div>
+          <div class="targets">
+            <div class="target"><div class="tg-icon airdrop">A</div><div class="tg-label">AirDrop</div></div>
+            <div class="target"><div class="tg-icon imessage">●</div><div class="tg-label">Messages</div></div>
+            <div class="target"><div class="tg-icon mail">✉</div><div class="tg-label">Mail</div></div>
+            <div class="target"><div class="tg-icon tg">T</div><div class="tg-label">Telegram</div></div>
+            <div class="target"><div class="tg-icon notes">▤</div><div class="tg-label">Notes</div></div>
+            <div class="target"><div class="tg-icon copy">⌘</div><div class="tg-label">Copy</div></div>
+          </div>
+          <div class="actions">
+            <div class="action-row">
+              <span>Save to Files</span>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-7l-2-2H5a2 2 0 0 0-2 2z"/></svg>
+            </div>
+            <div class="action-row">
+              <span>Add to Reading List</span>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/></svg>
+            </div>
+            <div class="action-row">
+              <span>Print</span>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            </div>
+          </div>
+          <div class="cancel-row">Cancel</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">02</span>System share sheet</strong>
+      <span class="tag">Q2</span> Owned by the OS — the <span class="ref">ShareLink</span> presents this. Targets, ordering, and theming are platform-owned. AirDrop is first-class; Save to Files is reachable here too, but our sheet also surfaces it (decision 2) to reduce taps.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 03 OP LOADING (C15) ═══════════════════════════ -->
+  <div class="cell" data-screen-label="03 Op loading C15">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+      </div></div>
+      <div class="screen">
+        <div class="navbar" style="opacity:0.3;"><div class="center">Library</div></div>
+        <div class="largetitle" style="opacity:0.3;"><div class="t">Library</div></div>
+        <div class="list" style="opacity:0.25;"><div class="section"><div class="row"><div class="cover"></div><div class="meta"><div class="name">My Mix</div></div></div></div></div>
+        <div class="op-overlay">
+          <div class="spinner"></div>
+          <div class="c15-label">C15 · op loading · non-cancellable</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">03</span>Op loading overlay (C15)</strong>
+      <span class="tag">Q10</span> <span class="ref">ZStack</span> with <span class="ref">ProgressView()</span> over <span class="ref">Color.black.opacity(0.6)</span>. Posts <em>"Loading"</em> announcement on appear; nothing on dismiss. Hard scrim (no Liquid Glass here) — glass implies "see through", a scrim implies "blocked".
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 04 FILE PICKER ═══════════════════════════ -->
+  <div class="cell" data-screen-label="04 fileImporter picker">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+      </div></div>
+      <div class="screen">
+        <div class="docui">
+          <div class="topbar">
+            <div class="row1">
+              <span class="cancel">Cancel</span>
+              <span class="title">Browse</span>
+              <span class="placeholder"></span>
+            </div>
+            <div class="sub">iCloud Drive › <span class="crumb">YourTube</span></div>
+          </div>
+          <div class="files">
+            <div class="filerow">
+              <div class="icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></div>
+              <div class="fname">My Mix.ytplaylist.json</div>
+              <div class="fsize">4.2 KB</div>
+            </div>
+            <div class="filerow">
+              <div class="icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></div>
+              <div class="fname">Late nights.ytplaylist.json</div>
+              <div class="fsize">14.8 KB</div>
+            </div>
+            <div class="filerow">
+              <div class="icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <div class="fname">workout.ytplaylist.json</div>
+              <div class="fsize">8.1 KB</div>
+            </div>
+            <div class="filerow disabled">
+              <div class="icon warn"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <div class="fname">notes.txt</div>
+              <div class="fsize">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">04</span><span class="ref">.fileImporter</span> picker</strong>
+      <span class="tag">Q1</span> <span class="ref">allowedContentTypes: [.json, .ytplaylistJSON]</span> — the custom UTI fixes YT-0047 (Files-app surfacing). <em>notes.txt</em> appears greyed because it does not conform to either type.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 05 IMPORT SUCCESS SHEET ═══════════════════════════ -->
+  <div class="cell" data-screen-label="05 Import success">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+      </div></div>
+      <div class="screen">
+        <div class="navbar" style="opacity:0.3;"><div class="center">Library</div></div>
+        <div class="largetitle" style="opacity:0.3;"><div class="t">Library</div></div>
+        <div class="sheet-scrim"></div>
+        <div class="sheet" style="height: 600px;">
+          <div class="grabber"></div>
+          <h2>Imported "My Mix" — 12 tracks</h2>
+          <div class="preview-list">
+            <div class="preview-row"><div class="th a"></div><div class="ti"><div class="t">Chill Lofi Mix — Deep Focus</div><div class="c">ChillHop Music</div></div></div>
+            <div class="preview-row"><div class="th b"></div><div class="ti"><div class="t">Comfortably Numb</div><div class="c">Pink Floyd · The Wall</div></div></div>
+            <div class="preview-row"><div class="th c"></div><div class="ti"><div class="t">Hotel California</div><div class="c">Eagles</div></div></div>
+            <div class="preview-row"><div class="th d"></div><div class="ti"><div class="t">Bohemian Rhapsody</div><div class="c">Queen</div></div></div>
+            <div class="preview-row"><div class="th e"></div><div class="ti"><div class="t">November Rain</div><div class="c">Guns N' Roses</div></div></div>
+          </div>
+          <div class="preview-more">+ 7 more tracks</div>
+          <div class="actions" style="padding-top: 18px;">
+            <div class="ibtn prominent">Done</div>
+            <div class="ibtn borderless">View Playlist</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">05</span>Import success preview sheet</strong>
+      <span class="tag">Q4</span> <span class="ref">.sheet</span> w/ <span class="ref">presentationDetents([.medium])</span>. <strong>Done</strong> stays on Library; <strong>View Playlist</strong> pushes <span class="ref">PlaylistDetailView(id)</span>. T06 fires <em>after</em> the sheet dismisses.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 06 ERROR — PARSE ═══════════════════════════ -->
+  <div class="cell" data-screen-label="06 Error parse">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+      </div></div>
+      <div class="screen">
+        <div class="errstate">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div class="et">Couldn't import playlist — file is invalid.</div>
+          <div class="eb">This .ytplaylist.json doesn't match the expected format. Make sure you're importing a file that was exported by YourTube.</div>
+          <div class="ibtn prominent">Try Again</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">06</span>Error — parse failure</strong>
+      <span class="tag">Q7.1</span> <span class="ref">ContentUnavailableView</span> with <span class="ref">exclamationmark.triangle</span> at <span class="ref">.tertiary</span> — never red (state-catalog rule). Posts an assertive announcement on first appearance.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 07 ERROR — FUTURE SCHEMA ═══════════════════════════ -->
+  <div class="cell" data-screen-label="07 Error future schema">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+      </div></div>
+      <div class="screen">
+        <div class="errstate">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/></svg>
+          <div class="et">Update YourTube to import this file.</div>
+          <div class="eb">This playlist was exported from a newer version of YourTube. Update the app to import it.</div>
+          <div class="ibtn prominent">Open App Store</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">07</span>Error — future-schema rejection</strong>
+      <span class="tag">Q5</span> Hard rejection — no "Import anyway". Primary action diverges — <strong>Open App Store</strong>, not Try Again. Cite <span class="ref">docs/api-contracts.md § Schema versioning</span> + the parity test fixture.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 08 ERROR — WRONG EXTENSION ═══════════════════════════ -->
+  <div class="cell" data-screen-label="08 Error wrong extension">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+      </div></div>
+      <div class="screen">
+        <div class="errstate">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="12" cy="15" r="1.2"/><path d="M10.5 12.5a1.5 1.5 0 1 1 2.4 1.2c-.5.4-.9.7-.9 1.3"/></svg>
+          <div class="et">Choose a .ytplaylist.json file to import.</div>
+          <div class="eb">Select a YourTube playlist file. The file name should end with .ytplaylist.json.</div>
+          <div class="ibtn prominent">Try Again</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">08</span>Error — wrong extension</strong>
+      <span class="tag">Q7.3</span> The picker's UTI is the first gate; the in-app <span class="ref">URL.lastPathComponent</span> suffix check (case-insensitive) is the second. This state fires after the second gate rejects.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 09 LIBRARY TOOLBAR MENU ═══════════════════════════ -->
+  <div class="cell" data-screen-label="09 Library toolbar menu">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+      </div></div>
+      <div class="screen">
+        <div class="navbar"><div class="lhs"></div><div class="rhs"><div class="toolbtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="16" cy="12" r="1.5"/></svg></div></div></div>
+        <div class="largetitle"><div class="t">Library</div></div>
+        <div class="list">
+          <div class="section">
+            <div class="row"><div class="cover"></div><div class="meta"><div class="name">My Mix</div><div class="sub">12 tracks</div></div><div class="chev">›</div></div>
+            <div class="row"><div class="cover b"></div><div class="meta"><div class="name">Late nights</div><div class="sub">42 tracks</div></div><div class="chev">›</div></div>
+            <div class="row"><div class="cover c"></div><div class="meta"><div class="name">Workout</div><div class="sub">28 tracks</div></div><div class="chev">›</div></div>
+            <div class="row"><div class="cover d"></div><div class="meta"><div class="name">Roadtrip</div><div class="sub">86 tracks</div></div><div class="chev">›</div></div>
+          </div>
+        </div>
+        <div class="toolbar-menu" style="top: 92px; right: 12px;">
+          <div class="ctx-menu" style="position: static; box-shadow: none; background: transparent; backdrop-filter: none;">
+            <div class="item">
+              <div class="lbl">Import playlist…</div>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">09</span>Library toolbar <span class="ref">Menu</span></strong>
+      <span class="tag">Q3.1</span> <span class="ref">ToolbarItem(placement: .topBarTrailing)</span> with a SwiftUI <span class="ref">Menu</span>. Single item "Import playlist…" — trailing ellipsis = opens a picker. Triggers <span class="ref">.fileImporter</span>.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ 10 CONTEXT MENU ═══════════════════════════ -->
+  <div class="cell" data-screen-label="10 Playlist context menu">
+    <div class="phone">
+      <div class="island"></div>
+      <div class="statusbar"><span>9:41</span><div class="right">
+        <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="3" width="3" height="8" rx="0.8" opacity="0.55"/><rect x="4.5" y="2" width="3" height="9" rx="0.8" opacity="0.75"/><rect x="9" y="0.5" width="3" height="10.5" rx="0.8"/><rect x="14" y="1" width="2.5" height="10" rx="0.8" opacity="0.4"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="white" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="8" rx="2" fill="white"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.5 24.5 6S23.8 4.8 23 4.5z" fill="white"/></svg>
+      </div></div>
+      <div class="screen" style="background: rgba(0,0,0,0.65);">
+        <div class="navbar" style="opacity:0.5;"><div class="center" style="color: rgba(235,235,245,0.7);">Library</div></div>
+        <div class="largetitle" style="opacity:0.4;"><div class="t" style="color: rgba(235,235,245,0.7);">Library</div></div>
+        <div class="list" style="opacity:0.35;">
+          <div class="section"><div class="row"><div class="cover"></div><div class="meta"><div class="name">My Mix</div></div></div></div>
+        </div>
+        <!-- focused playlist (lifted) -->
+        <div style="position:absolute; top: 180px; left: 32px; right: 32px; height: 64px; background: #1C1C1E; border-radius: 14px; padding: 0 12px; display:flex; align-items:center; gap: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.55); z-index: 50;">
+          <div style="width:48px; height:48px; border-radius:8px; background: linear-gradient(135deg, #4F378B, #B794F6);"></div>
+          <div><div style="font-size:17px; color:#fff; font-weight:500;">My Mix</div><div style="font-size:14px; color: rgba(235,235,245,0.6); margin-top:2px;">12 tracks</div></div>
+        </div>
+        <div class="ctx-menu" style="top: 260px; left: 64px;">
+          <div class="item">
+            <div class="lbl">Play next</div>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+          </div>
+          <div class="item">
+            <div class="lbl">Add to queue</div>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="13" y2="18"/><line x1="17" y1="15" x2="22" y2="15"/><line x1="19.5" y1="12.5" x2="19.5" y2="17.5"/></svg>
+          </div>
+          <div class="item">
+            <div class="lbl">Share…</div>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+          </div>
+          <div class="item">
+            <div class="lbl">Rename…</div>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+          <div class="item destructive">
+            <div class="lbl">Delete…</div>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <strong><span class="num">10</span>Per-playlist <span class="ref">.contextMenu</span></strong>
+      <span class="tag">Q3.2</span> Long-press on a <span class="ref">PlaylistRow</span>. iOS lifts the focused row and renders the menu against a blurred background. <strong>Share…</strong> opens the export sheet (state 01); <strong>Delete…</strong> uses <span class="ref">role: .destructive</span>.
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

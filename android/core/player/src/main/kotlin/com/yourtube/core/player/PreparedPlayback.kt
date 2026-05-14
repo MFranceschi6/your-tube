@@ -8,4 +8,5 @@ data class PreparedPlayback(
     val bitrateKbps: Int,
     val codec: String?,
     val container: String?,
+    val startPositionMs: Long = 0L,
 )

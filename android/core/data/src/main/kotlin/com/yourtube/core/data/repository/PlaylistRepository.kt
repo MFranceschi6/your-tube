@@ -18,7 +18,7 @@ interface PlaylistRepository {
 
     suspend fun renamePlaylist(playlistId: String, newName: String)
     suspend fun deletePlaylist(playlistId: String)
-    suspend fun addTrackToPlaylist(playlistId: String, track: Track)
+    suspend fun addTrackToPlaylist(playlistId: String, track: Track): AddTrackResult
     suspend fun removeTrackFromPlaylist(playlistId: String, position: Int)
 
     /**
@@ -30,6 +30,10 @@ interface PlaylistRepository {
      *
      * Default delegates to nothing so existing test fakes keep compiling; the
      * production [OfflineFirstPlaylistRepository] overrides it.
+     *
+     * After the YT-0264 migration each `(playlistId, trackVideoId)` pair is
+     * guaranteed unique, so this method removes exactly one row — or is a
+     * no-op if the track is not present in the playlist.
      */
     suspend fun removeTrackFromPlaylist(playlistId: String, trackVideoId: String) = Unit
 

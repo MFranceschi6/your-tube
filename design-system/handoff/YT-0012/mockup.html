@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT-0012 — Android Search · Mockup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-page: #0a0a0a;
+    --bg: #0F0F0F;
+    --surface: #1C1C1E;
+    --surface-variant: #2C2C2E;
+    --surface-high: #3A3A3C;
+    --fg-1: #FFFFFF;
+    --fg-2: rgba(235,235,245,0.80);
+    --fg-3: rgba(235,235,245,0.40);
+    --hairline: rgba(255,255,255,0.08);
+    --accent: #8B5CF6;
+    --accent-tint: rgba(139,92,246,0.16);
+    --secondary-container: rgba(139,92,246,0.30);
+    --on-secondary-container: #E9DDFF;
+  }
+  html, body {
+    min-height: 100%; background: var(--bg-page); color: var(--fg-1);
+    font-family: 'Roboto', -apple-system, system-ui, sans-serif;
+  }
+  body { padding: 40px 24px 64px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+
+  .page-head {
+    width: min(900px, 100%);
+    display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+    border-bottom: 1px solid var(--hairline); padding-bottom: 16px;
+  }
+  .page-head h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .page-head .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    background: var(--accent-tint); color: var(--accent);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-right: 8px;
+  }
+  .page-head .meta {
+    font-size: 12px; color: var(--fg-3);
+    font-family: 'Roboto Mono', 'SF Mono', monospace;
+  }
+
+  .stage {
+    display: grid; grid-template-columns: auto 1fr; gap: 40px; align-items: start;
+    width: min(900px, 100%);
+  }
+  @media (max-width: 720px) { .stage { grid-template-columns: 1fr; } }
+
+  /* ── Android 360 phone frame ─────────────────────────────────── */
+  .phone {
+    width: 360px;
+    height: 760px;
+    background: var(--bg);
+    border-radius: 36px;
+    box-shadow: 0 0 0 2px #2a2a2a, 0 24px 60px rgba(0,0,0,0.55), inset 0 0 0 1px #444;
+    position: relative; overflow: hidden;
+  }
+  .statusbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; font-size: 11px; color: var(--fg-1); font-weight: 500;
+    z-index: 30; pointer-events: none;
+  }
+  .statusbar .right { display: flex; gap: 4px; align-items: center; }
+
+  /* ── Top app bar (Large) ─────────────────────────────────────── */
+  .topbar {
+    position: relative; padding: 36px 8px 8px;
+    background: var(--bg);
+  }
+  .topbar-title {
+    font-size: 28px; font-weight: 400; letter-spacing: -0.01em;
+    padding: 0 16px 12px;
+  }
+
+  /* ── M3 SearchBar ────────────────────────────────────────────── */
+  .searchbar {
+    margin: 0 16px;
+    height: 56px; padding: 0 4px 0 12px;
+    background: var(--surface-variant);
+    border-radius: 28px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .searchbar .lead {
+    width: 32px; height: 32px; display: grid; place-items: center;
+    color: var(--fg-2);
+  }
+  .searchbar input {
+    flex: 1; background: transparent; border: 0; outline: 0;
+    color: var(--fg-1); font-size: 16px; font-family: inherit;
+    caret-color: var(--accent);
+  }
+  .searchbar input::placeholder { color: var(--fg-3); }
+  .searchbar .trail {
+    width: 48px; height: 48px; display: grid; place-items: center;
+    color: var(--fg-2); border-radius: 24px;
+  }
+
+  /* ── Chip strip ──────────────────────────────────────────────── */
+  .chip-row {
+    display: flex; gap: 8px; padding: 12px 16px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .chip-row::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0;
+    height: 36px; padding: 0 16px;
+    border-radius: 999px;
+    background: transparent;
+    border: 1px solid var(--surface-high);
+    color: var(--fg-1);
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; font-weight: 500;
+  }
+  .chip.recent::before {
+    content: ''; width: 14px; height: 14px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23E0E0E0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><polyline points='12,7 12,12 15,14'/></svg>") center/contain no-repeat;
+    opacity: 0.7;
+  }
+  .chip.selected {
+    background: var(--secondary-container);
+    border-color: transparent;
+    color: var(--on-secondary-container);
+  }
+  .chip.selected::before { filter: brightness(1.4); }
+
+  /* ── Section label ───────────────────────────────────────────── */
+  .section-label {
+    padding: 8px 16px 4px;
+    font-size: 12px; font-weight: 500; color: var(--fg-3);
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+
+  /* ── Result rows ─────────────────────────────────────────────── */
+  .results { padding: 0 0 88px; }
+  .row {
+    position: relative;
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 16px; min-height: 72px;
+  }
+  .row.active { background: var(--accent-tint); }
+  .thumb {
+    width: 64px; height: 48px; border-radius: 8px; flex-shrink: 0;
+    background: linear-gradient(135deg, #4A4458, #8B7CB8);
+    position: relative; overflow: hidden;
+  }
+  .thumb .dur {
+    position: absolute; right: 4px; bottom: 4px;
+    background: rgba(0,0,0,0.65);
+    color: #fff; font-size: 10px; padding: 1px 4px; border-radius: 3px;
+    font-feature-settings: "tnum";
+  }
+  .thumb.t1 { background: linear-gradient(135deg, #5B2A86 0%, #2B6CB0 100%); }
+  .thumb.t2 { background: linear-gradient(135deg, #C05621 0%, #742A2A 100%); }
+  .thumb.t3 { background: linear-gradient(135deg, #2D3748 0%, #1A202C 100%); }
+  .thumb.t4 { background: linear-gradient(135deg, #38A169 0%, #1A4731 100%); }
+  .thumb.t5 { background: linear-gradient(135deg, #D69E2E 0%, #744210 100%); }
+  .thumb.t6 { background: linear-gradient(135deg, #4A5568 0%, #2D3748 100%); }
+
+  .meta { flex: 1; min-width: 0; }
+  .title {
+    color: var(--fg-1); font-size: 15px; font-weight: 500;
+    line-height: 1.25;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sub {
+    color: var(--fg-2); font-size: 13px; margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-feature-settings: "tnum";
+  }
+  .more-vert {
+    width: 48px; height: 48px; display: grid; place-items: center;
+    color: var(--fg-2);
+  }
+
+  /* ── EQ indicator (active-row overlay on duration badge) ─────── */
+  .eq {
+    position: absolute; right: 4px; bottom: 4px;
+    width: 22px; height: 22px;
+    background: rgba(0,0,0,0.55); border-radius: 4px;
+    display: flex; align-items: flex-end; justify-content: center; gap: 2px;
+    padding: 4px 4px 3px;
+  }
+  .eq .bar { width: 3px; background: var(--accent); border-radius: 1.5px; }
+  .eq .b1 { height: 12px; animation: eq1 600ms ease-in-out infinite alternate; }
+  .eq .b2 { height: 8px; animation: eq2 600ms ease-in-out 120ms infinite alternate; }
+  .eq .b3 { height: 10px; animation: eq3 600ms ease-in-out 240ms infinite alternate; }
+  @keyframes eq1 { from { height: 6px; } to { height: 14px; } }
+  @keyframes eq2 { from { height: 4px; } to { height: 12px; } }
+  @keyframes eq3 { from { height: 8px; } to { height: 11px; } }
+
+  /* ── MiniPlayer + NavBar ─────────────────────────────────────── */
+  .miniplayer {
+    position: absolute; left: 8px; right: 8px; bottom: 88px;
+    height: 56px; padding: 8px 12px;
+    border-radius: 12px;
+    background: rgba(208,188,255,0.16);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .miniplayer::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: linear-gradient(to right, var(--accent) 38%, transparent 38%);
+    border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
+  }
+  .mp-cover { width: 40px; height: 40px; border-radius: 6px; background: linear-gradient(135deg, #5B2A86, #2B6CB0); flex-shrink: 0; }
+  .mp-text { flex: 1; min-width: 0; }
+  .mp-title { font-size: 13px; font-weight: 500; color: var(--fg-1);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mp-sub   { font-size: 11px; color: var(--fg-2); margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mp-play  { width: 36px; height: 36px; display: grid; place-items: center; color: var(--fg-1); }
+
+  .navbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 80px;
+    background: var(--surface);
+    border-top: 1px solid var(--hairline);
+    display: flex; justify-content: space-around; padding-top: 12px;
+  }
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: var(--fg-2); font-size: 11px; font-weight: 500;
+  }
+  .nav-item.active { color: var(--accent); }
+  .nav-item .pill {
+    width: 56px; height: 28px; border-radius: 14px;
+    display: grid; place-items: center;
+  }
+  .nav-item.active .pill { background: var(--secondary-container); color: var(--on-secondary-container); }
+
+  /* ── Caption / legend ────────────────────────────────────────── */
+  .legend {
+    display: flex; flex-direction: column; gap: 14px;
+    max-width: 460px; padding-top: 24px;
+    color: var(--fg-2); font-size: 14px; line-height: 1.55;
+  }
+  .legend h2 {
+    color: var(--fg-1); font-size: 14px; font-weight: 600; letter-spacing: 0.01em;
+    margin-bottom: 4px;
+  }
+  .legend ul { padding-left: 18px; }
+  .legend li { margin-bottom: 6px; }
+  .legend code {
+    background: var(--surface-variant); color: var(--fg-1);
+    padding: 1px 6px; border-radius: 4px; font-size: 12.5px;
+    font-family: 'Roboto Mono', 'SF Mono', monospace;
+  }
+  .legend .pill {
+    display: inline-block; padding: 1px 7px; border-radius: 6px;
+    background: var(--accent-tint); color: var(--accent);
+    font-size: 11px; font-weight: 600;
+    font-family: 'Roboto Mono', 'SF Mono', monospace;
+  }
+  .legend a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <div>
+    <span class="badge">YT-0012 · ANDROID SEARCH</span>
+    <h1 style="display:inline-block;">Mockup — idle chips, results, active EQ row</h1>
+  </div>
+  <div class="meta">M3 · Material You · #8B5CF6 fallback</div>
+</div>
+
+<div class="stage">
+
+  <!-- ── Phone frame ─────────────────────────────────────────── -->
+  <div class="phone">
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="right">
+        <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+          <rect x="0" y="6" width="2" height="3.5" rx="0.5" fill="white" opacity="0.5"/>
+          <rect x="3" y="4.5" width="2" height="5" rx="0.5" fill="white" opacity="0.7"/>
+          <rect x="6" y="3" width="2" height="6.5" rx="0.5" fill="white"/>
+          <rect x="9" y="1.5" width="2" height="8" rx="0.5" fill="white"/>
+          <rect x="12" y="0" width="2" height="9.5" rx="0.5" fill="white"/>
+        </svg>
+        <svg width="20" height="10" viewBox="0 0 20 10" fill="none">
+          <rect x="0.5" y="0.5" width="17" height="9" rx="2" stroke="white" stroke-opacity="0.6"/>
+          <rect x="2" y="2" width="13" height="6" rx="1" fill="white"/>
+          <rect x="18" y="3" width="1.5" height="4" rx="0.5" fill="white" fill-opacity="0.6"/>
+        </svg>
+      </span>
+    </div>
+
+    <!-- Top app bar (collapsed) -->
+    <div class="topbar">
+      <div class="topbar-title">Search</div>
+      <div class="searchbar">
+        <div class="lead">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/>
+          </svg>
+        </div>
+        <input value="lofi" />
+        <div class="trail">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chip strip (selected: "lofi") -->
+    <div class="chip-row">
+      <div class="chip recent selected">lofi</div>
+      <div class="chip recent">focus mix</div>
+      <div class="chip recent">ambient</div>
+      <div class="chip">podcasts</div>
+      <div class="chip">jazz</div>
+      <div class="chip">study</div>
+    </div>
+
+    <div class="section-label">Results</div>
+
+    <div class="results">
+
+      <!-- Active row -->
+      <div class="row active">
+        <div class="thumb t1">
+          <div class="eq" aria-hidden="true">
+            <div class="bar b1"></div>
+            <div class="bar b2"></div>
+            <div class="bar b3"></div>
+          </div>
+        </div>
+        <div class="meta">
+          <div class="title">Late Night Lofi Mix — Deep Focus</div>
+          <div class="sub">ChillHop Music · 1:24:18</div>
+        </div>
+        <div class="more-vert">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Regular rows -->
+      <div class="row">
+        <div class="thumb t2"><div class="dur">3:42</div></div>
+        <div class="meta">
+          <div class="title">Sunset Avenue (Slowed)</div>
+          <div class="sub">Lofi Girl · 3:42</div>
+        </div>
+        <div class="more-vert">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="thumb t3"><div class="dur">4:15</div></div>
+        <div class="meta">
+          <div class="title">Quiet Mornings · Piano + Rain</div>
+          <div class="sub">Soulection · 4:15</div>
+        </div>
+        <div class="more-vert">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="thumb t4"><div class="dur">5:21</div></div>
+        <div class="meta">
+          <div class="title">Tokyo Drift Slow Edit</div>
+          <div class="sub">Nujabes Tribute · 5:21</div>
+        </div>
+        <div class="more-vert">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="thumb t5"><div class="dur">3:58</div></div>
+        <div class="meta">
+          <div class="title">Coffee &amp; Rain — Lofi Hip-Hop</div>
+          <div class="sub">Lofi Girl · 3:58</div>
+        </div>
+        <div class="more-vert">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="thumb t6"><div class="dur">2:09</div></div>
+        <div class="meta">
+          <div class="title">Vinyl Crackle (Background Loop)</div>
+          <div class="sub">Soulection · 2:09</div>
+        </div>
+        <div class="more-vert">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- MiniPlayer + NavBar -->
+    <div class="miniplayer">
+      <div class="mp-cover"></div>
+      <div class="mp-text">
+        <div class="mp-title">Late Night Lofi Mix — Deep Focus</div>
+        <div class="mp-sub">ChillHop Music</div>
+      </div>
+      <div class="mp-play">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>
+        </svg>
+      </div>
+    </div>
+    <div class="navbar">
+      <div class="nav-item active">
+        <div class="pill">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/></svg>
+        </div>
+        <span>Search</span>
+      </div>
+      <div class="nav-item">
+        <div class="pill">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg>
+        </div>
+        <span>Library</span>
+      </div>
+      <div class="nav-item">
+        <div class="pill">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg>
+        </div>
+        <span>Settings</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Legend ─────────────────────────────────────────────── -->
+  <div class="legend">
+    <div>
+      <h2>What's shown</h2>
+      <ul>
+        <li>M3 <code>SearchBar</code> docked in the <code>LargeTopAppBar</code> title slot — pill, 56 dp, <code>surfaceVariant</code> fill.</li>
+        <li>Chip strip below: 6 chips, recents first (clock affordance) then curated fillers. <span class="pill">D3</span></li>
+        <li>Selected chip <code>"lofi"</code> uses <code>secondaryContainer</code> + filled label. <span class="pill">D10</span></li>
+        <li>Results list — top row is the currently-playing track: <code>primaryContainer.copy(alpha = 0.16f)</code> tint, EQ indicator overlays the duration badge. <span class="pill">D4</span></li>
+        <li>The EQ indicator's three bars animate via <code>rememberInfiniteTransition</code> with staggered <code>delayMillis</code> 0 / 120 / 240. <span class="pill">D4</span></li>
+        <li>MiniPlayer mirrors the active row's track and the same EQ semantics.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>What it deliberately omits</h2>
+      <ul>
+        <li>No microphone glyph — voice search deferred (<span class="pill">D8</span>).</li>
+        <li>No "Clear all history" toolbar action — that lives in <a href="#">Settings § Data</a> (<span class="pill">D6</span>).</li>
+        <li>No filter row — handled by <code>SearchFilters.kt</code>, out of scope for this handoff.</li>
+        <li>No skeleton, no error, no offline copy — see <a href="mockup-states.html"><code>mockup-states.html</code></a> for all nine states.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Read order</h2>
+      <ul>
+        <li><a href="README.md"><code>README.md</code></a></li>
+        <li><a href="decision-log.md"><code>decision-log.md</code></a> — D1–D10</li>
+        <li><a href="compose-spec.md"><code>compose-spec.md</code></a></li>
+        <li><a href="haptics-and-a11y.md"><code>haptics-and-a11y.md</code></a></li>
+        <li><a href="mockup-states.html"><code>mockup-states.html</code></a></li>
+        <li>Cross-platform: <a href="../YT-0026/"><code>YT-0026/</code></a> · <a href="../state-catalog/"><code>state-catalog/</code></a> · <a href="../symbol-map/"><code>symbol-map/</code></a></li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

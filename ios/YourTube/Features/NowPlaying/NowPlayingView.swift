@@ -426,6 +426,21 @@ struct NowPlayingView: View {
 
     // MARK: Title block
 
+    /// Reserved 2-line height for the title `Text` (YT-0304).
+    ///
+    /// Computed from `UIFont.systemFont(ofSize: 22, weight: .semibold).lineHeight × 2` so
+    /// that the title region keeps a constant vertical footprint regardless of whether the
+    /// rendered title wraps to 1 line or 2. Without this reservation, a 1-line title
+    /// collapses the title block and shifts the scrubber + transport row up, causing the
+    /// skip-next button to walk under the user's finger across track changes (matches the
+    /// Android YT-0303 fix). Kept as a static computed constant — derived once from
+    /// `UIFont`, no `GeometryReader` per the task notes.
+    ///
+    /// Exposed at `internal` access so the YT-0304 height-stability test in
+    /// `NowPlayingTitleHeightStabilityTests` can assert the contract.
+    static let titleReservedHeight: CGFloat =
+        UIFont.systemFont(ofSize: 22, weight: .semibold).lineHeight * 2
+
     private func titleBlock(for track: Track) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -433,8 +448,19 @@ struct NowPlayingView: View {
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(Color.white)
                     .lineLimit(2)
+                    .truncationMode(.tail)
                     .minimumScaleFactor(0.7)
                     .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                    // YT-0304: pin the title to a 2-line reserved region so 1-line and
+                    // 4-line titles produce the same Y position for the transport row.
+                    // Align `.top` so 1-line titles render in the top line and the
+                    // remaining vertical space is empty but reserved (spec AC).
+                    .frame(
+                        maxWidth: .infinity,
+                        minHeight: Self.titleReservedHeight,
+                        maxHeight: Self.titleReservedHeight,
+                        alignment: .topLeading
+                    )
                     .accessibilityAddTraits(.isHeader)
 
                 if shell.isLoading {
@@ -452,6 +478,7 @@ struct NowPlayingView: View {
                 .font(.system(size: 15))
                 .foregroundStyle(Color.white.opacity(0.6))
                 .lineLimit(1)
+                .truncationMode(.tail)
                 .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

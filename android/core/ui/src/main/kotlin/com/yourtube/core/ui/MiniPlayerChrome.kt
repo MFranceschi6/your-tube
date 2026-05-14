@@ -16,13 +16,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import com.yourtube.core.designsystem.IconKey
+import com.yourtube.core.designsystem.Icon as MaterialSymbolIcon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +30,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.yourtube.core.common.model.Track
@@ -72,10 +70,12 @@ internal fun MiniPlayerChrome(
 ) {
     // YT-0196 — buffering label suffix.
     val playPauseLabel = when {
-        isBuffering -> "Loading ${track.title}"
-        isPlaying -> "Pause ${track.title}"
-        else -> "Play ${track.title}"
+        isBuffering -> stringResource(R.string.cd_mini_player_play_pause_loading, track.title)
+        isPlaying -> stringResource(R.string.cd_mini_player_play_pause_pause, track.title)
+        else -> stringResource(R.string.cd_mini_player_play_pause_play, track.title)
     }
+    val expandLabel = stringResource(R.string.cd_mini_player_expand)
+    val skipNextLabel = stringResource(R.string.cd_mini_player_skip_next)
 
     Column(
         modifier = modifier
@@ -88,8 +88,8 @@ internal fun MiniPlayerChrome(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .semantics { contentDescription = "Expand player" }
-                .clickable(onClickLabel = "Expand player", onClick = onExpandClick),
+                .semantics { contentDescription = expandLabel }
+                .clickable(onClickLabel = expandLabel, onClick = onExpandClick),
         ) {
             Row(
                 modifier = Modifier
@@ -141,8 +141,10 @@ internal fun MiniPlayerChrome(
                                 strokeWidth = 2.dp,
                             )
                         } else {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            MaterialSymbolIcon(
+                                icon = if (isPlaying) IconKey.Pause else IconKey.Play,
+                                filled = true,
+                                weight = 600,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurface,
                             )
@@ -151,10 +153,11 @@ internal fun MiniPlayerChrome(
 
                     IconButton(
                         onClick = onSkipNextClick,
-                        modifier = Modifier.semantics { contentDescription = "Skip to next track" },
+                        modifier = Modifier.semantics { contentDescription = skipNextLabel },
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SkipNext,
+                        MaterialSymbolIcon(
+                            icon = IconKey.SkipNext,
+                            weight = 500,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurface,
                         )

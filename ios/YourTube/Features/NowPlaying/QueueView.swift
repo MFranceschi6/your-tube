@@ -18,6 +18,16 @@ struct QueueView: View {
         List {
             ForEach(Array(shell.queue.enumerated()), id: \.element.videoId) { index, track in
                 row(for: track, at: index)
+                    .contentShape(Rectangle())
+                    // YT-0308 — tap-to-jump within the queue. Suppressed while
+                    // List is in edit mode so reorder drag handles and delete
+                    // accessories own the gesture surface. The coordinator
+                    // guards `index == currentIndex` as a silent no-op, so
+                    // tapping the active row never restarts playback.
+                    .onTapGesture {
+                        guard !editMode.isEditing else { return }
+                        shell.jumpToQueueItem(at: index)
+                    }
                     .listRowBackground(Color.clear)
                     .listRowSeparatorTint(Color.white.opacity(0.08))
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -79,5 +89,9 @@ struct QueueView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(isCurrent ? "Now playing: " : "")\(track.title) by \(track.channel)")
+        // YT-0308 — VoiceOver discoverability for tap-to-jump. The hint only
+        // makes sense on non-current rows; the current row's tap is a no-op.
+        .accessibilityHint(isCurrent ? "" : "Plays this track")
+        .accessibilityAddTraits(isCurrent ? [] : .isButton)
     }
 }

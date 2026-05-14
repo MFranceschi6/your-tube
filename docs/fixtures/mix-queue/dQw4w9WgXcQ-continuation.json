@@ -1,0 +1,40 @@
+{
+  "continuationContents": {
+    "playlistPanelContinuation": {
+      "contents": [
+        {
+          "playlistPanelVideoRenderer": {
+            "videoId": "5anLPw0Efmo",
+            "title": {"simpleText": "Michael Jackson - Smooth Criminal (Official Video)"},
+            "longBylineText": {"runs": [{"text": "Michael Jackson"}]},
+            "lengthText": {"simpleText": "9:26"},
+            "thumbnail": {"thumbnails": [
+              {"url": "https://i.ytimg.com/vi/5anLPw0Efmo/hqdefault.jpg", "width": 168, "height": 94},
+              {"url": "https://i.ytimg.com/vi/5anLPw0Efmo/hqdefault.jpg?sqp=large", "width": 336, "height": 188}
+            ]}
+          }
+        },
+        {
+          "playlistPanelVideoRenderer": {
+            "videoId": "h_D3VFfhvs4",
+            "title": {"simpleText": "Smash Mouth - All Star (Official Music Video)"},
+            "longBylineText": {"runs": [{"text": "Smash Mouth"}]},
+            "lengthText": {"simpleText": "3:24"},
+            "thumbnail": {"thumbnails": [
+              {"url": "https://i.ytimg.com/vi/h_D3VFfhvs4/hqdefault.jpg", "width": 168, "height": 94},
+              {"url": "https://i.ytimg.com/vi/h_D3VFfhvs4/hqdefault.jpg?sqp=large", "width": 336, "height": 188}
+            ]}
+          }
+        }
+      ],
+      "continuations": [
+        {
+          "nextContinuationData": {
+            "continuation": "4qmFsgKfARIPUkRkUXc0dzlXZ1hjURpMQ0FGNkxNS1JoQU01Q3lDeFlLU0F1U1ZuM01wWDV4OHFTdU5KaHFpdklSCkFLakROd25hVUVnPSXSCRpQVHd0Z190QVNHPVNDR0FN%3D",
+            "clickTrackingParams": "SCRUBBED"
+          }
+        }
+      ]
+    }
+  }
+}

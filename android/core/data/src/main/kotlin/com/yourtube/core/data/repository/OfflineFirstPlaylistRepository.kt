@@ -62,7 +62,7 @@ class OfflineFirstPlaylistRepository(
             name = name,
             createdAt = now,
             updatedAt = now,
-            tracks = tracks,
+            tracks = tracks.distinctBy { it.videoId },
         )
         upsertPlaylistSnapshot(playlist)
         return playlist
@@ -82,10 +82,14 @@ class OfflineFirstPlaylistRepository(
         playlistDao.deletePlaylist(playlistId)
     }
 
-    override suspend fun addTrackToPlaylist(playlistId: String, track: Track) {
+    override suspend fun addTrackToPlaylist(playlistId: String, track: Track): AddTrackResult {
+        if (playlistDao.trackExistsInPlaylist(playlistId, track.videoId)) {
+            return AddTrackResult.AlreadyPresent
+        }
         val existing = requirePlaylist(playlistId)
         val updatedTracks = playlistDao.getPlaylistTrackRows(playlistId).toDomainTracks() + track
         upsertPlaylistSnapshot(existing.toUpdatedPlaylist(updatedTracks))
+        return AddTrackResult.Added
     }
 
     override suspend fun removeTrackFromPlaylist(playlistId: String, position: Int) {
@@ -124,7 +128,7 @@ class OfflineFirstPlaylistRepository(
         if (existing != null && Instant.parse(existing.updatedAt) > Instant.parse(playlist.updatedAt)) {
             return
         }
-        upsertPlaylistSnapshot(playlist)
+        upsertPlaylistSnapshot(playlist.copy(tracks = playlist.tracks.distinctBy { it.videoId }))
     }
 
     override suspend fun recordPlayback(track: Track, playedAt: String?): PlaybackHistoryEntry {

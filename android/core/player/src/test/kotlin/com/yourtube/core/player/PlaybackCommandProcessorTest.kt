@@ -5,7 +5,13 @@ import com.yourtube.core.network.ResolvedAudioStream
 import com.yourtube.core.network.YoutubeService
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
 
 class PlaybackCommandProcessorTest {
 
@@ -86,12 +92,59 @@ class PlaybackCommandProcessorTest {
         assertEquals(listOf("queue", "prepare", "play"), playbackEngine.events)
     }
 
+    // YT-0309 — service-side integration: when resolveAudioStream hangs and the caller wraps
+    // with withTimeoutOrNull(SERVICE_RESOLVE_TIMEOUT_MS), the engine must NOT receive any
+    // queue/prepare/play calls. This pins the PlaybackService.handlePlayTrack contract without
+    // spinning up a real Android service.
+    @Test
+    fun `hung resolveAudioStream times out and engine receives no calls`() = runTest {
+        val hangingService = object : YoutubeService {
+            override suspend fun searchVideos(query: String, sp: String?) = emptyList<com.yourtube.core.common.model.SearchResult>()
+            override suspend fun resolveAudioStream(videoId: String, preferredMaxBitrateKbps: Int): ResolvedAudioStream =
+                awaitCancellation()  // suspends forever — simulates hung airplane-mode call
+            override suspend fun getRelatedVideos(videoId: String) = emptyList<com.yourtube.core.common.model.SearchResult>()
+            override suspend fun getMixQueue(videoId: String) = emptyList<com.yourtube.core.common.model.SearchResult>()
+            override suspend fun getMixQueueWithContinuation(videoId: String) = com.yourtube.core.network.MixPage.empty()
+            override suspend fun getMixContinuation(token: String) = com.yourtube.core.network.MixPage.empty()
+        }
+        val engine = RecordingPlaybackEngine()
+        val processor = PlaybackCommandProcessor(
+            youtubeService = hangingService,
+            preparedPlaybackFactory = PreparedPlaybackFactory(),
+            logger = NoOpLogger,
+            perfTracer = PlaybackPerfTracer(NoOpLogger),
+        )
+        val timeoutMs = 15_000L
+
+        var timedOut = false
+        launch {
+            val result = withTimeoutOrNull(timeoutMs) {
+                runCatching { processor.playTrack(PlaybackRequest(track = stubTrack), engine) }.isSuccess
+            }
+            timedOut = (result == null)
+        }
+
+        advanceTimeBy(timeoutMs + 1L)
+        runCurrent()
+
+        assertTrue(timedOut, "withTimeoutOrNull must fire after $timeoutMs ms")
+        assertTrue(engine.events.isEmpty(), "Engine must NOT receive queue/prepare/play on timeout: ${engine.events}")
+    }
+
+    private val stubTrack = Track(
+        videoId = "stub",
+        title = "Stub Track",
+        channel = "Stub",
+        durationSec = 180,
+        thumbnailUrl = "",
+    )
+
     private class FakeYoutubeService(
         private val resolvedAudioStream: ResolvedAudioStream,
     ) : YoutubeService {
         var lastResolveRequest: Pair<String, Int>? = null
 
-        override suspend fun searchVideos(query: String) = emptyList<com.yourtube.core.common.model.SearchResult>()
+        override suspend fun searchVideos(query: String, sp: String?) = emptyList<com.yourtube.core.common.model.SearchResult>()
 
         override suspend fun resolveAudioStream(
             videoId: String,
@@ -100,6 +153,16 @@ class PlaybackCommandProcessorTest {
             lastResolveRequest = videoId to preferredMaxBitrateKbps
             return resolvedAudioStream
         }
+
+        // YT-0089 — not exercised by this test; return empty list.
+        override suspend fun getRelatedVideos(videoId: String): List<com.yourtube.core.common.model.SearchResult> = emptyList()
+        // YT-0293 — not exercised by this test; return empty list.
+        override suspend fun getMixQueue(videoId: String): List<com.yourtube.core.common.model.SearchResult> = emptyList()
+        // YT-0297 — not exercised by this test; return empty page.
+        override suspend fun getMixQueueWithContinuation(videoId: String): com.yourtube.core.network.MixPage =
+            com.yourtube.core.network.MixPage.empty()
+        override suspend fun getMixContinuation(token: String): com.yourtube.core.network.MixPage =
+            com.yourtube.core.network.MixPage.empty()
     }
 
     private object NoOpLogger : Logger {

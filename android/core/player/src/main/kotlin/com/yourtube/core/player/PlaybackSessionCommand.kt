@@ -30,9 +30,9 @@ object PlaybackSessionCommand {
      * Media3's `DefaultMediaNotificationProvider` maps the prev button to
      * `Player.seekToPrevious()`, which on our single-item ExoPlayer timeline always
      * collapses to `seekTo(0)`. The custom command routes back into
-     * [PlayerController.skipPrevious] so the existing `RESTART_THRESHOLD_MS` policy
-     * (rewind-to-0 when position > threshold, advance to previous queue entry when
-     * <= threshold) drives both UI and system-control taps.
+     * [PlayerController.skipPrevious] so the `SKIP_BACK_RESTART_THRESHOLD_MS` policy
+     * (rewind-to-0 when engineLoaded and position > threshold, advance to previous queue
+     * entry when <= threshold or engine not loaded) drives both UI and system-control taps.
      */
     const val SKIP_TO_PREV_QUEUE_ACTION = "com.yourtube.action.SKIP_TO_PREV_QUEUE"
 
@@ -49,6 +49,7 @@ object PlaybackSessionCommand {
     private const val KEY_DURATION_SEC = "duration_sec"
     private const val KEY_THUMBNAIL_URL = "thumbnail_url"
     private const val KEY_PREFERRED_MAX_BITRATE_KBPS = "preferred_max_bitrate_kbps"
+    private const val KEY_START_POSITION_MS = "start_position_ms"
 
     val playTrack: SessionCommand = SessionCommand(PLAY_TRACK_ACTION, Bundle.EMPTY)
 
@@ -106,6 +107,7 @@ object PlaybackSessionCommand {
         KEY_DURATION_SEC to request.track.durationSec,
         KEY_THUMBNAIL_URL to request.track.thumbnailUrl,
         KEY_PREFERRED_MAX_BITRATE_KBPS to request.preferredMaxBitrateKbps,
+        KEY_START_POSITION_MS to request.startPositionMs,
     )
 
     fun fromBundle(bundle: Bundle): PlaybackRequest? {
@@ -126,6 +128,7 @@ object PlaybackSessionCommand {
                 KEY_PREFERRED_MAX_BITRATE_KBPS,
                 YoutubeService.DEFAULT_PREFERRED_MAX_BITRATE_KBPS,
             ),
+            startPositionMs = bundle.getLong(KEY_START_POSITION_MS, 0L),
         )
     }
 

@@ -1,6 +1,8 @@
 package com.yourtube.feature.library
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,26 +25,40 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.runtime.collectAsState
+import com.yourtube.core.ui.R as CoreUiR
 import com.yourtube.core.common.model.Playlist
+import com.yourtube.core.ui.BottomSheetActionItem
 import com.yourtube.core.ui.EmptyState
 import com.yourtube.core.ui.ErrorState
 import com.yourtube.core.ui.LoadingList
@@ -51,7 +67,7 @@ import com.yourtube.core.ui.LocalAppShellSlots
 import com.yourtube.core.ui.PlaylistRow
 import com.yourtube.core.ui.SkeletonPlaylistRow
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun LibraryScreen(
     onOpenRecentlyPlayed: () -> Unit,
@@ -62,6 +78,8 @@ fun LibraryScreen(
      * previews / tests don't have to thread it.
      */
     onShare: (PlaylistDetailViewModel.SharePayload) -> Unit = {},
+    onPlayNext: (Playlist) -> Unit = {},
+    onAddToQueue: (Playlist) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
@@ -69,6 +87,8 @@ fun LibraryScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<Playlist?>(null) }
     var deleteTarget by remember { mutableStateOf<Playlist?>(null) }
+    // v2 Q6: long-press context menu for PlaylistRow
+    var playlistContextMenu by remember { mutableStateOf<Playlist?>(null) }
 
     // YT-0063a v2 Q5: FAB stays expanded at all times. v2 §5 explicitly rejects
     // collapse-on-scroll because (a) typical user has <30 playlists, (b) collapse hides
@@ -79,28 +99,60 @@ fun LibraryScreen(
     // YT-0061 FAB seam: register the "New playlist" Extended FAB with the AppShell while
     // this destination is composed; clear on disposal so other tabs don't inherit it.
     val slots = LocalAppShellSlots.current
+    val newPlaylistLabel = stringResource(CoreUiR.string.cd_extended_fab_new_playlist)
+    // H1: capture haptic outside DisposableEffect so the stable reference is enclosed.
+    val fabHaptic = LocalHapticFeedback.current
+    // A4: capture current density to clamp fontScale for the FAB label.
+    val fabDensity = LocalDensity.current
     DisposableEffect(slots) {
         slots.setFab {
             ExtendedFloatingActionButton(
-                onClick = { showCreateDialog = true },
+                onClick = {
+                    fabHaptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    showCreateDialog = true
+                },
                 icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-                text = { Text("New playlist") },
-                modifier = Modifier.semantics { contentDescription = "New playlist" },
+                text = {
+                    // A4: clamp font scale so the FAB label doesn't overflow at large text sizes.
+                    CompositionLocalProvider(
+                        LocalDensity provides Density(
+                            density = fabDensity.density,
+                            fontScale = fabDensity.fontScale.coerceAtMost(1.5f),
+                        ),
+                    ) {
+                        Text(newPlaylistLabel)
+                    }
+                },
+                modifier = Modifier.semantics {
+                    contentDescription = newPlaylistLabel
+                    // A3: traverse FAB before list content so TalkBack reaches it first.
+                    traversalIndex = 0f
+                },
             )
         }
         onDispose { slots.setFab(null) }
     }
 
     val shellInsets = LocalAppShellInsets.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
         modifier = modifier,
         topBar = {
-            // YT-0063a Q5: the toolbar `+` IconButton is removed — decision-log §5 explicitly
-            // marks it redundant when the screen owns an Extended FAB. The FAB is the single
-            // entry point for "new playlist" creation.
-            TopAppBar(
-                title = { Text("Library") },
+            // v2 Q1: LargeTopAppBar. History is reachable via the top-app-bar action icon
+            // rather than a dedicated row below the toolbar.
+            LargeTopAppBar(
+                title = { Text(stringResource(CoreUiR.string.lbl_library_title)) },
+                scrollBehavior = scrollBehavior,
+                actions = {
+                    val recentlyPlayedCd = stringResource(CoreUiR.string.cd_library_recently_played)
+                    IconButton(
+                        onClick = onOpenRecentlyPlayed,
+                        modifier = Modifier.semantics { contentDescription = recentlyPlayedCd },
+                    ) {
+                        Icon(Icons.Rounded.History, contentDescription = null)
+                    }
+                },
             )
         },
     ) { innerPadding ->
@@ -136,9 +188,8 @@ fun LibraryScreen(
                         icon = { mod ->
                             Icon(Icons.Rounded.LibraryMusic, contentDescription = null, modifier = mod)
                         },
-                        title = "No playlists yet",
-                        body = "Save groups of tracks for offline plays, sharing, " +
-                            "or just to find them again. Tap New playlist to start.",
+                        title = stringResource(CoreUiR.string.lbl_library_empty_title),
+                        body = stringResource(CoreUiR.string.lbl_library_empty_body),
                     )
                 }
             }
@@ -153,8 +204,8 @@ fun LibraryScreen(
                         .padding(innerPadding),
                 ) {
                     ErrorState(
-                        title = "Couldn't load your library",
-                        body = "Check your connection and try again.",
+                        title = stringResource(CoreUiR.string.err_library_load_title),
+                        body = stringResource(CoreUiR.string.err_library_load_body),
                         onRetry = viewModel::retry,
                         assertive = true,
                         scrollable = true,
@@ -167,7 +218,8 @@ fun LibraryScreen(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding),
+                        .padding(innerPadding)
+                        .nestedScroll(scrollBehavior.nestedScrollConnection),
                     // YT-0061: bottom inset from AppShell ensures the last item clears the
                     // MiniPlayer + FAB + nav bar without per-screen inset math.
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -176,7 +228,7 @@ fun LibraryScreen(
                 ) {
                     item {
                         ListItem(
-                            headlineContent = { Text("Recently Played") },
+                            headlineContent = { Text(stringResource(CoreUiR.string.lbl_library_recently_played)) },
                             leadingContent = {
                                 Icon(Icons.Rounded.History, contentDescription = null)
                             },
@@ -186,7 +238,7 @@ fun LibraryScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable(
-                                    onClickLabel = "Open recently played",
+                                    onClickLabel = stringResource(CoreUiR.string.lbl_library_open_recently_played),
                                     onClick = onOpenRecentlyPlayed,
                                 ),
                         )
@@ -195,7 +247,7 @@ fun LibraryScreen(
 
                     item {
                         Text(
-                            text = "Playlists",
+                            text = stringResource(CoreUiR.string.lbl_library_section_playlists),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -203,19 +255,30 @@ fun LibraryScreen(
                     }
                     items(state.playlists, key = { it.id }) { playlist ->
                         var menuExpanded by remember { mutableStateOf(false) }
+                        val haptic = LocalHapticFeedback.current
                         // YT-0153: dropdown lives inside the same Box as the IconButton
                         // (via PlaylistRow's `trailingContent` slot) so it anchors under
                         // the dot instead of at the row's leading edge.
+                        // v2 Q6: long-press opens the contextual bottom sheet.
                         PlaylistRow(
                             playlist = playlist,
                             onClick = { onOpenPlaylistDetail(playlist.id) },
                             onMoreClick = {},
+                            onLongClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                playlistContextMenu = playlist
+                            },
                             trailingContent = {
                                 Box {
+                                    val moreOptionsContentDescription = stringResource(CoreUiR.string.cd_more_options)
+                                    val sharePlaylistCd = stringResource(CoreUiR.string.cd_menu_share_playlist)
+                                    val shareLabel = stringResource(CoreUiR.string.lbl_menu_share)
+                                    val renameLabel = stringResource(CoreUiR.string.lbl_menu_rename)
+                                    val deleteLabel = stringResource(CoreUiR.string.lbl_menu_delete)
                                     IconButton(
                                         onClick = { menuExpanded = true },
                                         modifier = Modifier.semantics {
-                                            contentDescription = "More options for ${playlist.name}"
+                                            contentDescription = moreOptionsContentDescription
                                         },
                                     ) {
                                         Icon(
@@ -231,22 +294,24 @@ fun LibraryScreen(
                                         // YT-0156 — Share is the first item, mirroring the
                                         // PlaylistDetail toolbar overflow order.
                                         DropdownMenuItem(
-                                            text = { Text("Share") },
-                                            modifier = Modifier.semantics { contentDescription = "Share playlist" },
+                                            text = { Text(shareLabel) },
+                                            modifier = Modifier.semantics {
+                                                contentDescription = sharePlaylistCd
+                                            },
                                             onClick = {
                                                 menuExpanded = false
                                                 viewModel.encodeForShare(playlist.id)?.let(onShare)
                                             },
                                         )
                                         DropdownMenuItem(
-                                            text = { Text("Rename") },
+                                            text = { Text(renameLabel) },
                                             onClick = {
                                                 menuExpanded = false
                                                 renameTarget = playlist
                                             },
                                         )
                                         DropdownMenuItem(
-                                            text = { Text("Delete") },
+                                            text = { Text(deleteLabel) },
                                             onClick = {
                                                 menuExpanded = false
                                                 deleteTarget = playlist
@@ -293,6 +358,28 @@ fun LibraryScreen(
             onDismiss = { deleteTarget = null },
         )
     }
+
+    // v2 Q6: PlaylistRow long-press contextual bottom sheet
+    playlistContextMenu?.let { playlist ->
+        PlaylistContextMenu(
+            playlist = playlist,
+            onDismiss = { playlistContextMenu = null },
+            onPlayNext = { playlistContextMenu = null; onPlayNext(playlist) },
+            onAddToQueue = { playlistContextMenu = null; onAddToQueue(playlist) },
+            onRename = {
+                playlistContextMenu = null
+                renameTarget = playlist
+            },
+            onDelete = {
+                playlistContextMenu = null
+                deleteTarget = playlist
+            },
+            onShare = {
+                playlistContextMenu = null
+                viewModel.encodeForShare(playlist.id)?.let(onShare)
+            },
+        )
+    }
 }
 
 /**
@@ -304,12 +391,15 @@ fun LibraryScreen(
 @Composable
 private fun RecentlyPlayedRow(onClick: () -> Unit) {
     ListItem(
-        headlineContent = { Text("Recently Played") },
+        headlineContent = { Text(stringResource(CoreUiR.string.lbl_library_recently_played)) },
         leadingContent = { Icon(Icons.Rounded.History, contentDescription = null) },
         trailingContent = { Icon(Icons.Rounded.ChevronRight, contentDescription = null) },
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClickLabel = "Open recently played", onClick = onClick),
+            .clickable(
+                onClickLabel = stringResource(CoreUiR.string.lbl_library_open_recently_played),
+                onClick = onClick,
+            ),
     )
     HorizontalDivider()
 }
@@ -322,12 +412,12 @@ private fun CreatePlaylistDialog(
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Playlist") },
+        title = { Text(stringResource(CoreUiR.string.lbl_dialog_new_playlist_title)) },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Name") },
+                label = { Text(stringResource(CoreUiR.string.lbl_dialog_name_label)) },
                 singleLine = true,
             )
         },
@@ -335,65 +425,54 @@ private fun CreatePlaylistDialog(
             TextButton(
                 onClick = { if (name.isNotBlank()) onConfirm(name) },
                 enabled = name.isNotBlank(),
-            ) { Text("Create") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
-}
-
-@Composable
-private fun RenamePlaylistDialog(
-    currentName: String,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var name by remember(currentName) { mutableStateOf(currentName) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Rename playlist") },
-        text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Name") },
-                singleLine = true,
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { if (name.isNotBlank()) onConfirm(name) },
-                enabled = name.isNotBlank(),
-            ) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
-}
-
-@Composable
-private fun DeletePlaylistDialog(
-    playlistName: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    // YT-0063a v2 Q8: destructive-confirm copy and colour split per the v2 decision log.
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Delete playlist?") },
-        text = {
-            Text(
-                "This permanently removes \"$playlistName\". " +
-                    "The tracks themselves stay in your library.",
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Delete", color = MaterialTheme.colorScheme.error)
-            }
+            ) { Text(stringResource(CoreUiR.string.lbl_dialog_btn_create)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = MaterialTheme.colorScheme.primary)
-            }
+            TextButton(onClick = onDismiss) { Text(stringResource(CoreUiR.string.lbl_dialog_btn_cancel)) }
         },
     )
+}
+
+/**
+ * v2 Q6 — contextual bottom sheet for a `PlaylistRow` long-press (read mode only).
+ *
+ * Items: Play next, Add to queue, Rename, [HorizontalDivider], Delete (destructive), Share.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlaylistContextMenu(
+    playlist: Playlist,
+    onDismiss: () -> Unit,
+    onPlayNext: () -> Unit,
+    onAddToQueue: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onShare: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState()
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(modifier = Modifier.padding(bottom = 16.dp)) {
+            Text(
+                text = playlist.name,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+            HorizontalDivider()
+            BottomSheetActionItem(stringResource(CoreUiR.string.lbl_menu_play_next), onClick = onPlayNext)
+            BottomSheetActionItem(stringResource(CoreUiR.string.lbl_menu_add_to_queue), onClick = onAddToQueue)
+            BottomSheetActionItem(stringResource(CoreUiR.string.lbl_menu_rename), onClick = onRename)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            BottomSheetActionItem(
+                label = stringResource(CoreUiR.string.lbl_menu_delete),
+                onClick = onDelete,
+                contentColor = MaterialTheme.colorScheme.error,
+            )
+            BottomSheetActionItem(stringResource(CoreUiR.string.lbl_menu_share), onClick = onShare)
+        }
+    }
 }

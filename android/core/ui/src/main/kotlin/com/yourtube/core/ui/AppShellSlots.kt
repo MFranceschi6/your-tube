@@ -54,6 +54,15 @@ val LocalAppShellInsets: androidx.compose.runtime.ProvidableCompositionLocal<Pad
     compositionLocalOf { PaddingValues(0.dp) }
 
 /**
+ * Height of the visible MiniPlayer chrome only (no FAB, no nav bar).
+ * Use this when positioning a [SnackbarHost] on screens that have no FAB of their own,
+ * so the snackbar appears just above the MiniPlayer regardless of whether a sibling
+ * destination registered a FAB via [LocalAppShellSlots].
+ */
+val LocalMiniPlayerHeight: androidx.compose.runtime.ProvidableCompositionLocal<androidx.compose.ui.unit.Dp> =
+    compositionLocalOf { 0.dp }
+
+/**
  * Shared-transition scope hoisted at the `AppShell` root. Destination
  * composables can read this to attach `Modifier.sharedBounds(...)` against the
  * MiniPlayer artwork without owning the `SharedTransitionLayout`.

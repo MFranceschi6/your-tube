@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon monochrome — Android 13+ themed-icon channel.
+  All paths are solid black on transparent; the OS replaces black with
+  the wallpaper-derived tint. No alpha fills, no highlight stroke.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+
+    <group
+        android:translateX="170"
+        android:translateY="170"
+        android:scaleX="0.668"
+        android:scaleY="0.668">
+
+        <!-- Headphone band arc -->
+        <path
+            android:fillColor="@android:color/transparent"
+            android:pathData="M 260 580 C 260 290 340 130 512 130 C 684 130 764 290 764 580"
+            android:strokeColor="#FF000000"
+            android:strokeWidth="64"
+            android:strokeLineCap="round" />
+
+        <!-- Left ear cup -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M 178 470 L 262 450 Q 290 450 290 478 L 290 762 Q 290 790 262 790 L 178 770 Q 150 770 150 742 L 150 498 Q 150 470 178 470 Z" />
+
+        <!-- Right ear cup -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M 846 470 L 762 450 Q 734 450 734 478 L 734 762 Q 734 790 762 790 L 846 770 Q 874 770 874 742 L 874 498 Q 874 470 846 470 Z" />
+
+        <!-- Left cable arm -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M 302 440 L 362 440 L 522 632 L 462 632 Z" />
+
+        <!-- Right cable arm -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M 722 440 L 662 440 L 502 632 L 562 632 Z" />
+
+        <!-- Left pivot circle: cx=332, cy=440, r=30 -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M 302 440 A 30 30 0 1 0 362 440 A 30 30 0 1 0 302 440 Z" />
+
+        <!-- Right pivot circle: cx=692, cy=440, r=30 -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M 662 440 A 30 30 0 1 0 722 440 A 30 30 0 1 0 662 440 Z" />
+
+        <!-- Jack stem: rect x=482 y=624 w=60 h=200 rx=15 -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M 497 624 L 527 624 Q 542 624 542 639 L 542 809 Q 542 824 527 824 L 497 824 Q 482 824 482 809 L 482 639 Q 482 624 497 624 Z" />
+
+        <!-- Jack tip: cx=512, cy=810, r=30 -->
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M 482 810 A 30 30 0 1 0 542 810 A 30 30 0 1 0 482 810 Z" />
+
+    </group>
+</vector>

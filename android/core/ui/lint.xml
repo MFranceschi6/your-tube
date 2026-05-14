@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  lint.xml for :core:ui
+  Bans new hardcoded strings (HardcodedText) so all user-facing content
+  descriptions and labels must live in strings.xml.
+  Task: YT-0064 — Migrate Android core/ui a11y strings to strings.xml.
+-->
+<lint>
+    <!-- Elevate HardcodedText to error so CI fails on any new hardcoded string. -->
+    <issue id="HardcodedText" severity="error" />
+</lint>

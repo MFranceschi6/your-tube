@@ -20,6 +20,10 @@ struct SearchScreen: View {
 
     /// Currently playing track so result rows can highlight the active item.
     var currentTrack: Track?
+    /// Whether playback is actively in flight. Combined with `currentTrack`
+    /// to decide whether to animate EQ bars (YT-0192: id-match alone is
+    /// insufficient — paused rows must remain visually inert).
+    var isPlaying: Bool = false
     /// Invoked when the user taps a row or selects "Play" from the context menu.
     var onPlay: (Track) -> Void = { _ in }
     /// Invoked when the user selects "Add to Queue" from the row context menu.
@@ -29,15 +33,19 @@ struct SearchScreen: View {
 
     @State private var viewModel: SearchViewModel
     @State private var trackPendingPlaylistAdd: Track?
+    /// Track whose 3-dots overflow menu has been tapped (YT-0194).
+    @State private var trackPendingMoreMenu: Track?
 
     init(
         currentTrack: Track? = nil,
+        isPlaying: Bool = false,
         onPlay: @escaping (Track) -> Void = { _ in },
         onAddToQueue: @escaping (Track) -> Void = { _ in },
         onGoToLibrary: (() -> Void)? = nil,
         youtubeService: any YouTubeServiceProtocol = LiveYouTubeService()
     ) {
         self.currentTrack = currentTrack
+        self.isPlaying = isPlaying
         self.onPlay = onPlay
         self.onAddToQueue = onAddToQueue
         self.onGoToLibrary = onGoToLibrary
@@ -189,10 +197,16 @@ struct SearchScreen: View {
         LazyVStack(spacing: 0) {
             ForEach(Array(results.enumerated()), id: \.element.videoId) { index, result in
                 let track = SearchViewModel.track(from: result)
+                // YT-0192: combine id-match AND isPlaying so EQ bars stay
+                // inert when the player is paused even on the matching row.
+                let rowIsPlaying = isPlaying && currentTrack?.videoId == result.videoId
                 TrackRow(
                     track: track,
-                    isPlaying: currentTrack?.videoId == result.videoId,
-                    onTap: { onPlay(track) }
+                    isPlaying: rowIsPlaying,
+                    onTap: { onPlay(track) },
+                    // YT-0194: wire 3-dots to a confirmationDialog that
+                    // mirrors the same actions as the long-press contextMenu.
+                    onMoreTap: { trackPendingMoreMenu = track }
                 )
                 .contextMenu { contextMenu(for: track) }
                 .accessibilityIdentifier("search.row.\(result.videoId)")
@@ -204,6 +218,29 @@ struct SearchScreen: View {
             }
         }
         .background(Theme.surface)
+        // YT-0194: overflow-menu sheet — mirrors the same item set as the
+        // long-press contextMenu (AC4): Play / Add to Queue / Add to Playlist / Share.
+        // Remove is not offered (no owning playlist context in search results).
+        .confirmationDialog(
+            trackPendingMoreMenu.map { "Options for \"\($0.title)\"" } ?? "",
+            isPresented: Binding(
+                get: { trackPendingMoreMenu != nil },
+                set: { if !$0 { trackPendingMoreMenu = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let track = trackPendingMoreMenu {
+                Button("Play") { onPlay(track); trackPendingMoreMenu = nil }
+                Button("Add to Queue") { onAddToQueue(track); trackPendingMoreMenu = nil }
+                Button("Add to Playlist…") { trackPendingPlaylistAdd = track; trackPendingMoreMenu = nil }
+                if let url = URL(string: "https://youtu.be/\(track.videoId)") {
+                    ShareLink(item: url, subject: Text(track.title)) {
+                        Label("Share Track", systemImage: "square.and.arrow.up")
+                    }
+                }
+                Button("Cancel", role: .cancel) { trackPendingMoreMenu = nil }
+            }
+        }
     }
 
     @ViewBuilder
@@ -224,6 +261,12 @@ struct SearchScreen: View {
             trackPendingPlaylistAdd = track
         } label: {
             Label("Add to Playlist…", systemImage: "music.note.list")
+        }
+
+        if let url = URL(string: "https://youtu.be/\(track.videoId)") {
+            ShareLink(item: url, subject: Text(track.title)) {
+                Label("Share Track", systemImage: "square.and.arrow.up")
+            }
         }
     }
 
@@ -410,4 +453,7 @@ private struct PreviewSearchService: YouTubeServiceProtocol {
     func resolveStreamURL(videoId: String, quality: AudioQuality) async throws -> ResolvedStream {
         ResolvedStream(url: URL(string: "https://example.invalid/preview")!, isMuxedFallback: false)
     }
+    // YT-0298 Mix stubs — previews don't need real Mix data.
+    func getMixQueueWithContinuation(videoId: String) async -> MixQueueResult { .empty }
+    func getMixContinuation(token: String) async -> MixQueueResult { .empty }
 }

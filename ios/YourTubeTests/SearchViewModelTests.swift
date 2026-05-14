@@ -35,6 +35,9 @@ final class FakeSearchService: YouTubeServiceProtocol, @unchecked Sendable {
     func resolveStreamURL(videoId: String, quality: AudioQuality) async throws -> ResolvedStream {
         ResolvedStream(url: URL(string: "https://example.invalid/x")!, isMuxedFallback: false)
     }
+    // YT-0298 Mix stubs — not exercised by SearchViewModel tests.
+    func getMixQueueWithContinuation(videoId: String) async -> MixQueueResult { .empty }
+    func getMixContinuation(token: String) async -> MixQueueResult { .empty }
 }
 
 // MARK: - Helpers

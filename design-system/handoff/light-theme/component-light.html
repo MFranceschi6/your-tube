@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YT-0172 — Component reference · Light theme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ───────── Reset + page chrome ───────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  min-height: 100%;
+  background: #FAFAFB;
+  color: #0a0a0a;
+  font-family: 'Geist', -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+body { padding: 32px 24px 96px; }
+
+/* Light-theme tokens (locked — page is light only) */
+:root {
+  --bg: #F2F2F7;
+  --surface: #FFFFFF;
+  --surface-variant: #F2F2F7;
+  --surface-high: #E5E5EA;
+  --fg-primary: #000000;
+  --fg-secondary: rgba(60,60,67,0.80);     /* D-1 post-fix alpha */
+  --fg-tertiary: rgba(60,60,67,0.30);
+  --accent: #7C3AED;                       /* D-2 light variant */
+  --accent-dim: #6D28D9;
+  --accent-subtle: rgba(124,58,237,0.12);
+  --on-accent: #FFFFFF;
+  --border-subtle: #D1D1D6;
+  --border-strong: #8E8E93;
+  --error: #FF3B30;
+  --error-surface: rgba(255,59,48,0.10);
+  --success: #34C759;
+  --skeleton-bg: #E5E5EA;
+  --skeleton-shimmer: rgba(255,255,255,0.60);
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.20);
+  --scrim: rgba(0,0,0,0.35);
+}
+
+/* ───────── Page head ───────── */
+.page-head {
+  max-width: 1440px; margin: 0 auto 32px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 24px;
+  border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 18px;
+  flex-wrap: wrap;
+}
+.page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #0a0a0a; }
+.page-head .meta {
+  font-size: 12px; color: rgba(60,60,67,0.6);
+  font-family: 'Geist Mono', 'SF Mono', monospace;
+}
+.page-head .badge {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  background: var(--accent-subtle); color: var(--accent-dim);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.04em; margin-right: 8px;
+}
+
+/* ───────── Section head ───────── */
+.section-head {
+  max-width: 1440px; margin: 56px auto 18px;
+  display: flex; align-items: baseline; gap: 16px;
+  border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 12px;
+  flex-wrap: wrap;
+}
+.section-head h2 { font-size: 16px; font-weight: 600; color: #0a0a0a; letter-spacing: -0.01em; }
+.section-head .pill {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  background: var(--accent-subtle); color: var(--accent-dim);
+  font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+  font-family: 'Geist Mono', monospace;
+}
+.section-head .lede { font-size: 13px; color: rgba(60,60,67,0.7); flex: 1; min-width: 320px; }
+
+/* ───────── Pair grid ───────── */
+.pair {
+  max-width: 1440px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+}
+.pane {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.pane .meta { width: 100%; max-width: 360px; }
+.pane .meta .row1 { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; flex-wrap: wrap; }
+.pane .meta .id, .pane .meta .platform {
+  display: inline-block; padding: 2px 7px; border-radius: 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  font-family: 'Geist Mono', monospace;
+}
+.pane .meta .id       { background: var(--accent-subtle); color: var(--accent-dim); }
+.pane .meta .platform { background: rgba(0,0,0,0.06); color: rgba(60,60,67,0.8); }
+.pane .meta .title { font-weight: 600; font-size: 13px; color: #0a0a0a; }
+.pane .meta .desc { font-size: 12px; line-height: 1.5; color: rgba(60,60,67,0.7); }
+
+/* ───────── Device frames ───────── */
+.frame { transform: scale(0.7); transform-origin: top center; margin-bottom: -255px; }
+
+.ios-phone {
+  width: 393px; height: 852px;
+  background: var(--bg);
+  border-radius: 52px;
+  box-shadow:
+    0 0 0 2px #c8c8cc,
+    0 0 0 7px #e9e9ed,
+    0 24px 60px rgba(0,0,0,0.18),
+    inset 0 0 0 1px #d6d6da;
+  position: relative; overflow: hidden;
+  font-family: -apple-system, 'SF Pro Text', 'SF Pro', BlinkMacSystemFont, sans-serif;
+}
+.ios-phone .island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 124px; height: 36px; background: #000; border-radius: 20px; z-index: 30;
+}
+.ios-phone .statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 54px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 28px 10px; z-index: 20; pointer-events: none;
+  font-size: 15px; font-weight: 600; color: #000;
+}
+.ios-phone .statusbar .icons { display: flex; gap: 5px; align-items: center; }
+.ios-phone .home-indicator {
+  position: absolute; bottom: 9px; left: 50%; transform: translateX(-50%);
+  width: 134px; height: 5px; background: rgba(0,0,0,0.85); border-radius: 3px; z-index: 25;
+}
+
+.android-phone {
+  width: 360px; height: 800px;
+  background: var(--bg);
+  border-radius: 36px;
+  box-shadow:
+    0 0 0 2px #c8c8cc,
+    0 0 0 6px #e9e9ed,
+    0 24px 60px rgba(0,0,0,0.18),
+    inset 0 0 0 1px #d6d6da;
+  position: relative; overflow: hidden;
+  font-family: 'Roboto', 'Geist', -apple-system, sans-serif;
+}
+.android-phone .punch {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 14px; height: 14px; background: #000; border-radius: 50%; z-index: 30;
+  box-shadow: inset 0 0 0 1px #1a1a1a;
+}
+.android-phone .statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; z-index: 20; pointer-events: none;
+  font-size: 13px; font-weight: 500; color: #000;
+}
+.android-phone .nav-pill {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  width: 108px; height: 4px; background: rgba(0,0,0,0.6); border-radius: 2px; z-index: 25;
+}
+
+/* Screen content area (below status bar, above home indicator) */
+.screen {
+  position: absolute; left: 0; right: 0;
+  background: var(--bg);
+}
+.ios-phone .screen   { top: 54px; bottom: 0; }
+.android-phone .screen { top: 32px; bottom: 0; }
+
+/* ───────── Shared shell pieces ───────── */
+.nav-title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; color: var(--fg-primary); }
+.nav-title.large { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; padding: 10px 16px 8px; }
+
+/* Search bar */
+.searchbar {
+  height: 36px; border-radius: 999px;
+  background: var(--surface-variant);
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 14px;
+  font-size: 14px; color: var(--fg-secondary);
+}
+.searchbar .icon { width: 16px; height: 16px; color: rgba(60,60,67,0.6); }
+.searchbar.focused {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  color: var(--fg-primary);
+}
+.searchbar.focused .cursor {
+  display: inline-block; width: 2px; height: 18px; background: var(--accent);
+  margin-left: 2px; animation: blink 1s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Track row */
+.track-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 16px; background: var(--surface);
+  min-height: 72px;
+}
+.track-row + .track-row { border-top: 1px solid var(--border-subtle); }
+.track-row.pressed { background: var(--surface-variant); }
+.thumb {
+  width: 56px; height: 56px; border-radius: 8px; flex-shrink: 0;
+  background: var(--surface-variant);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.thumb svg { color: var(--fg-tertiary); }
+.thumb.tinted { background: var(--accent-subtle); }
+.info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.t-title { font-size: 15px; font-weight: 500; color: var(--fg-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-title.playing { color: var(--accent); }
+.t-meta { font-size: 13px; color: var(--fg-secondary); display: flex; align-items: center; gap: 6px; }
+.t-dot { width: 2px; height: 2px; border-radius: 50%; background: var(--fg-tertiary); flex-shrink: 0; }
+.t-dur { font-size: 12px; font-weight: 500; color: var(--fg-secondary); flex-shrink: 0; }
+.overflow { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: var(--fg-secondary); font-size: 18px; }
+
+/* Equalizer indicator (light) */
+.eq { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
+.eq span { width: 3px; background: var(--accent); border-radius: 2px; }
+
+/* MiniPlayer */
+.miniplayer {
+  position: absolute; left: 8px; right: 8px; bottom: 64px;
+  height: 64px; border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 14px;
+  overflow: hidden;
+}
+.miniplayer .mp-thumb {
+  width: 48px; height: 48px; border-radius: 4px;
+  background: var(--surface-variant);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: var(--fg-tertiary);
+}
+.miniplayer .mp-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.miniplayer .mp-title { font-size: 14px; font-weight: 500; color: var(--fg-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.miniplayer .mp-channel { font-size: 12px; color: var(--fg-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.miniplayer .mp-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--fg-primary);
+}
+.miniplayer .mp-progress {
+  position: absolute; bottom: 0; left: 12px; right: 12px; height: 2px;
+  background: var(--border-subtle); border-radius: 1px;
+}
+.miniplayer .mp-progress::after {
+  content: ''; position: absolute; top: 0; left: 0; height: 100%;
+  width: 35%; background: var(--accent); border-radius: 1px;
+}
+
+/* Tab bar */
+.tabbar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 56px;
+  background: var(--surface);
+  border-top: 1px solid var(--border-subtle);
+  display: flex; justify-content: space-around; align-items: center;
+  padding-bottom: 4px;
+}
+.tabbar .tab {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: 10px; color: var(--fg-secondary); padding: 6px 12px;
+}
+.tabbar .tab.active { color: var(--accent); }
+.tabbar .tab svg { width: 22px; height: 22px; }
+
+/* Empty / Error card */
+.state-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 32px 24px; gap: 12px;
+  max-width: 320px; margin: 0 auto;
+}
+.state-card .state-icon { width: 56px; height: 56px; color: var(--fg-tertiary); }
+.state-card .state-title { font-size: 17px; font-weight: 600; color: var(--fg-primary); letter-spacing: -0.01em; }
+.state-card .state-body { font-size: 14px; line-height: 1.5; color: var(--fg-secondary); }
+.state-card .state-action {
+  margin-top: 8px;
+  height: 44px; padding: 0 20px; border-radius: 999px;
+  background: var(--accent); color: var(--on-accent);
+  font-size: 15px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: none;
+}
+
+/* Alert dialog */
+.dialog-scrim {
+  position: absolute; inset: 0;
+  background: var(--scrim);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50;
+}
+.dialog {
+  width: 280px; background: var(--surface);
+  border-radius: 14px; padding: 20px 16px 0;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+.dialog .d-title { font-size: 17px; font-weight: 600; color: var(--fg-primary); margin-bottom: 4px; }
+.dialog .d-body  { font-size: 13px; color: var(--fg-secondary); line-height: 1.4; padding-bottom: 16px; }
+.dialog .d-row   {
+  display: flex; border-top: 1px solid var(--border-subtle);
+  margin: 0 -16px;
+}
+.dialog .d-btn {
+  flex: 1; padding: 12px; font-size: 17px; font-weight: 400;
+  color: var(--accent); background: transparent; border: none;
+}
+.dialog .d-btn.destructive { color: var(--error); font-weight: 600; }
+.dialog .d-btn + .d-btn { border-left: 1px solid var(--border-subtle); }
+
+/* Android Material dialog variant */
+.dialog.material {
+  width: 296px; border-radius: 28px; padding: 24px;
+  text-align: left;
+}
+.dialog.material .d-title { font-size: 20px; }
+.dialog.material .d-body  { padding-bottom: 24px; }
+.dialog.material .d-row   { border-top: none; margin: 0; justify-content: flex-end; gap: 8px; }
+.dialog.material .d-btn   {
+  flex: 0 0 auto; padding: 8px 14px; height: 40px;
+  font-size: 14px; font-weight: 600; border-radius: 999px;
+  color: var(--accent); display: inline-flex; align-items: center;
+}
+.dialog.material .d-btn.destructive {
+  color: var(--on-accent); background: var(--error); font-weight: 600;
+}
+.dialog.material .d-btn + .d-btn { border-left: none; }
+
+/* Bottom sheet */
+.sheet-scrim {
+  position: absolute; inset: 0;
+  background: var(--scrim);
+  z-index: 50;
+}
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: var(--surface);
+  border-radius: 16px 16px 0 0;
+  box-shadow: var(--shadow-lg);
+  padding-top: 4px;
+  z-index: 51;
+}
+.sheet .grabber {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: var(--border-subtle);
+  margin: 8px auto 12px;
+}
+.sheet .sheet-title {
+  padding: 4px 16px 12px;
+  font-size: 17px; font-weight: 600; color: var(--fg-primary);
+}
+.sheet .sheet-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 16px; min-height: 52px;
+  font-size: 15px; color: var(--fg-primary);
+}
+.sheet .sheet-row + .sheet-row { border-top: 1px solid var(--border-subtle); }
+.sheet .sheet-row .icon { width: 22px; height: 22px; color: var(--fg-secondary); }
+.sheet .sheet-row.new-action { color: var(--accent); font-weight: 600; }
+.sheet .sheet-row.new-action .icon { color: var(--accent); }
+.sheet .check { margin-left: auto; color: var(--accent); }
+
+/* Snackbar (Android) */
+.snackbar {
+  position: absolute; left: 12px; right: 12px; bottom: 80px;
+  min-height: 48px; padding: 12px 16px;
+  background: #2C2C2E; /* Material snackbar is inverse-surface — dark even in light theme */
+  color: #FFFFFF;
+  border-radius: 4px;
+  display: flex; align-items: center; gap: 16px;
+  box-shadow: var(--shadow-md);
+  font-size: 14px;
+  z-index: 40;
+}
+.snackbar .action {
+  margin-left: auto;
+  color: #B794F6; /* light primary on inverse surface */
+  font-weight: 600; text-transform: uppercase; font-size: 13px; letter-spacing: 0.04em;
+}
+
+/* iOS-style toast (rectangle below NowPlaying area) */
+.toast-ios {
+  position: absolute; left: 12px; right: 12px; bottom: 80px;
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: var(--shadow-md);
+  font-size: 14px; color: var(--fg-primary);
+  z-index: 40;
+}
+.toast-ios .action {
+  margin-left: auto; color: var(--accent); font-weight: 600; font-size: 14px;
+}
+
+/* NowPlaying chrome */
+.np {
+  position: absolute; inset: 0; padding: 16px 24px 24px;
+  display: flex; flex-direction: column; gap: 16px;
+  background: var(--bg);
+}
+.np-chrome-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--fg-secondary);
+  padding-top: 4px;
+}
+.np-chrome-row .chev { font-size: 22px; color: var(--fg-primary); text-transform: none; letter-spacing: 0; font-weight: 400; }
+.np-artwork {
+  width: 100%; aspect-ratio: 1; max-height: 320px;
+  border-radius: 12px; margin: 8px auto;
+  background: linear-gradient(135deg, #C4B5FD 0%, #7C3AED 60%, #4C1D95 100%);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+}
+.np-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--fg-primary); margin-top: 6px; }
+.np-channel { font-size: 14px; color: var(--fg-secondary); }
+.scrubber {
+  width: 100%; height: 14px; position: relative; display: flex; align-items: center;
+  margin-top: 4px;
+}
+.scrubber .track {
+  position: absolute; left: 0; right: 0; height: 4px;
+  background: var(--border-subtle); border-radius: 2px;
+}
+.scrubber .fill {
+  position: absolute; left: 0; height: 4px; width: 42%;
+  background: var(--accent); border-radius: 2px;
+}
+.scrubber .thumb {
+  position: absolute; left: 42%; width: 16px; height: 16px;
+  background: #FFFFFF; border-radius: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18), 0 0 0 0.5px rgba(0,0,0,0.06);
+}
+.np-time { display: flex; justify-content: space-between; font-size: 11px; font-weight: 500; color: var(--fg-secondary); font-variant-numeric: tabular-nums; }
+.np-transport {
+  display: flex; align-items: center; justify-content: space-around;
+  margin-top: 4px;
+  color: var(--fg-primary);
+}
+.np-transport .play {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--fg-primary); color: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+}
+.np-transport .skip { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
+.np-action-row { display: flex; justify-content: space-around; color: var(--fg-secondary); margin-top: auto; }
+.np-action-row .accent-active { color: var(--accent); }
+
+/* Library list (for empty state and populated context) */
+.list-section {
+  padding: 12px 16px 4px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--fg-secondary);
+}
+
+/* Skeleton row */
+.skeleton-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 16px; background: var(--surface); min-height: 72px;
+  position: relative; overflow: hidden;
+}
+.skeleton-row + .skeleton-row { border-top: 1px solid var(--border-subtle); }
+.sk-thumb { width: 56px; height: 56px; border-radius: 8px; background: var(--skeleton-bg); }
+.sk-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.sk-line { height: 12px; border-radius: 4px; background: var(--skeleton-bg); }
+.sk-line.w70 { width: 70%; }
+.sk-line.w40 { width: 40%; }
+.skeleton-row::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 0%, var(--skeleton-shimmer) 50%, transparent 100%);
+  animation: shimmer 1400ms linear infinite;
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Floating chrome callouts (small overlay labels on frames) */
+.callout {
+  position: absolute; left: 16px; right: 16px; top: 12px;
+  display: flex; align-items: center; gap: 10px;
+  font-family: 'Geist Mono', monospace; font-size: 10px;
+  color: rgba(60,60,67,0.7);
+}
+
+/* Surface-stack legend (small) */
+.legend {
+  max-width: 1440px; margin: 16px auto 0;
+  display: flex; flex-wrap: wrap; gap: 8px;
+  font-family: 'Geist Mono', monospace; font-size: 11px;
+  color: rgba(60,60,67,0.75);
+}
+.legend .chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border-radius: 6px;
+  background: rgba(0,0,0,0.04); border: 1px solid var(--border-subtle);
+}
+.legend .sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--border-subtle); }
+
+/* Footer / cross-ref */
+.crossref {
+  max-width: 1440px; margin: 64px auto 0; padding: 24px;
+  background: var(--surface); border-radius: 12px;
+  font-size: 12px; color: rgba(60,60,67,0.8);
+  border: 1px solid var(--border-subtle);
+}
+.crossref strong { color: var(--fg-primary); font-weight: 600; }
+.crossref code { font-family: 'Geist Mono', monospace; background: rgba(0,0,0,0.04); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <div>
+    <h1><span class="badge">YT-0172</span>Component reference · Light theme</h1>
+  </div>
+  <div class="meta">design-system/handoff/light-theme/component-light.html · iOS-393 · Android-360</div>
+</header>
+
+<div class="legend">
+  <span class="chip"><span class="sw" style="background:#F2F2F7"></span>bg #F2F2F7</span>
+  <span class="chip"><span class="sw" style="background:#FFFFFF"></span>surface #FFFFFF</span>
+  <span class="chip"><span class="sw" style="background:#F2F2F7"></span>surface-variant #F2F2F7</span>
+  <span class="chip"><span class="sw" style="background:#E5E5EA"></span>surface-high #E5E5EA</span>
+  <span class="chip"><span class="sw" style="background:#7C3AED"></span>accent #7C3AED</span>
+  <span class="chip"><span class="sw" style="background:#000000"></span>fg-primary #000</span>
+  <span class="chip"><span class="sw" style="background:rgba(60,60,67,0.80)"></span>fg-secondary 80%</span>
+  <span class="chip"><span class="sw" style="background:#FF3B30"></span>error #FF3B30</span>
+</div>
+
+<!-- ─────── TrackRow ─────── -->
+<div class="section-head">
+  <h2><span class="pill">CMP-01</span> TrackRow</h2>
+  <p class="lede">List row. Thumbnail · title · channel · duration · overflow. Active row shows the equalizer indicator and tints the title in <code>accent</code>. Surface stack: <code>surface</code> rows on <code>bg</code> with <code>border-subtle</code> dividers.</p>
+</div>
+<div class="pair">
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">iOS</span><span class="platform">393×852</span><span class="title">PlaylistDetail · 3 rows + active</span></div>
+      <div class="desc">Grouped inset list on <code>systemGroupedBackground</code>. Active row uses <code>surface-variant</code> press color and tints title to <code>accent</code>.</div>
+    </div>
+    <div class="frame">
+      <div class="ios-phone">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ●</span></div>
+        <div class="screen">
+          <div class="nav-title large">Chill Mix</div>
+          <div style="padding: 0 16px 8px; font-size:13px; color:var(--fg-secondary);">12 tracks · 47 min</div>
+          <div style="margin: 8px 16px; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px var(--border-subtle);">
+            <div class="track-row">
+              <div class="thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5,3 19,12 5,21"/></svg></div>
+              <div class="info"><div class="t-title">Soft Sun</div><div class="t-meta"><span>Ash Holloway</span><span class="t-dot"></span><span>3:42</span></div></div>
+              <div class="overflow">⋮</div>
+            </div>
+            <div class="track-row pressed">
+              <div class="thumb tinted">
+                <div class="eq"><span style="height:6px"></span><span style="height:12px"></span><span style="height:8px"></span></div>
+              </div>
+              <div class="info"><div class="t-title playing">Long Drive Home</div><div class="t-meta"><span>The Long Yards</span><span class="t-dot"></span><span>4:08</span></div></div>
+              <div class="overflow">⋮</div>
+            </div>
+            <div class="track-row">
+              <div class="thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5,3 19,12 5,21"/></svg></div>
+              <div class="info"><div class="t-title">Stairwell</div><div class="t-meta"><span>Marlowe</span><span class="t-dot"></span><span>5:21</span></div></div>
+              <div class="overflow">⋮</div>
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">Android</span><span class="platform">360×800</span><span class="title">PlaylistDetail · 3 rows + active + skeleton</span></div>
+      <div class="desc">M3 <code>LazyColumn</code> on <code>surface</code>. Dividers are <code>outline-variant</code>. Skeleton row beneath shows the light-theme shimmer (alpha 0.60, inverted vs dark).</div>
+    </div>
+    <div class="frame">
+      <div class="android-phone">
+        <div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+        <div class="screen">
+          <div style="padding: 16px 16px 4px;">
+            <div class="nav-title">Chill Mix</div>
+            <div style="font-size:13px; color:var(--fg-secondary); margin-top:2px;">12 tracks · 47 min</div>
+          </div>
+          <div style="margin-top: 8px;">
+            <div class="track-row">
+              <div class="thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5,3 19,12 5,21"/></svg></div>
+              <div class="info"><div class="t-title">Soft Sun</div><div class="t-meta"><span>Ash Holloway</span><span class="t-dot"></span><span>3:42</span></div></div>
+              <div class="overflow">⋮</div>
+            </div>
+            <div class="track-row pressed">
+              <div class="thumb tinted">
+                <div class="eq"><span style="height:6px"></span><span style="height:12px"></span><span style="height:8px"></span></div>
+              </div>
+              <div class="info"><div class="t-title playing">Long Drive Home</div><div class="t-meta"><span>The Long Yards</span><span class="t-dot"></span><span>4:08</span></div></div>
+              <div class="overflow">⋮</div>
+            </div>
+            <div class="skeleton-row">
+              <div class="sk-thumb"></div>
+              <div class="sk-lines"><div class="sk-line w70"></div><div class="sk-line w40"></div></div>
+            </div>
+            <div class="skeleton-row">
+              <div class="sk-thumb"></div>
+              <div class="sk-lines"><div class="sk-line w70"></div><div class="sk-line w40"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="nav-pill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────── MiniPlayer + Tab bar ─────── -->
+<div class="section-head">
+  <h2><span class="pill">CMP-02</span> MiniPlayer + TabBar</h2>
+  <p class="lede">Persistent shelf docked above the tab bar. Container is <code>surface</code> (#FFFFFF) lifted by <code>shadow.md</code> — M3 tonal elevation is capped at Level 1, so the shadow does the visual lift. Progress hairline tints to <code>accent</code>.</p>
+</div>
+<div class="pair">
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">iOS</span><span class="platform">393×852</span><span class="title">Home with MiniPlayer docked</span></div>
+      <div class="desc">No top divider in iOS — shadow alone defines the bar.</div>
+    </div>
+    <div class="frame">
+      <div class="ios-phone">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ●</span></div>
+        <div class="screen">
+          <div class="nav-title large">Library</div>
+          <div style="margin: 8px 16px; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px var(--border-subtle);">
+            <div class="track-row"><div class="thumb" style="border-radius:50%;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg></div><div class="info"><div class="t-title">Liked Songs</div><div class="t-meta"><span>148 tracks</span></div></div><div class="overflow">›</div></div>
+            <div class="track-row"><div class="thumb"></div><div class="info"><div class="t-title">Chill Mix</div><div class="t-meta"><span>12 tracks</span></div></div><div class="overflow">›</div></div>
+            <div class="track-row"><div class="thumb"></div><div class="info"><div class="t-title">Late Drive</div><div class="t-meta"><span>34 tracks</span></div></div><div class="overflow">›</div></div>
+          </div>
+          <div class="miniplayer">
+            <div class="mp-thumb">
+              <div style="width:100%; height:100%; background:linear-gradient(135deg,#A78BFA,#7C3AED);"></div>
+            </div>
+            <div class="mp-info">
+              <div class="mp-title">Long Drive Home</div>
+              <div class="mp-channel">The Long Yards</div>
+            </div>
+            <div class="mp-btn">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+            </div>
+            <div class="mp-progress"></div>
+          </div>
+          <div class="tabbar">
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12L12 4l9 8v8a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"/></svg><span>Home</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg><span>Search</span></div>
+            <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h14M3 11h14M3 16h9"/><circle cx="19" cy="17" r="3" fill="currentColor"/></svg><span>Library</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><polyline points="12,7 12,12 16,14"/></svg><span>History</span></div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">Android</span><span class="platform">360×800</span><span class="title">Home with MiniPlayer docked</span></div>
+      <div class="desc">Top edge of MiniPlayer carries an <code>outline-variant</code> 1 dp stroke (Android-only rule); shadow.md beneath.</div>
+    </div>
+    <div class="frame">
+      <div class="android-phone">
+        <div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+        <div class="screen">
+          <div style="padding: 16px;"><div class="nav-title">Library</div></div>
+          <div style="margin-top: 4px;">
+            <div class="track-row"><div class="thumb" style="border-radius:50%;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg></div><div class="info"><div class="t-title">Liked Songs</div><div class="t-meta"><span>148 tracks</span></div></div><div class="overflow">›</div></div>
+            <div class="track-row"><div class="thumb"></div><div class="info"><div class="t-title">Chill Mix</div><div class="t-meta"><span>12 tracks</span></div></div><div class="overflow">›</div></div>
+            <div class="track-row"><div class="thumb"></div><div class="info"><div class="t-title">Late Drive</div><div class="t-meta"><span>34 tracks</span></div></div><div class="overflow">›</div></div>
+          </div>
+          <div class="miniplayer" style="border-top: 1px solid var(--border-subtle);">
+            <div class="mp-thumb">
+              <div style="width:100%; height:100%; background:linear-gradient(135deg,#A78BFA,#7C3AED);"></div>
+            </div>
+            <div class="mp-info">
+              <div class="mp-title">Long Drive Home</div>
+              <div class="mp-channel">The Long Yards</div>
+            </div>
+            <div class="mp-btn">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+            </div>
+            <div class="mp-progress"></div>
+          </div>
+          <div class="tabbar">
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12L12 4l9 8v8a1 1 0 01-1 1h-5v-6h-6v6H4a1 1 0 01-1-1z"/></svg><span>Home</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg><span>Search</span></div>
+            <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h14M3 11h14M3 16h9"/><circle cx="19" cy="17" r="3" fill="currentColor"/></svg><span>Library</span></div>
+            <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><polyline points="12,7 12,12 16,14"/></svg><span>History</span></div>
+          </div>
+        </div>
+        <div class="nav-pill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────── NowPlaying ─────── -->
+<div class="section-head">
+  <h2><span class="pill">CMP-03</span> NowPlaying chrome</h2>
+  <p class="lede">v1.0 (MVP) — flat <code>bg</code> backdrop, artwork as 12-pt-radius card. Scrubber thumb sits on <code>shadow.sm</code> so it stays defined where it crosses the unfilled track at right.</p>
+</div>
+<div class="pair">
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">iOS</span><span class="platform">393×852</span><span class="title">NowPlaying · paused at 1:34</span></div>
+      <div class="desc">Active shuffle tinted <code>accent</code>; transport play-button uses primary-on-surface inversion (black circle, white glyph) — independent of accent for affordance reasons.</div>
+    </div>
+    <div class="frame">
+      <div class="ios-phone">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ●</span></div>
+        <div class="screen">
+          <div class="np">
+            <div class="np-chrome-row">
+              <div class="chev">▾</div>
+              <span>Playing from playlist</span>
+              <div class="chev">⋮</div>
+            </div>
+            <div class="np-artwork"></div>
+            <div>
+              <div class="np-title">Long Drive Home</div>
+              <div class="np-channel">The Long Yards</div>
+            </div>
+            <div>
+              <div class="scrubber">
+                <div class="track"></div>
+                <div class="fill"></div>
+                <div class="thumb"></div>
+              </div>
+              <div class="np-time"><span>1:34</span><span>−2:34</span></div>
+            </div>
+            <div class="np-transport">
+              <div class="skip"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" style="transform:scaleX(-1)"><polygon points="6,5 16,12 6,19"/><rect x="16" y="5" width="2" height="14"/></svg></div>
+              <div class="play"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></div>
+              <div class="skip"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,5 16,12 6,19"/><rect x="16" y="5" width="2" height="14"/></svg></div>
+            </div>
+            <div class="np-action-row">
+              <div class="accent-active"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16,3 21,3 21,8"/><polyline points="3,16 3,21 8,21"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></div>
+              <div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17,1 21,5 17,9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7,23 3,19 7,15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></div>
+              <div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="9" y2="15"/><line x1="15" y1="9" x2="15" y2="15"/></svg></div>
+              <div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">Android</span><span class="platform">360×800</span><span class="title">NowPlaying · paused at 1:34</span></div>
+      <div class="desc">Same chrome, M3 transport. Up Next inline preview row at the bottom (1 row, truncated).</div>
+    </div>
+    <div class="frame">
+      <div class="android-phone">
+        <div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+        <div class="screen">
+          <div class="np">
+            <div class="np-chrome-row">
+              <div class="chev">▾</div>
+              <span>From playlist · Chill Mix</span>
+              <div class="chev">⋮</div>
+            </div>
+            <div class="np-artwork"></div>
+            <div>
+              <div class="np-title">Long Drive Home</div>
+              <div class="np-channel">The Long Yards</div>
+            </div>
+            <div>
+              <div class="scrubber">
+                <div class="track"></div>
+                <div class="fill"></div>
+                <div class="thumb"></div>
+              </div>
+              <div class="np-time"><span>1:34</span><span>−2:34</span></div>
+            </div>
+            <div class="np-transport">
+              <div class="skip"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" style="transform:scaleX(-1)"><polygon points="6,5 16,12 6,19"/><rect x="16" y="5" width="2" height="14"/></svg></div>
+              <div class="play"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></div>
+              <div class="skip"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,5 16,12 6,19"/><rect x="16" y="5" width="2" height="14"/></svg></div>
+            </div>
+            <div class="np-action-row">
+              <div class="accent-active"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16,3 21,3 21,8"/><polyline points="3,16 3,21 8,21"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></div>
+              <div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17,1 21,5 17,9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7,23 3,19 7,15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></div>
+              <div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="9" y1="9" x2="9" y2="15"/><line x1="15" y1="9" x2="15" y2="15"/></svg></div>
+              <div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="nav-pill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────── SearchBar ─────── -->
+<div class="section-head">
+  <h2><span class="pill">CMP-04</span> SearchBar</h2>
+  <p class="lede">Idle and focused. Idle fill is <code>surface-variant</code> (= <code>bg</code> hex in light) — recess is read from the pill radius. Focused state lifts to <code>surface</code> with an <code>outline-variant</code> 1 px ring; cursor and selection use <code>accent</code>.</p>
+</div>
+<div class="pair">
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">iOS</span><span class="platform">393×852</span><span class="title">Search · idle with history</span></div>
+      <div class="desc">Recent-search chips below the bar; chips use <code>surface-variant</code> fill, <code>outline-variant</code> border, <code>fg-primary</code> label.</div>
+    </div>
+    <div class="frame">
+      <div class="ios-phone">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ●</span></div>
+        <div class="screen">
+          <div class="nav-title large">Search</div>
+          <div style="padding: 0 16px 16px;">
+            <div class="searchbar">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg>
+              <span>Songs, channels, playlists</span>
+            </div>
+          </div>
+          <div style="padding: 0 16px;">
+            <div style="font-size: 13px; font-weight:600; color:var(--fg-secondary); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;">Recent</div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+              <div style="padding: 6px 12px; border-radius: 999px; background:var(--surface-variant); border:1px solid var(--border-subtle); font-size:13px; color:var(--fg-primary);">lofi study</div>
+              <div style="padding: 6px 12px; border-radius: 999px; background:var(--surface-variant); border:1px solid var(--border-subtle); font-size:13px; color:var(--fg-primary);">queen bohemian</div>
+              <div style="padding: 6px 12px; border-radius: 999px; background:var(--surface-variant); border:1px solid var(--border-subtle); font-size:13px; color:var(--fg-primary);">jazz piano</div>
+              <div style="padding: 6px 12px; border-radius: 999px; background:var(--surface-variant); border:1px solid var(--border-subtle); font-size:13px; color:var(--fg-primary);">the long yards</div>
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">Android</span><span class="platform">360×800</span><span class="title">Search · focused with cursor</span></div>
+      <div class="desc">Focused state. Live results render as track rows beneath; user has typed `lofi`.</div>
+    </div>
+    <div class="frame">
+      <div class="android-phone">
+        <div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+        <div class="screen">
+          <div style="padding: 16px;">
+            <div class="searchbar focused">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg>
+              <span>lofi</span><span class="cursor"></span>
+              <span style="margin-left:auto; color:var(--fg-secondary);">×</span>
+            </div>
+          </div>
+          <div>
+            <div class="track-row"><div class="thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5,3 19,12 5,21"/></svg></div><div class="info"><div class="t-title">lofi for nighttime walks</div><div class="t-meta"><span>Tape Memory</span><span class="t-dot"></span><span>2:48:11</span></div></div><div class="overflow">⋮</div></div>
+            <div class="track-row"><div class="thumb"></div><div class="info"><div class="t-title">a lofi study mix</div><div class="t-meta"><span>Slow Hours</span><span class="t-dot"></span><span>1:02:30</span></div></div><div class="overflow">⋮</div></div>
+            <div class="track-row"><div class="thumb"></div><div class="info"><div class="t-title">lofi piano · rainy</div><div class="t-meta"><span>Marlowe</span><span class="t-dot"></span><span>54:07</span></div></div><div class="overflow">⋮</div></div>
+          </div>
+        </div>
+        <div class="nav-pill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────── EmptyState ─────── -->
+<div class="section-head">
+  <h2><span class="pill">CMP-05</span> EmptyState</h2>
+  <p class="lede">Cell C7 (Library · no playlists). Icon at <code>fg-tertiary</code>, title at <code>fg-primary</code>, body at <code>fg-secondary</code> (post-D-1), primary action on <code>accent</code> (post-D-2).</p>
+</div>
+<div class="pair">
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">iOS</span><span class="platform">393×852</span><span class="title">Library · C7 empty</span></div>
+      <div class="desc">SF Symbol <code>music.note.list</code> at <code>fg-tertiary</code>. Action button uses Light accent #7C3AED.</div>
+    </div>
+    <div class="frame">
+      <div class="ios-phone">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ●</span></div>
+        <div class="screen">
+          <div class="nav-title large">Library</div>
+          <div style="display:flex; align-items:center; justify-content:center; height: calc(100% - 80px);">
+            <div class="state-card">
+              <svg class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="9" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="9" y1="18" x2="13" y2="18"/><circle cx="5" cy="6" r="2"/><circle cx="5" cy="12" r="2"/></svg>
+              <div class="state-title">No playlists yet</div>
+              <div class="state-body">Save tracks to a playlist to find them faster. Start with anything you've been playing on repeat.</div>
+              <button class="state-action">Create a playlist</button>
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">Android</span><span class="platform">360×800</span><span class="title">Library · C7 empty</span></div>
+      <div class="desc">Material Symbols <code>library_music</code> at <code>fg-tertiary</code>. Same copy; same primary action.</div>
+    </div>
+    <div class="frame">
+      <div class="android-phone">
+        <div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+        <div class="screen">
+          <div style="padding: 16px;"><div class="nav-title">Library</div></div>
+          <div style="display:flex; align-items:center; justify-content:center; height: calc(100% - 80px);">
+            <div class="state-card">
+              <svg class="state-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-1 14h-2v-7l-5 3V8h7v9z"/></svg>
+              <div class="state-title">No playlists yet</div>
+              <div class="state-body">Save tracks to a playlist to find them faster. Start with anything you've been playing on repeat.</div>
+              <button class="state-action">Create a playlist</button>
+            </div>
+          </div>
+        </div>
+        <div class="nav-pill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────── ErrorState ─────── -->
+<div class="section-head">
+  <h2><span class="pill">CMP-06</span> ErrorState</h2>
+  <p class="lede">Cell C4 (Search · generic error). Icon at <code>fg-tertiary</code> (1.71:1, decorative — title carries meaning), <strong>not red</strong>. Retry action on <code>accent</code>.</p>
+</div>
+<div class="pair">
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">iOS</span><span class="platform">393×852</span><span class="title">Search · C4 error</span></div>
+      <div class="desc">SF Symbol <code>exclamationmark.triangle</code> at <code>fg-tertiary</code>. Auto-announces <code>screenChanged</code> on appear.</div>
+    </div>
+    <div class="frame">
+      <div class="ios-phone">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ●</span></div>
+        <div class="screen">
+          <div class="nav-title large">Search</div>
+          <div style="padding:0 16px 16px;"><div class="searchbar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg><span>lofi</span></div></div>
+          <div style="display:flex; align-items:center; justify-content:center; height: 60%;">
+            <div class="state-card">
+              <svg class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3L2 21h20L12 3z"/><line x1="12" y1="10" x2="12" y2="15"/><circle cx="12" cy="18" r="0.8" fill="currentColor"/></svg>
+              <div class="state-title">Something went wrong</div>
+              <div class="state-body">We couldn't load results. Check your connection and try again.</div>
+              <button class="state-action">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">Android</span><span class="platform">360×800</span><span class="title">Search · C5 offline variant</span></div>
+      <div class="desc">Offline-specific icon (<code>wifi_off</code>). Body offers Recent searches as a fallback affordance.</div>
+    </div>
+    <div class="frame">
+      <div class="android-phone">
+        <div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+        <div class="screen">
+          <div style="padding: 16px;"><div class="nav-title">Search</div></div>
+          <div style="padding:0 16px 16px;"><div class="searchbar"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg><span>lofi</span></div></div>
+          <div style="display:flex; align-items:center; justify-content:center; height: 60%;">
+            <div class="state-card">
+              <svg class="state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="2" y1="2" x2="22" y2="22"/><path d="M8.5 16.5a5 5 0 017 0"/><path d="M2 8.82a15 15 0 014.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 015.15 2.51"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+              <div class="state-title">You're offline</div>
+              <div class="state-body">Reconnect to search YourTube, or pick up where you left off in Recent.</div>
+              <button class="state-action">Try Again</button>
+            </div>
+          </div>
+        </div>
+        <div class="nav-pill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────── AlertDialog ─────── -->
+<div class="section-head">
+  <h2><span class="pill">CMP-07</span> AlertDialog</h2>
+  <p class="lede">Destructive confirm — "Delete playlist". Scrim is <code>scrim</code> (rgba(0,0,0,0.35)). Destructive button uses D-3 Path B (filled <code>error</code> + <code>on-error</code> white, qualifies as large text 14 pt 600).</p>
+</div>
+<div class="pair">
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">iOS</span><span class="platform">393×852</span><span class="title">Delete confirm · iOS</span></div>
+      <div class="desc">Standard iOS alert. Destructive label rendered in <code>error</code> (HIG pattern); button is text-only, not filled — 3.55:1 is acceptable for HIG-style alerts because each button is its own large-text label.</div>
+    </div>
+    <div class="frame">
+      <div class="ios-phone">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ●</span></div>
+        <div class="screen">
+          <div style="padding: 16px;"><div class="nav-title large" style="padding:0;">Chill Mix</div></div>
+          <div style="padding:0 16px; opacity:0.5;">
+            <div class="track-row" style="background:transparent;"><div class="thumb"></div><div class="info"><div class="t-title">Soft Sun</div><div class="t-meta"><span>Ash Holloway</span></div></div></div>
+            <div class="track-row" style="background:transparent;"><div class="thumb"></div><div class="info"><div class="t-title">Long Drive Home</div><div class="t-meta"><span>The Long Yards</span></div></div></div>
+          </div>
+          <div class="dialog-scrim">
+            <div class="dialog">
+              <div class="d-title">Delete "Chill Mix"?</div>
+              <div class="d-body">This playlist will be removed from your library. Tracks themselves are not deleted.</div>
+              <div class="d-row">
+                <button class="d-btn">Cancel</button>
+                <button class="d-btn destructive">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">Android</span><span class="platform">360×800</span><span class="title">Delete confirm · Android (M3)</span></div>
+      <div class="desc">M3 Dialog. Destructive button uses <strong>filled error</strong> per D-3 Path B (3.55:1 on-error on error, qualifies as large-text 14 pt 600 ✅).</div>
+    </div>
+    <div class="frame">
+      <div class="android-phone">
+        <div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+        <div class="screen">
+          <div style="padding: 16px;"><div class="nav-title">Chill Mix</div></div>
+          <div style="padding:0 16px; opacity:0.5;">
+            <div class="track-row" style="background:transparent;"><div class="thumb"></div><div class="info"><div class="t-title">Soft Sun</div><div class="t-meta"><span>Ash Holloway</span></div></div></div>
+            <div class="track-row" style="background:transparent;"><div class="thumb"></div><div class="info"><div class="t-title">Long Drive Home</div><div class="t-meta"><span>The Long Yards</span></div></div></div>
+          </div>
+          <div class="dialog-scrim">
+            <div class="dialog material">
+              <div class="d-title">Delete "Chill Mix"?</div>
+              <div class="d-body">This playlist will be removed from your library. Tracks themselves are not deleted.</div>
+              <div class="d-row">
+                <button class="d-btn">Cancel</button>
+                <button class="d-btn destructive">Delete</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="nav-pill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────── BottomSheet ─────── -->
+<div class="section-head">
+  <h2><span class="pill">CMP-08</span> BottomSheet</h2>
+  <p class="lede">Add-to-playlist sheet. Surface <code>#FFFFFF</code> with top-corner 16-dp radius + <code>shadow.lg</code>. Selected items show the <code>accent</code> checkmark (5.70:1 ✅); the "New Playlist" action is accent-tinted.</p>
+</div>
+<div class="pair">
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">iOS</span><span class="platform">393×852</span><span class="title">Add to playlist · sheet open</span></div>
+      <div class="desc">iOS sheet detent ~50%. Grabber bar at top. Three existing playlists + "+ New Playlist" header action.</div>
+    </div>
+    <div class="frame">
+      <div class="ios-phone">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ●</span></div>
+        <div class="screen">
+          <div style="padding: 16px;"><div class="nav-title large" style="padding:0;">Search</div></div>
+          <div class="sheet-scrim"></div>
+          <div class="sheet" style="height: 56%;">
+            <div class="grabber"></div>
+            <div class="sheet-title">Add to playlist</div>
+            <div class="sheet-row new-action">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New playlist
+            </div>
+            <div class="sheet-row">
+              <div style="width:36px; height:36px; border-radius:6px; background:linear-gradient(135deg,#A78BFA,#7C3AED);"></div>
+              Chill Mix
+              <svg class="check" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>
+            </div>
+            <div class="sheet-row">
+              <div style="width:36px; height:36px; border-radius:6px; background:linear-gradient(135deg,#FBCFE8,#EC4899);"></div>
+              Late Drive
+            </div>
+            <div class="sheet-row">
+              <div style="width:36px; height:36px; border-radius:6px; background:linear-gradient(135deg,#FDE68A,#F59E0B);"></div>
+              Morning · Slow
+            </div>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">Android</span><span class="platform">360×800</span><span class="title">Add to playlist · M3 modal sheet</span></div>
+      <div class="desc">M3 modal bottom sheet, drag handle, 16 dp top radius. Same checkmark + "+ New playlist" header action.</div>
+    </div>
+    <div class="frame">
+      <div class="android-phone">
+        <div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+        <div class="screen">
+          <div style="padding: 16px;"><div class="nav-title">Search</div></div>
+          <div class="sheet-scrim"></div>
+          <div class="sheet" style="height: 60%;">
+            <div class="grabber"></div>
+            <div class="sheet-title">Add to playlist</div>
+            <div class="sheet-row new-action">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New playlist
+            </div>
+            <div class="sheet-row">
+              <div style="width:36px; height:36px; border-radius:6px; background:linear-gradient(135deg,#A78BFA,#7C3AED);"></div>
+              Chill Mix
+              <svg class="check" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20,6 9,17 4,12"/></svg>
+            </div>
+            <div class="sheet-row">
+              <div style="width:36px; height:36px; border-radius:6px; background:linear-gradient(135deg,#FBCFE8,#EC4899);"></div>
+              Late Drive
+            </div>
+            <div class="sheet-row">
+              <div style="width:36px; height:36px; border-radius:6px; background:linear-gradient(135deg,#FDE68A,#F59E0B);"></div>
+              Morning · Slow
+            </div>
+          </div>
+        </div>
+        <div class="nav-pill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────── Snackbar ─────── -->
+<div class="section-head">
+  <h2><span class="pill">CMP-09</span> Snackbar / Toast</h2>
+  <p class="lede">Material Snackbar uses M3 <code>inverseSurface</code> (dark even in light theme) with <code>inversePrimary</code> action — this is the spec, not an oversight. iOS-style toast uses <code>surface</code> with <code>accent</code> action.</p>
+</div>
+<div class="pair">
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">iOS</span><span class="platform">393×852</span><span class="title">iOS toast · undo remove</span></div>
+      <div class="desc">Surface-backed toast above the tab bar. From <code>toast-catalog</code>; theme-independent copy.</div>
+    </div>
+    <div class="frame">
+      <div class="ios-phone">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ●</span></div>
+        <div class="screen">
+          <div class="nav-title large">Chill Mix</div>
+          <div style="margin: 8px 16px; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px var(--border-subtle);">
+            <div class="track-row"><div class="thumb"></div><div class="info"><div class="t-title">Soft Sun</div><div class="t-meta"><span>Ash Holloway</span></div></div></div>
+            <div class="track-row"><div class="thumb"></div><div class="info"><div class="t-title">Stairwell</div><div class="t-meta"><span>Marlowe</span></div></div></div>
+          </div>
+          <div class="toast-ios">
+            <span>Removed from playlist</span>
+            <span class="action">Undo</span>
+          </div>
+        </div>
+        <div class="home-indicator"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pane">
+    <div class="meta">
+      <div class="row1"><span class="id">Android</span><span class="platform">360×800</span><span class="title">M3 Snackbar · undo remove</span></div>
+      <div class="desc">Inverse-surface fill (intentionally dark in light theme). Action label uses <code>inversePrimary</code> (#B794F6) — 6.5:1 on inverse surface ✅.</div>
+    </div>
+    <div class="frame">
+      <div class="android-phone">
+        <div class="punch"></div>
+        <div class="statusbar"><span>9:41</span><span>● ● ●</span></div>
+        <div class="screen">
+          <div style="padding: 16px;"><div class="nav-title">Chill Mix</div></div>
+          <div>
+            <div class="track-row"><div class="thumb"></div><div class="info"><div class="t-title">Soft Sun</div><div class="t-meta"><span>Ash Holloway</span></div></div></div>
+            <div class="track-row"><div class="thumb"></div><div class="info"><div class="t-title">Stairwell</div><div class="t-meta"><span>Marlowe</span></div></div></div>
+          </div>
+          <div class="snackbar">
+            <span>Removed from playlist</span>
+            <span class="action">Undo</span>
+          </div>
+        </div>
+        <div class="nav-pill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Cross-references -->
+<div class="crossref">
+  <strong>Cross-references.</strong>
+  Token values resolve against <code>design-system/tokens/tokens.json</code> after <code>tokens-additions.json</code> is merged.
+  Contrast verification: <code>audit.md</code>.
+  Per-cell empty/loading/error overlays: <code>state-catalog-light-overlay.md</code>.
+  Symbol vocabulary (Material Symbols Rounded ↔ SF Symbols): <code>design-system/handoff/symbol-map/</code>.
+  Toast copy and tone: <code>design-system/handoff/toast-catalog/</code>.
+  <br><br>
+  <strong>Mockup is intent, not pixel spec.</strong>
+  Match the tokens, contrast guarantees, and surface stacks. Use M3 light tones on Android (don't invent); iOS uses system semantic colors with the two-variant accent asset where possible.
+</div>
+
+</body>
+</html>

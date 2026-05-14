@@ -1,0 +1,8 @@
+PII-scrubbed InnerTube `/next` Mix queue fixtures. Each file is named `<seedVideoId>.json` (initial page) or `<seedVideoId>-continuation.json` (subsequent page). Files contain only the fields parsed by `RelatedVideoClient.getMixQueue` / `getMixContinuation` (`videoId`, `title.simpleText`, `longBylineText.runs[0].text`, `lengthText.simpleText`, `thumbnail.thumbnails`) plus the `continuations[].nextContinuationData.continuation` token used to chain the next page. No cookies, visitor IDs, account-bound fields, or `clickTrackingParams` payloads — `clickTrackingParams` values are replaced with the literal string `"SCRUBBED"`. The continuation token strings are realistic in shape but synthetic (regenerated/scrubbed) — do not assume they are valid against the live YouTube backend.
+
+YT-0296 chain (Mix continuation contract):
+
+1. `dQw4w9WgXcQ.json` — initial Mix page. Three `playlistPanelVideoRenderer` entries (the seed Rick Astley track at index 0, then two follow-ups) plus a `continuations[0].nextContinuationData.continuation` token at the same nesting level as `contents[]` inside `playlist.playlist`.
+2. `dQw4w9WgXcQ-continuation.json` — response shape returned by `POST /youtubei/v1/next` when the continuation token from step 1 is sent in the request body. Two appended entries live under `continuationContents.playlistPanelContinuation.contents[]`. A *new* continuation token sits at `continuationContents.playlistPanelContinuation.continuations[0].nextContinuationData.continuation` for the next round-trip.
+
+See `docs/mix-queue.md#continuation--pagination` for the full request/parse/termination contract.

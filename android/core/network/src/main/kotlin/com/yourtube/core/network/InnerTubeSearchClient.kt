@@ -21,13 +21,14 @@ internal class InnerTubeSearchClient(private val okHttpClient: OkHttpClient) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun search(query: String): List<SearchResult> {
+    fun search(query: String, sp: String? = null): List<SearchResult> {
         val body = """
             {"context":{"client":{"clientName":"WEB","clientVersion":"$INNERTUBE_CLIENT_VERSION","hl":"en"}},"query":"${query.replace("\"", "\\\"")}"}
         """.trimIndent()
 
+        val url = if (sp != null) "$SEARCH_URL?sp=$sp" else SEARCH_URL
         val request = Request.Builder()
-            .url(SEARCH_URL)
+            .url(url)
             .post(body.toRequestBody(JSON_MEDIA_TYPE))
             .header("Content-Type", "application/json")
             .header("User-Agent", YOUTUBE_DESKTOP_USER_AGENT)

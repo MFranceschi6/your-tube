@@ -21,7 +21,7 @@ import okhttp3.OkHttpClient
  * directly — no NewPipe symbols in the mapping path.
  */
 internal interface YoutubeExtractorClient {
-    fun searchVideos(query: String): List<SearchResult>
+    fun searchVideos(query: String, sp: String? = null): List<SearchResult>
 
     suspend fun getAudioStreams(
         videoId: String,
@@ -45,8 +45,8 @@ internal class InnerTubeYoutubeExtractorClient(
 
     // Search uses InnerTube directly — same posture as the search migration in
     // YT-0042. After YT-0163, stream resolution does too.
-    override fun searchVideos(query: String): List<SearchResult> =
-        innerTubeSearch.search(query)
+    override fun searchVideos(query: String, sp: String?): List<SearchResult> =
+        innerTubeSearch.search(query, sp)
 
     override suspend fun getAudioStreams(
         videoId: String,

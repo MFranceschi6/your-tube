@@ -99,6 +99,13 @@ final class AppShellViewModel {
     /// disabled, satisfying the YT-0055 accessibility note.
     private(set) var trackTapHapticTrigger: Int = 0
 
+    // MARK: YT-0298 Mix continuation gate
+
+    /// `true` when the Mix continuation is still active (token held or fetch in
+    /// flight). Autoplay-related should only fire at the queue tail when this is
+    /// `false`. Exposed for the autoplay path (YT-0292) to gate against.
+    var isMixContinuationActive: Bool { player.isMixContinuationActive }
+
     // MARK: YT-0027 Now Playing surface
 
     /// Read-only proxies for the Now Playing screen. Avoids dragging the
@@ -249,6 +256,27 @@ final class AppShellViewModel {
 
     func move(from: Int, to: Int) {
         player.move(from: from, to: to)
+    }
+
+    /// YT-0308 — tap-to-jump within the existing queue. Routes to
+    /// ``PlayerCoordinator/jumpToQueueItem(at:)`` so Mix state and queue
+    /// contents are preserved across the tap. Tapping the currently-playing
+    /// entry is a silent no-op (handled by the coordinator).
+    func jumpToQueueItem(at index: Int) {
+        // YT-0055: bump the shared haptic trigger so the user feels the
+        // same single light impact as a Search/Library track tap. The
+        // coordinator's no-op guard runs after, so a tap on the current
+        // entry still fires the haptic — same behaviour as Search would
+        // exhibit on a repeat tap.
+        if index != player.currentIndex,
+           player.queue.indices.contains(index) {
+            trackTapHapticTrigger &+= 1
+            PlaybackPerfTracer.shared.markTap(
+                videoId: player.queue[index].videoId,
+                source: "queueJump"
+            )
+        }
+        player.jumpToQueueItem(at: index)
     }
 
     // MARK: - History wiring

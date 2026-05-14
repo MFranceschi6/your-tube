@@ -12,6 +12,10 @@ struct LibraryScreen: View {
     /// Currently-playing track id (for highlighting rows in subviews such as
     /// Recently Played). `nil` when nothing is loaded.
     var currentVideoId: String? = nil
+    /// Whether playback is actively in flight. Forwarded to ``PlaylistDetailScreen``
+    /// and ``RecentlyPlayedScreen`` so those screens can decide whether to
+    /// animate EQ bars (YT-0192).
+    var isPlaying: Bool = false
     /// Callback invoked when a track row is tapped from a Library subroute
     /// (e.g. Recently Played). The shell maps this to
     /// ``PlayerCoordinator/playNow(_:)``. Optional so previews and unit-test
@@ -189,6 +193,7 @@ struct LibraryScreen: View {
                 NavigationLink {
                     RecentlyPlayedScreen(
                         currentVideoId: currentVideoId,
+                        isPlaying: isPlaying,
                         onPlay: onPlay
                     )
                 } label: {
@@ -204,7 +209,8 @@ struct LibraryScreen: View {
                     NavigationLink(
                         destination: PlaylistDetailScreen(
                             playlist: playlist,
-                            currentVideoId: currentVideoId
+                            currentVideoId: currentVideoId,
+                            isPlayingGlobally: isPlaying
                         )
                     ) {
                         PlaylistRow(playlist: playlist)

@@ -4,6 +4,7 @@ import com.yourtube.core.common.model.PlayerState
 import com.yourtube.core.common.model.Track
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
@@ -149,6 +150,50 @@ class PlaybackServiceLayoutTest {
     )
 
     // ---------------------------------------------------------------------------------------
+    // YT-0285 — `shouldRestoreOnBind` is the predicate that guards the on-bind restore path.
+    //
+    // The production gap: `PlaybackService.onCreate` schedules `restoreFromSnapshot` in a
+    // `serviceScope.launch {}` — asynchronous. The Activity may bind and compose before
+    // the coroutine runs. At bind time, if `playerController.playerState.value.currentTrack`
+    // is still null, the MiniPlayer gate evaluates to false and the MiniPlayer never renders
+    // on the relaunch screen.
+    //
+    // Fix: `onBind()` calls `shouldRestoreOnBind(currentTrack)`. When true, it launches a
+    // second restore coroutine on `serviceScope` so the controller is populated before or
+    // shortly after the first composition. The predicate is pure so it is testable here.
+    //
+    // These tests are pure (no Robolectric, no MediaSession). They run under Robolectric
+    // only because the surrounding class already declares the runner.
+    // ---------------------------------------------------------------------------------------
+
+    @Test
+    fun `shouldRestoreOnBind returns true when controller has no current track`() {
+        // The controller just started, snapshot not yet applied → currentTrack is null.
+        assertTrue(
+            shouldRestoreOnBind(currentTrack = null),
+            "shouldRestoreOnBind must return true when currentTrack is null so the on-bind " +
+                "path triggers snapshot restore and populates the MiniPlayer.",
+        )
+    }
+
+    @Test
+    fun `shouldRestoreOnBind returns false when controller already has a current track`() {
+        // The async onCreate restore already ran (or the user started playback) — no re-restore needed.
+        val liveTrack = Track(
+            videoId = "abc123",
+            title = "Live Track",
+            channel = "Channel",
+            durationSec = 180,
+            thumbnailUrl = "",
+        )
+        assertFalse(
+            shouldRestoreOnBind(currentTrack = liveTrack),
+            "shouldRestoreOnBind must return false when currentTrack is already populated — " +
+                "we must not clobber live state with a stale snapshot.",
+        )
+    }
+
+    // ---------------------------------------------------------------------------------------
     // YT-0241 — `decideOnTaskRemoved` covers the toggle-driven branch of `onTaskRemoved`.
     //
     // Toggle ON (`stopOnTaskRemoved = true`): the user has opted into a single-gesture kill,
@@ -233,5 +278,59 @@ class PlaybackServiceLayoutTest {
             mediaItemCount = 1,
         )
         assertEquals(OnTaskRemovedAction.None, action)
+    }
+
+    // ── YT-0291 L1: buildQueueBoundary — skip-next at queue end respects autoplay state ────
+
+    @Test
+    fun `buildQueueBoundary at queue end with autoplay ON sets hasNext true`() {
+        // Queue end: queue.size (0 or ≤ index+1) → hasNext from queue is false.
+        // With autoplay ON and a current track, the autoplay-extension rule kicks in.
+        val state = PlayerState(
+            currentTrack = trackWithId("A"),
+            currentQueueIndex = -1, // default "no queue" state
+            // queue = emptyList() by default — 0 > (-1+1)=0 → false from queue
+        )
+        val boundary = buildQueueBoundary(state, autoplayEnabled = true)
+
+        assertTrue(
+            boundary.hasNext,
+            "skip-next must be available at queue end when autoplay is ON",
+        )
+        val buttons = buildCustomLayoutButtons(boundary)
+        assertTrue(
+            buttons.any { it.sessionCommand?.customAction == PlaybackSessionCommand.SKIP_TO_NEXT_QUEUE_ACTION },
+            "skip-next CommandButton must be emitted when autoplay ON at queue end",
+        )
+    }
+
+    @Test
+    fun `buildQueueBoundary at queue end with autoplay OFF sets hasNext false`() {
+        val state = PlayerState(
+            currentTrack = trackWithId("A"),
+            currentQueueIndex = -1,
+        )
+        val boundary = buildQueueBoundary(state, autoplayEnabled = false)
+
+        assertFalse(
+            boundary.hasNext,
+            "skip-next must be absent at queue end when autoplay is OFF",
+        )
+    }
+
+    @Test
+    fun `buildQueueBoundary mid-queue always sets hasNext true regardless of autoplay`() {
+        // Even with autoplay OFF, a next queue item means hasNext is true.
+        val stateWithNextItem = PlayerState(
+            currentTrack = trackWithId("A"),
+            queue = listOf(
+                com.yourtube.core.common.model.QueueItem(trackWithId("A"), "q0"),
+                com.yourtube.core.common.model.QueueItem(trackWithId("B"), "q1"),
+            ),
+            currentQueueIndex = 0,
+        )
+        val boundary = buildQueueBoundary(stateWithNextItem, autoplayEnabled = false)
+
+        assertTrue(boundary.hasNext, "skip-next must be available mid-queue even with autoplay OFF")
     }
 }

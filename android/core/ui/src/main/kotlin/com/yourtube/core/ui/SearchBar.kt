@@ -14,6 +14,7 @@ import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,6 +39,8 @@ fun YourTubeSearchBar(
     placeholder: String = "Search YouTube",
     content: @Composable () -> Unit = {},
 ) {
+    val searchFieldLabel = stringResource(R.string.cd_search_bar_field)
+    val clearSearchLabel = stringResource(R.string.cd_search_bar_clear)
     SearchBar(
         inputField = {
             SearchBarDefaults.InputField(
@@ -58,7 +61,7 @@ fun YourTubeSearchBar(
                     {
                         IconButton(
                             onClick = { onQueryChange("") },
-                            modifier = Modifier.semantics { contentDescription = "Clear search" },
+                            modifier = Modifier.semantics { contentDescription = clearSearchLabel },
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Close,
@@ -68,7 +71,7 @@ fun YourTubeSearchBar(
                         }
                     }
                 } else null,
-                modifier = Modifier.semantics { contentDescription = "Search field" },
+                modifier = Modifier.semantics { contentDescription = searchFieldLabel },
             )
         },
         expanded = expanded,
