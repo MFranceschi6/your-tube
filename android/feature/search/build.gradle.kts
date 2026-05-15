@@ -10,6 +10,9 @@ android {
     compileSdk = 36
     defaultConfig { minSdk = 26 }
     buildFeatures { compose = true }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -45,4 +48,10 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.mockk)
+    // YT-0325 — Compose UI tests under Robolectric for RecentSearchChip
+    // tap + long-press behaviour. Same pattern as core/ui.
+    val testComposeBom = platform(libs.androidx.compose.bom)
+    testImplementation(testComposeBom)
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
 }

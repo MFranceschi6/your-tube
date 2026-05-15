@@ -46,7 +46,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
@@ -95,7 +94,7 @@ import com.yourtube.core.ui.EmptyState
 import com.yourtube.core.ui.ErrorState
 import com.yourtube.core.ui.LoadingList
 import com.yourtube.core.ui.LocalAppShellInsets
-import com.yourtube.core.ui.LocalMiniPlayerHeight
+import com.yourtube.core.ui.LocalSnackbarHostState
 import com.yourtube.core.ui.PlaylistCover
 import com.yourtube.core.ui.SkeletonPlaylistHeader
 import com.yourtube.core.ui.SkeletonRow
@@ -140,8 +139,10 @@ fun PlaylistDetailScreen(
     // v2 Q6: context menus
     var trackContextMenu by remember { mutableStateOf<Track?>(null) }
 
-    // Snackbar host for toast-undo pattern (v2 Q3)
-    val snackbarHostState = remember { SnackbarHostState() }
+    // Snackbar host for toast-undo pattern (v2 Q3).
+    // YT-0328 — pull the global SnackbarHostState owned by AppShell so toasts render
+    // above the persistent MiniPlayer overlay instead of being clipped behind it.
+    val snackbarHostState = LocalSnackbarHostState.current
     val scope = rememberCoroutineScope()
     var pendingSnackbarJob by remember { mutableStateOf<Job?>(null) }
     // Hoisted resources for use in coroutine lambdas (non-composable context).
@@ -172,15 +173,7 @@ fun PlaylistDetailScreen(
 
     Scaffold(
         modifier = modifier,
-        snackbarHost = {
-            // Use miniPlayerHeight directly — shellInsets also includes the Library FAB
-            // (still registered in the backstack) which would push the snackbar too high.
-            val miniPlayerHeight = LocalMiniPlayerHeight.current
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier.padding(bottom = miniPlayerHeight + 1.dp),
-            )
-        },
+        // YT-0328 — snackbar host is now owned globally by AppShell. No local host needed.
         topBar = {
             // v2 Q7: LargeTopAppBar collapses on scroll automatically via exitUntilCollapsed
             LargeTopAppBar(

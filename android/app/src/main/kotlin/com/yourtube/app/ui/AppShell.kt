@@ -23,6 +23,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,6 +78,7 @@ import com.yourtube.core.ui.LocalAppShellSlots
 import com.yourtube.core.ui.LocalMiniPlayerHeight
 import com.yourtube.core.ui.LocalPlayerOverlayState
 import com.yourtube.core.ui.LocalReduceMotion
+import com.yourtube.core.ui.LocalSnackbarHostState
 import com.yourtube.core.ui.MotionSpec
 import com.yourtube.core.ui.PlayerOverlay
 import com.yourtube.core.ui.PlayerOverlayState
@@ -184,6 +187,9 @@ fun AppShell(
     var miniPlayerHeightDp by remember { mutableStateOf(0.dp) }
     var fabHeightDp by remember { mutableStateOf(0.dp) }
     var navBarHeightDp by remember { mutableStateOf(0.dp) }
+    // YT-0328 — single global SnackbarHostState; rendered above PlayerOverlay in the
+    // outer Box so Undo and other toasts always clear the persistent MiniPlayer.
+    val appSnackbarHostState = remember { SnackbarHostState() }
 
     val miniPlayerVisible = currentTrack != null && !isNowPlayingActive
     val fabVisible = fabContent != null && !isNowPlayingActive
@@ -280,6 +286,7 @@ fun AppShell(
             LocalAppShellInsets provides shellInsets,
             LocalMiniPlayerHeight provides effectiveMiniPlayerHeight,
             LocalPlayerOverlayState provides overlayState,
+            LocalSnackbarHostState provides appSnackbarHostState,
         ) {
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
@@ -536,6 +543,22 @@ fun AppShell(
                         onCancelSleepTimer = { playerViewModel.cancelSleepTimer() },
                     )
                 }
+            }
+
+            // YT-0328 — Global snackbar host. Sits ABOVE PlayerOverlay in the Box stack so
+            // Undo/error/info toasts always render on top of the persistent MiniPlayer. The
+            // bottom inset clears the nav bar and (when present) the MiniPlayer with an 8 dp
+            // breathing gap so the snackbar action remains tappable instead of overlapping
+            // the player chrome.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = navBarHeightDp)
+                    .padding(
+                        bottom = (if (miniPlayerVisible) miniPlayerHeightDp else 0.dp) + 8.dp,
+                    ),
+            ) {
+                SnackbarHost(hostState = appSnackbarHostState)
             }
 
             // FAB seam — destinations register content via LocalAppShellSlots.setFab(...).

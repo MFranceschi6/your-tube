@@ -178,6 +178,8 @@
     <string name="lbl_search_recents_header">Recent searches</string>
     <string name="cd_search_recent_remove">Remove recent search</string>
     <string name="lbl_search_recent_removed_toast">Removed from recent searches</string>
+    <string name="lbl_search_recent_chip_click">Search again for %1$s</string>
+    <string name="lbl_search_recent_chip_long_press">Remove %1$s from recent searches</string>
     <!-- Search filter chips -->
     <string name="lbl_filter_duration_any">Any duration</string>
     <string name="lbl_filter_duration_short">Short (&lt; 4 min)</string>

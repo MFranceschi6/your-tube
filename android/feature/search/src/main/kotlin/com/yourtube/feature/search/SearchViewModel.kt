@@ -90,8 +90,8 @@ class SearchViewModel @Inject constructor(
 
     /**
      * At most [MAX_CHIP_RECENTS] most-recent queries, used to populate the chip
-     * strip in the idle state. Derived from [recentSearches]; the UI fills
-     * remaining chip slots with curated fallback suggestions.
+     * strip in the idle state. Derived from [recentSearches]. YT-0326 removed the
+     * curated fallback list — the strip renders recents only.
      */
     val recentSuggestions: StateFlow<List<String>> =
         recentSearchPreferences.getRecentSearches()

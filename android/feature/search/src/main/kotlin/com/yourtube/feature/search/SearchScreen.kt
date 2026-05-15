@@ -5,6 +5,7 @@ import android.content.Intent
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -14,8 +15,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,9 +35,9 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material.icons.rounded.WifiOff
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,9 +47,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
@@ -65,14 +68,17 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
@@ -87,6 +93,7 @@ import com.yourtube.core.ui.EmptyState
 import com.yourtube.core.ui.ErrorState
 import com.yourtube.core.ui.LoadingList
 import com.yourtube.core.ui.LocalAppShellInsets
+import com.yourtube.core.ui.LocalSnackbarHostState
 import com.yourtube.core.ui.R as CoreUiR
 import com.yourtube.core.ui.SkeletonRow
 import com.yourtube.core.ui.TrackRow
@@ -117,7 +124,9 @@ fun SearchScreen(
     val shellInsets = LocalAppShellInsets.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
+    // YT-0328 — pull the global SnackbarHostState owned by AppShell so toasts render
+    // above the persistent MiniPlayer overlay instead of being clipped behind it.
+    val snackbarHostState = LocalSnackbarHostState.current
     val haptics = LocalHapticFeedback.current
     val permissionDeniedMessage = stringResource(CoreUiR.string.lbl_search_voice_permission_denied)
     val removedFromRecentsMessage = stringResource(CoreUiR.string.lbl_search_recent_removed_toast)
@@ -173,7 +182,6 @@ fun SearchScreen(
 
     Scaffold(
         modifier = modifier.pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -249,16 +257,17 @@ fun SearchScreen(
         when (val state = uiState) {
             SearchUiState.Idle -> {
                 // C2 — Search idle (no query yet).
-                // Chip strip: up to MAX_CHIP_RECENTS recent chips + curated fallback, total ≤6.
-                val curatedSlots = (6 - recentSuggestions.size).coerceAtLeast(0)
-                val curatedChips = IDLE_SUGGESTION_CHIPS.take(curatedSlots)
+                // YT-0326: chip strip now renders persisted recents only. Curated hard-coded
+                // fallback was removed (no localization, no personalization). When recents
+                // are empty, the LazyRow itself is skipped and the user sees the bare
+                // EmptyState below.
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
                         .verticalScroll(rememberScrollState()),
                 ) {
-                    if (recentSuggestions.isNotEmpty() || curatedChips.isNotEmpty()) {
+                    if (recentSuggestions.isNotEmpty()) {
                         LazyRow(
                             modifier = Modifier.fillMaxWidth(),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
@@ -275,24 +284,19 @@ fun SearchScreen(
                                         haptics.performHapticFeedback(HapticFeedbackType.Reject)
                                         viewModel.onRemoveRecentSearch(recent)
                                         scope.launch {
+                                            // YT-0328 AC7 — explicit Short duration; without it M3 defaults
+                                            // to Indefinite whenever actionLabel is non-null and the Undo
+                                            // toast never auto-dismisses.
                                             val result = snackbarHostState.showSnackbar(
                                                 message = removedFromRecentsMessage,
                                                 actionLabel = undoLabel,
+                                                duration = SnackbarDuration.Short,
                                             )
                                             if (result == SnackbarResult.ActionPerformed) {
                                                 viewModel.onRestoreRecentSearch(recent)
                                             }
                                         }
                                     },
-                                )
-                            }
-                            items(curatedChips, key = { "curated_$it" }) { label ->
-                                AssistChip(
-                                    onClick = {
-                                        viewModel.onQueryChange(label)
-                                        viewModel.search()
-                                    },
-                                    label = { Text(label) },
                                 )
                             }
                         }
@@ -452,25 +456,55 @@ fun SearchScreen(
     }
 }
 
+/**
+ * YT-0325 — Custom assist-chip-shaped surface that exposes both tap and long-press.
+ *
+ * M3 `AssistChip` has no `onLongClick` parameter and its internal `Modifier.clickable`
+ * consumes pointer events before they reach any outer wrapper. Rebuilding the chip
+ * surface lets `combinedClickable` own the gesture detection directly. The visual
+ * treatment mirrors the surrounding curated `AssistChip` (same shape, outline border,
+ * icon size + spacing, label style) so the recent and curated chips remain
+ * indistinguishable in the strip.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun RecentSearchChip(
+internal fun RecentSearchChip(
     label: String,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)) {
-        AssistChip(
-            onClick = {},
-            label = { Text(label) },
-            leadingIcon = {
-                Icon(
-                    Icons.Rounded.History,
-                    contentDescription = null,
-                    modifier = Modifier.size(AssistChipDefaults.IconSize),
-                )
-            },
-        )
+    val clickLabel = stringResource(CoreUiR.string.lbl_search_recent_chip_click, label)
+    val longClickLabel = stringResource(CoreUiR.string.lbl_search_recent_chip_long_press, label)
+    Surface(
+        modifier = modifier
+            .height(AssistChipDefaults.Height)
+            .semantics { role = Role.Button }
+            .combinedClickable(
+                onClickLabel = clickLabel,
+                onLongClickLabel = longClickLabel,
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
+        shape = AssistChipDefaults.shape,
+        color = Color.Transparent,
+        border = AssistChipDefaults.assistChipBorder(enabled = true),
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 8.dp, end = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.History,
+                contentDescription = null,
+                modifier = Modifier.size(AssistChipDefaults.IconSize),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
     }
 }
 
@@ -686,9 +720,6 @@ private fun SearchFilterRow(
         }
     }
 }
-
-/** Idle suggestion chips per catalog C2. */
-private val IDLE_SUGGESTION_CHIPS: List<String> = listOf("lofi", "focus", "ambient", "podcasts")
 
 /**
  * Catalog rule for C3: render the submitted query verbatim, truncated to 32

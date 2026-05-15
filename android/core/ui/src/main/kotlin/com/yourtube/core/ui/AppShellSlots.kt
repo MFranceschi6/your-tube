@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -79,3 +80,22 @@ val LocalSharedTransitionScope: androidx.compose.runtime.ProvidableCompositionLo
  */
 val LocalNavAnimatedVisibilityScope: androidx.compose.runtime.ProvidableCompositionLocal<AnimatedVisibilityScope?> =
     staticCompositionLocalOf { null }
+
+/**
+ * YT-0328 — Single, global `SnackbarHostState` exposed by `AppShell`. The shell renders
+ * one `SnackbarHost` above the `PlayerOverlay` in its Box stack so every screen's
+ * snackbar (Undo confirmations, errors, etc.) sits above the persistent MiniPlayer
+ * and clears it via the AppShell's measured bottom inset.
+ *
+ * Destinations must pull this and call `showSnackbar(...)` on it rather than create
+ * their own local `SnackbarHostState` + `SnackbarHost`. Per-destination `Scaffold`s
+ * should leave `snackbarHost` unset (default no-op) — the shell owns the host slot.
+ *
+ * Sheet-scoped snackbars (e.g. inside a `ModalBottomSheet`) are an intentional
+ * exception and may keep their own local host.
+ *
+ * The fallback host renders nothing — used by previews/tests that don't wrap the
+ * tree in `AppShell`. Snackbar calls against it complete without rendering.
+ */
+val LocalSnackbarHostState: androidx.compose.runtime.ProvidableCompositionLocal<SnackbarHostState> =
+    staticCompositionLocalOf { SnackbarHostState() }
