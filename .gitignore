@@ -132,6 +132,10 @@ obsidian-vault/
 *.provisionprofile
 GoogleService-Info.plist
 google-services.json
+*.jks
+*.keystore
+keystore.properties
+yourtube-keystore.properties
 .mcp.json
 
 # Android / Gradle
