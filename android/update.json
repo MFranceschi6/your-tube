@@ -4,6 +4,6 @@
   "publishedAt": "2026-05-15T11:42:00Z",
   "notes": "0.1.1 — first hosted-update smoke release. Adds the in-app update banner connected to this feed.",
   "apkUrl": "https://mfranceschi6.github.io/your-tube/android/yourtube-0.1.1.apk",
-  "minimumSupportedVersionCode": 1,
+  "minimumSupportedVersionCode": 3,
   "sha256": "2814001cc6d0c8c7e88396ff04abbb0a6b00fc014fe08c49135ea1a98c88503d"
 }
