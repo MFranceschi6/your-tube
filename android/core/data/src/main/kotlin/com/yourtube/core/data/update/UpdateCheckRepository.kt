@@ -25,13 +25,10 @@ interface UpdateCheckRepository {
         /**
          * Hosted metadata JSON path on GitHub Pages.
          *
-         * TODO: Replace with the real URL before the first public release, e.g.:
-         *   https://<github-user>.github.io/<repo-name>/android/update.json
-         *
-         * The placeholder deliberately triggers a connection failure so graceful-degradation
-         * is exercised by default in non-mocked environments.
+         * Source of truth: docs/update-channel.md. The feed at this URL is served from
+         * the orphan `gh-pages` branch of MFranceschi6/your-tube.
          */
         const val DEFAULT_FEED_URL =
-            "https://placeholder.example.invalid/android/update.json"
+            "https://mfranceschi6.github.io/your-tube/android/update.json"
     }
 }
