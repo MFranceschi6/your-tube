@@ -1,5 +1,36 @@
 # Release Notes
 
+## v0.1.1 — first hosted update smoke release (2026-05-15)
+
+### What changed since v0.1.0
+
+This is the first build distributed through the self-hosted update channel introduced in YT-0251. Same MVP scope as v0.1.0; gameplay-equivalent. Adds the in-app update prompt wired to `https://mfranceschi6.github.io/your-tube/android/update.json`.
+
+Android-only highlights landed in the 2026-05-14 → 2026-05-15 closure batches:
+
+- **Settings → Appearance → Theme** (YT-0316): System / Light / Dark picker, persisted to DataStore, applied via Compose recomposition (`ComponentActivity` — not `AppCompatActivity`; AMOLED row gated on Dark).
+- **Search → recent search history MRU** (YT-0319): persisted recents in DataStore, 20-entry cap, long-press chip removal with `Reject` haptic + `Removed from recent searches` Snackbar + Undo (YT-0325 fixed the chip pointer-absorption regression that surfaced in smoke; YT-0326 dropped the curated `lofi`/`focus`/`ambient` fallback strip so the idle row is recents-only).
+- **Recently played → day-grouped LazyColumn** (YT-0321): sticky day headers (`Today` / `Yesterday` / `dd MMM yyyy`), 0.5-threshold swipe-to-remove with `errorContainer` background, long-press `HistoryRowSheet`, relative timestamp slot on every row.
+- **Snackbar host hoisted above MiniPlayer** (YT-0328): global `SnackbarHostState` lives in `AppShell`, rendered above `PlayerOverlay` with `+miniPlayerHeight + 8.dp` bottom inset. Action-bearing snackbars now pass explicit `SnackbarDuration.Short` so Undo auto-dismisses (M3 defaults `actionLabel != null` to `Indefinite`).
+- **Hosted update channel** (YT-0251): app reads `update.json` on cold-start, surfaces `UpdateAvailableBanner` when `versionCode < feed.versionCode`, and renders a non-dismissible `UpdateRequiredOverlay` when `versionCode < feed.minimumSupportedVersionCode`. Browser handoff is intentional — `REQUEST_INSTALL_PACKAGES` is NOT in the manifest.
+
+### Distribution
+
+- Hosted APK: `https://mfranceschi6.github.io/your-tube/android/yourtube-0.1.1.apk`
+- Feed: `https://mfranceschi6.github.io/your-tube/android/update.json`
+- Signing keystore: same lineage as v0.1.0 (cert SHA-256 `93a9d3ca29742fb78ea1755b54edf6bd3eb97528faf4629e376a1e207c4eb42d`). Upgrades from v0.1.0 install in-place without uninstall.
+
+### Validation gating
+
+- `cd android && ./gradlew :app:assembleRelease` — BUILD SUCCESSFUL.
+- `cd android && ./gradlew testDebugUnitTest` — BUILD SUCCESSFUL (436 tasks, 0 failures).
+- Manual 2-APK hosted smoke (YT-0251 four-step procedure): PASS on Pixel_8 API 35 emulator.
+  - Install v0.1.0 → cold-start → `UpdateAvailableBanner` shows v0.1.1 ✓
+  - Tap Update → browser opens apkUrl → Package Installer upgrade succeeds ✓
+  - Post-upgrade Settings → no banner, no error (`UpToDate`) ✓
+  - `minimumSupportedVersionCode > installed` → `UpdateRequiredOverlay` non-dismissible (back press intercepted) ✓
+- iOS: not part of this release; iOS still on YT-0033 smoke.
+
 ## v0.1.0 — MVP
 
 ### Scope
