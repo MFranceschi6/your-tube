@@ -1,0 +1,9 @@
+{
+  "versionName": "0.1.0",
+  "versionCode": 1,
+  "publishedAt": "2026-05-15T11:35:00Z",
+  "notes": "Initial public MVP — Android baseline. Native Kotlin/Compose audio client for YouTube content.",
+  "apkUrl": "https://mfranceschi6.github.io/your-tube/android/yourtube-0.1.0.apk",
+  "minimumSupportedVersionCode": 1,
+  "sha256": "fc567e8d11be52044d3e72b67c5377a5acf60437cacf5a00c7d8b116c33d6420"
+}
