@@ -159,6 +159,12 @@ class DefaultPlayerController @Inject constructor(
     }
 
     private suspend fun handleTrackEnded() {
+        val entryState = mutablePlayerState.value
+        perfTracer.mark(
+            "TRACK_ENDED",
+            entryState.currentTrack?.videoId.orEmpty(),
+            "queueSize=${entryState.queue.size} idx=${entryState.currentQueueIndex}",
+        )
         // YT-0283 — check for an armed EndOfTrack sleep timer BEFORE doing any queue
         // advance or autoplay fetch. The previous order (advance first, timer reacts to
         // the video-ID change) allowed the next track to audibly start for ~2 seconds
@@ -222,7 +228,12 @@ class DefaultPlayerController @Inject constructor(
      * regardless of concurrent queue mutations.
      */
     private suspend fun tryAutoplayAdvance(finishedVideoId: String): Boolean {
-        if (finishedVideoId.isBlank()) return false
+        if (finishedVideoId.isBlank()) {
+            perfTracer.mark("AUTOPLAY_SKIP", finishedVideoId, "reason=blankFinishedId")
+            return false
+        }
+
+        perfTracer.mark("AUTOPLAY_FETCH_START", finishedVideoId)
 
         // Stop current audio immediately so the previous track does not keep playing
         // during the fetch window. State is set to LOADING so the UI shows an affordance.
@@ -232,9 +243,16 @@ class DefaultPlayerController @Inject constructor(
             it.copy(playbackStatus = PlaybackStatus.LOADING, isPlaying = false)
         }
 
-        val enqueued = runCatching {
+        val enqueueResult = runCatching {
             autoplayController.fetchAndEnqueue(finishedVideoId)
-        }.getOrDefault(false)
+        }
+        val enqueued = enqueueResult.getOrDefault(false)
+        val fetchError = enqueueResult.exceptionOrNull()
+        perfTracer.mark(
+            "AUTOPLAY_FETCH_END",
+            finishedVideoId,
+            "enqueued=$enqueued err=${fetchError?.javaClass?.simpleName ?: "none"}",
+        )
 
         if (!enqueued) {
             // No candidate / fetch failure / autoplay OFF — clear the loading state.
@@ -246,15 +264,16 @@ class DefaultPlayerController @Inject constructor(
 
         val autoplayIndex = mutablePlayerState.value.queue.lastIndex
         if (autoplayIndex < 0) {
+            perfTracer.mark("AUTOPLAY_SKIP", finishedVideoId, "reason=emptyQueueAfterFetch")
             mutablePlayerState.update {
                 it.copy(playbackStatus = PlaybackStatus.IDLE, positionMs = it.durationMs)
             }
             return false
         }
 
-        mutablePlayerState.value.queue[autoplayIndex].track.videoId.let { videoId ->
-            perfTracer.markTap(videoId, source = "autoplay")
-        }
+        val nextVideoId = mutablePlayerState.value.queue[autoplayIndex].track.videoId
+        perfTracer.mark("AUTOPLAY_ADVANCE", nextVideoId, "fromIndex=$autoplayIndex")
+        perfTracer.markTap(nextVideoId, source = "autoplay")
         playQueueItemAt(autoplayIndex)
         return true
     }
