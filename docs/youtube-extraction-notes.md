@@ -57,7 +57,7 @@ For MVP we ship items **1**, **2**, and the iOS HLS proxy described below. Every
 
 YouTubeKit on iOS picks the **mp4a (AAC) m4a** stream because its `Stream.isNativelyPlayable` filter excludes opus — AVPlayer cannot play standalone opus / webm. Android's NewPipeExtractor on the same videos picks **opus / webm** because Media3 ExoPlayer decodes opus natively via MediaCodec. Same googlevideo CDN host, different codec/container, different downstream parser.
 
-The iOS `c=ANDROID_VR` mp4a URL points to a fragmented MP4 with an `ftyp + moov + sidx + (moof+mdat)*` layout. AVPlayer's non-HLS fmp4 parser stalls catastrophically when the sidx contains thousands of entries:
+The iOS `c=ANDROID_VR` (since 2026-09-03: `c=VISIONOS`, same layout) mp4a URL points to a fragmented MP4 with an `ftyp + moov + sidx + (moof+mdat)*` layout. AVPlayer's non-HLS fmp4 parser stalls catastrophically when the sidx contains thousands of entries:
 
 - `dQw4w9WgXcQ` (Rick Astley, 3:33, sidx 296 B / ~22 fragments) → AVPlayer reaches `.playing` in ~7s.
 - `n61ULEU7CO0` (Lofi Girl "Best of 2021", 6:10:58, sidx ~26 KB / ~2230 fragments) → never reaches `.playing` within 45s in clean-process probes; user-reported "starts after hours" in the iOS app.

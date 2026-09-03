@@ -359,10 +359,10 @@ class InnerTubePlayerClientTest {
 
     // endregion
 
-    // region Body verification — confirms ANDROID_VR client constants are sent
+    // region Body verification — confirms VISIONOS client constants are sent
 
     @Test
-    fun `request body contains ANDROID_VR client constants`() = runTest {
+    fun `request body contains VISIONOS client constants`() = runTest {
         val capturedBodies = mutableListOf<String>()
         val client = cannedClient(
             code = 200,
@@ -384,10 +384,14 @@ class InnerTubePlayerClientTest {
         // formatter / serialization-config swaps that break only the test.
         val root = Json.parseToJsonElement(body).jsonObject
         val clientObj = root.getValue("context").jsonObject.getValue("client").jsonObject
-        assertEquals("ANDROID_VR", clientObj.getValue("clientName").jsonPrimitive.content)
-        assertEquals("1.65.10", clientObj.getValue("clientVersion").jsonPrimitive.content)
-        assertEquals(32, clientObj.getValue("androidSdkVersion").jsonPrimitive.int)
-        assertEquals("12L", clientObj.getValue("osVersion").jsonPrimitive.content)
+        assertEquals("VISIONOS", clientObj.getValue("clientName").jsonPrimitive.content)
+        assertEquals("1.02", clientObj.getValue("clientVersion").jsonPrimitive.content)
+        assertEquals("Apple", clientObj.getValue("deviceMake").jsonPrimitive.content)
+        assertEquals("RealityDevice17,1", clientObj.getValue("deviceModel").jsonPrimitive.content)
+        assertEquals("visionOS", clientObj.getValue("osName").jsonPrimitive.content)
+        assertEquals("26.5.23O471", clientObj.getValue("osVersion").jsonPrimitive.content)
+        // The former ANDROID_VR-only field must be gone.
+        assertEquals(null, clientObj["androidSdkVersion"])
         assertEquals(true, root.getValue("racyCheckOk").jsonPrimitive.boolean)
         assertEquals(true, root.getValue("contentCheckOk").jsonPrimitive.boolean)
     }

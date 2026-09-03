@@ -7,7 +7,7 @@ import okhttp3.OkHttpClient
 /**
  * Search-and-resolve YouTube data via direct InnerTube `/search` and `/player`
  * calls. Replaces the YT-0042-era `NewPipeYoutubeExtractorClient` that ran
- * NewPipe's Rhino-based JS signature solver. The `ANDROID_VR` client returns
+ * NewPipe's Rhino-based JS signature solver. The `VISIONOS` client returns
  * pre-signed URLs so the solver isn't needed.
  *
  * [getAudioStreams] is a thin `suspend` adapter over [PlayerExtracting] that

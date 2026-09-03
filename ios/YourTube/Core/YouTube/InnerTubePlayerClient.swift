@@ -4,7 +4,7 @@ import Foundation
 
 /// Result of resolving a videoId to a playable audio URL.
 ///
-/// `audioURL` is pre-signed (the InnerTube `/player` response on the ANDROID_VR
+/// `audioURL` is pre-signed (the InnerTube `/player` response on the VISIONOS
 /// client returns ready-to-play `googlevideo.com` URLs without needing the JS
 /// signature solver YouTubeKit's `__js` cache used to wire). `kind` lets the
 /// service layer decide whether to wrap the URL with the YT-0157 HLS proxy
@@ -33,7 +33,7 @@ struct PlayerResolution: Sendable, Equatable {
 /// Replaces the (now removed) `StreamExtracting` protocol that wrapped
 /// `YouTubeKit.YouTube(videoID:)`. The kit dependency was removed in YT-0162
 /// because its JavaScriptCore-based `n`/`sig` signature solver was the source
-/// of YT-0071's intermittent ~20% HTTP 403 rate. The ANDROID_VR client sidesteps
+/// of YT-0071's intermittent ~20% HTTP 403 rate. The VISIONOS client sidesteps
 /// the solver entirely by returning pre-signed URLs.
 protocol PlayerExtracting: Sendable {
     /// Resolve `videoId` against the InnerTube `/player` endpoint. Throws
@@ -47,28 +47,36 @@ protocol PlayerExtracting: Sendable {
 /// Production conformer to ``PlayerExtracting``.
 ///
 /// POSTs to `https://www.youtube.com/youtubei/v1/player` with the InnerTube
-/// `ANDROID_VR` client. ANDROID_VR is chosen because:
+/// `VISIONOS` client. VISIONOS is chosen because:
 ///
 /// 1. It returns pre-signed `googlevideo.com` URLs — no JS signature solver
 ///    needed (the YT-0071 failure mode disappears).
 /// 2. It does not require a Proof-of-Origin (PO) token, so we don't need
-///    a parallel BotGuard pipeline (yt-dlp `GVS_PO_TOKEN_POLICY` is empty
-///    for android_vr).
+///    a parallel BotGuard pipeline (yt-dlp `GVS_PO_TOKEN_POLICY` is the
+///    permissive default for visionos; it is yt-dlp's `_DEFAULT_JSLESS_CLIENTS`).
 /// 3. It returns standard `audio/mp4 mp4a` adaptive formats compatible with
 ///    the YT-0157 HLS proxy.
+///
+/// History: the previous client was `ANDROID_VR` 1.65.10. Since 2026-08-17
+/// YouTube gates its `googlevideo.com` URLs behind a GVS PO token: `HEAD`
+/// returns 403 (which broke the HLS proxy's Content-Length probe) and any
+/// URL dies with 403 after ~1 MB cumulative. yt-dlp upstream: "Since
+/// 2026.08.17, ALL formats (including live HLS and itag 18) are 403'd with
+/// version 1.65.10". Verified 2026-09-03 with curl; VISIONOS URLs answer
+/// `HEAD` 200 and serve every byte range.
 ///
 /// Limits we accept:
 ///
 /// - "Made for kids" videos aren't available with this client (yt-dlp note).
 ///   Falls through to a `playabilityStatus.status != "OK"` error which the
 ///   caller surfaces as `.videoUnavailable`. Not in scope for music use.
-/// - `clientVersion` is PINNED to `1.65.10` — yt-dlp explicitly warns that
-///   using `>1.65` may return SABR-only streams (Server-side Ads Based
-///   Routing — protected, not directly fetchable). Don't bump above 1.65.x
-///   without re-verifying.
+/// - VISIONOS returns no progressive `formats` array (only `adaptiveFormats`
+///   + `hlsManifestUrl`), so the muxed fallback below is effectively dormant.
+/// - Un-ranged GETs are throttled server-side; the HLS proxy always issues
+///   `Range` requests so this doesn't affect playback.
 ///
 /// All client constants are sourced from `yt-dlp/yt_dlp/extractor/youtube/_base.py`
-/// (verified 2026-05-07 against upstream master). When YouTube rotates the
+/// (verified 2026-09-03 against upstream master). When YouTube rotates the
 /// values, update this single block — the rest of the file (decoding,
 /// selection, error mapping) is invariant.
 final class LivePlayerExtractor: PlayerExtracting, Sendable {
@@ -77,12 +85,14 @@ final class LivePlayerExtractor: PlayerExtracting, Sendable {
 
     private static let endpointURL = URL(string: "https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8&prettyPrint=false")!
 
-    private static let clientName = "ANDROID_VR"
-    private static let clientVersion = "1.65.10"
-    private static let clientNameNumeric = "28"
-    private static let androidSdkVersion = 32
-    private static let osVersion = "12L"
-    private static let userAgent = "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip"
+    private static let clientName = "VISIONOS"
+    private static let clientVersion = "1.02"
+    private static let clientNameNumeric = "101"
+    private static let deviceMake = "Apple"
+    private static let deviceModel = "RealityDevice17,1"
+    private static let osName = "visionOS"
+    private static let osVersion = "26.5.23O471"
+    private static let userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
 
     // MARK: - Dependencies
 
@@ -93,9 +103,10 @@ final class LivePlayerExtractor: PlayerExtracting, Sendable {
 
     /// Production default: lazily fetch a `visitorData` from
     /// `/youtubei/v1/visitor_id`, cached for the lifetime of the extractor.
-    /// Without it, `ANDROID_VR /player` returns `LOGIN_REQUIRED` ("Sign in to
-    /// confirm you're not a bot") on most public videos — verified empirically
-    /// against `n61ULEU7CO0` on 2026-05-06.
+    /// Without it, the previous `ANDROID_VR /player` returned `LOGIN_REQUIRED`
+    /// ("Sign in to confirm you're not a bot") on most public videos — verified
+    /// empirically against `n61ULEU7CO0` on 2026-05-06. Kept for VISIONOS as a
+    /// harmless bot-check ticket.
     init(
         transport: any HTTPDataTasking = URLSession.shared,
         visitorDataProvider: VisitorDataProvider? = nil
@@ -214,9 +225,10 @@ final class LivePlayerExtractor: PlayerExtracting, Sendable {
     // MARK: - Networking
 
     private func fetchPlayerResponse(videoId: String) async throws -> InnerTubePlayerResponse {
-        // Fetch the visitor data first — empirically required to avoid the
-        // ANDROID_VR "Sign in to confirm you're not a bot" gate. Cached for
-        // the extractor's lifetime so subsequent resolves pay zero latency.
+        // Fetch the visitor data first — empirically required (on the former
+        // ANDROID_VR client) to avoid the "Sign in to confirm you're not a
+        // bot" gate. Cached for the extractor's lifetime so subsequent
+        // resolves pay zero latency.
         let visitor = await visitorDataProvider()
 
         var request = URLRequest(url: Self.endpointURL)
@@ -259,15 +271,14 @@ final class LivePlayerExtractor: PlayerExtracting, Sendable {
         // unauthenticated music extraction — they suppress the InnerTube-side
         // gating that would otherwise bounce many tracks back as
         // `LOGIN_REQUIRED`. `visitorData` is the bot-check ticket; without it
-        // ANDROID_VR returns "Sign in to confirm you're not a bot" for most
-        // public music videos.
+        // the former ANDROID_VR client returned "Sign in to confirm you're not
+        // a bot" for most public music videos.
         var client: [String: Any] = [
             "clientName": clientName,
             "clientVersion": clientVersion,
-            "deviceMake": "Oculus",
-            "deviceModel": "Quest 3",
-            "androidSdkVersion": androidSdkVersion,
-            "osName": "Android",
+            "deviceMake": deviceMake,
+            "deviceModel": deviceModel,
+            "osName": osName,
             "osVersion": osVersion,
             "hl": "en",
             "gl": "US",
@@ -334,7 +345,8 @@ final class LivePlayerExtractor: PlayerExtracting, Sendable {
     /// Picks the highest-bitrate progressive (muxed audio+video) mp4 stream.
     /// Used when the server returned no audio-only adaptive formats — rare for
     /// modern uploads but occasionally seen on older or partially-restricted
-    /// videos.
+    /// videos. Note: VISIONOS omits the `formats` array entirely, so this
+    /// path is dormant unless YouTube starts returning it again.
     static func pickMuxedURL(from formats: [InnerTubePlayerResponse.AdaptiveFormat]) -> URL? {
         let muxed = formats.filter { $0.isMuxedMp4 }
         guard let best = muxed.max(by: { lhs, rhs in
@@ -352,7 +364,7 @@ final class LivePlayerExtractor: PlayerExtracting, Sendable {
     /// option is to pick a different track). Specific subreasons that we
     /// expect to see on this client:
     ///
-    /// - `LOGIN_REQUIRED` — age-gated content. ANDROID_VR doesn't carry
+    /// - `LOGIN_REQUIRED` — age-gated content. VISIONOS doesn't carry
     ///   account credentials so this is a hard wall for music videos behind
     ///   the age gate. Surface as `.videoUnavailable`.
     /// - `UNPLAYABLE` — geo-blocked, members-only, etc.
@@ -407,7 +419,7 @@ struct InnerTubePlayerResponse: Decodable, Sendable {
         let averageBitrate: Int?
 
         /// True for `audio/mp4` adaptive formats with `mp4a` codec — the
-        /// ANDROID_VR audio-only path. AVPlayer can decode these natively.
+        /// VISIONOS audio-only path. AVPlayer can decode these natively.
         var isAudioOnlyMp4a: Bool {
             guard let mimeType = mimeType?.lowercased() else { return false }
             return mimeType.hasPrefix("audio/mp4") && mimeType.contains("mp4a")

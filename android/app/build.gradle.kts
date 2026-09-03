@@ -23,8 +23,8 @@ android {
         applicationId = "com.yourtube.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.1.2"
         // YT-0166 round 2 — instrumented Compose UI tests live under
         // `app/src/androidTest/`. Standard AndroidJUnitRunner is sufficient because the
         // tests compose Compose primitives directly (no Hilt graph required for the

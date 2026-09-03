@@ -24,7 +24,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
  * Result of resolving a videoId to a playable audio URL.
  *
  * `audioUrl` is pre-signed (the InnerTube `/player` response on the
- * `ANDROID_VR` client returns ready-to-play `googlevideo.com` URLs without
+ * `VISIONOS` client returns ready-to-play `googlevideo.com` URLs without
  * needing a JavaScript signature solver). [kind] lets the playback layer
  * decide how to route into ExoPlayer (HLS for livestream manifests;
  * `ProgressiveMediaSource` for the rest).
@@ -60,7 +60,7 @@ internal data class PlayerResolution(
  *
  * Mirrors the iOS `PlayerExtracting` protocol introduced in YT-0162. Replaces
  * the NewPipeExtractor `StreamInfo.getInfo()` site that ran a Rhino-based JS
- * signature solver. The `ANDROID_VR` client returns pre-signed URLs so the
+ * signature solver. The `VISIONOS` client returns pre-signed URLs so the
  * solver isn't needed — eliminating the YT-0071 failure class structurally
  * rather than via retries.
  */
@@ -82,12 +82,18 @@ internal interface PlayerExtracting {
  * Production conformer to [PlayerExtracting].
  *
  * POSTs to `https://www.youtube.com/youtubei/v1/player` with the InnerTube
- * `ANDROID_VR` client. Constants are sourced from yt-dlp upstream
- * `yt_dlp/extractor/youtube/_base.py` (verified 2026-05-07 against upstream
- * master). Pin reason: yt-dlp comment "Using a clientVersion>1.65 may return
- * SABR streams only" (Server-side Ads Based Routing — protected, not directly
- * fetchable). When YouTube rotates the values, update this single block — the
+ * `VISIONOS` client. Constants are sourced from yt-dlp upstream
+ * `yt_dlp/extractor/youtube/_base.py` (verified 2026-09-03 against upstream
+ * master; VISIONOS is yt-dlp's `_DEFAULT_JSLESS_CLIENTS` entry and needs no
+ * PO token). When YouTube rotates the values, update this single block — the
  * rest of the file (decoding, selection, error mapping) is invariant.
+ *
+ * History: the previous client was `ANDROID_VR` 1.65.10. Since 2026-08-17
+ * YouTube gates its `googlevideo.com` URLs behind a GVS PO token: `HEAD`
+ * returns 403 and any URL dies with 403 after ~1 MB cumulative (yt-dlp:
+ * "Since 2026.08.17, ALL formats ... are 403'd with version 1.65.10").
+ * VISIONOS omits the progressive `formats` array, so the muxed fallback is
+ * effectively dormant; un-ranged GETs are throttled server-side.
  *
  * **Divergence from iOS**: ExoPlayer/Media3 1.4.1 plays opus/webm natively,
  * so audio-only selection prefers `audio/mp4 (mp4a)` for parity with iOS
@@ -140,9 +146,10 @@ internal class LivePlayerExtractor(
     }
 
     private suspend fun fetchPlayerResponse(videoId: String): InnerTubePlayerResponse {
-        // Fetch the visitor data first — empirically required to avoid the
-        // ANDROID_VR "Sign in to confirm you're not a bot" gate (verified
-        // against `n61ULEU7CO0` on 2026-05-06 during YT-0162 work).
+        // Fetch the visitor data first — empirically required (on the former
+        // ANDROID_VR client) to avoid the "Sign in to confirm you're not a
+        // bot" gate (verified against `n61ULEU7CO0` on 2026-05-06 during
+        // YT-0162 work). Kept for VISIONOS as a harmless bot-check ticket.
         val visitor = try {
             visitorDataProvider()
         } catch (cancellation: CancellationException) {
@@ -198,8 +205,8 @@ internal class LivePlayerExtractor(
     private fun buildRequestBody(videoId: String, visitorData: String?): String {
         // `racyCheckOk` + `contentCheckOk` mirror the flags yt-dlp injects for
         // unauthenticated music extraction. `visitorData` is the bot-check
-        // ticket; without it ANDROID_VR returns "Sign in to confirm you're
-        // not a bot" for most public music videos.
+        // ticket; without it the former ANDROID_VR client returned "Sign in
+        // to confirm you're not a bot" for most public music videos.
         //
         // Build via `kotlinx.serialization.buildJsonObject` rather than string
         // interpolation so escaping is delegated to the serializer (rules out
@@ -209,10 +216,9 @@ internal class LivePlayerExtractor(
                 putJsonObject("client") {
                     put("clientName", CLIENT_NAME)
                     put("clientVersion", CLIENT_VERSION)
-                    put("deviceMake", "Oculus")
-                    put("deviceModel", "Quest 3")
-                    put("androidSdkVersion", ANDROID_SDK_VERSION)
-                    put("osName", "Android")
+                    put("deviceMake", DEVICE_MAKE)
+                    put("deviceModel", DEVICE_MODEL)
+                    put("osName", OS_NAME)
                     put("osVersion", OS_VERSION)
                     put("hl", "en")
                     put("gl", "US")
@@ -234,18 +240,18 @@ internal class LivePlayerExtractor(
     }
 
     internal companion object {
-        // yt-dlp pin (verified 2026-05-07 against upstream master).
-        // Source: yt_dlp/extractor/youtube/_base.py + _android_vr.py.
-        // Pin reason: yt-dlp comment "Using a clientVersion>1.65 may return
-        // SABR streams only".
-        const val CLIENT_NAME = "ANDROID_VR"
-        const val CLIENT_VERSION = "1.65.10"
-        const val CLIENT_NAME_NUMERIC = "28" // INNERTUBE_CONTEXT_CLIENT_NAME
-        const val ANDROID_SDK_VERSION = 32
-        const val OS_VERSION = "12L"
+        // yt-dlp pin (verified 2026-09-03 against upstream master).
+        // Source: yt_dlp/extractor/youtube/_base.py, `visionos` entry.
+        const val CLIENT_NAME = "VISIONOS"
+        const val CLIENT_VERSION = "1.02"
+        const val CLIENT_NAME_NUMERIC = "101" // INNERTUBE_CONTEXT_CLIENT_NAME
+        const val DEVICE_MAKE = "Apple"
+        const val DEVICE_MODEL = "RealityDevice17,1"
+        const val OS_NAME = "visionOS"
+        const val OS_VERSION = "26.5.23O471"
         const val USER_AGENT =
-            "com.google.android.apps.youtube.vr.oculus/1.65.10 " +
-                "(Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip"
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 " +
+                "(KHTML, like Gecko) Version/26.0 Safari/605.1.15"
 
         // Same public InnerTube key already used by `InnerTubeSearchClient`.
         private const val PLAYER_URL =
@@ -365,7 +371,7 @@ internal class LivePlayerExtractor(
          * status is user-facing and unrecoverable from the user's
          * perspective — pick a different track. Specific subreasons we expect:
          *
-         * - `LOGIN_REQUIRED` — age-gated content. ANDROID_VR doesn't carry
+         * - `LOGIN_REQUIRED` — age-gated content. VISIONOS doesn't carry
          *   account credentials so this is a hard wall for music videos
          *   behind the age gate.
          * - `UNPLAYABLE` — geo-blocked, members-only, etc.

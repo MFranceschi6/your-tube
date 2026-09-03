@@ -28,10 +28,10 @@ Fragility we accept knowingly:
   catch regressions where YouTube changes the JSON shape and we silently
   return empty.
 
-## Stream resolution — InnerTube `/player` (direct, ANDROID_VR client)
+## Stream resolution — InnerTube `/player` (direct, VISIONOS client)
 
 `LivePlayerExtractor.resolve` POSTs to `https://www.youtube.com/youtubei/v1/player`
-with the `ANDROID_VR` InnerTube client. The `/player` response carries
+with the `VISIONOS` InnerTube client. The `/player` response carries
 pre-signed `googlevideo.com` URLs — no JS signature solver needed (this is
 the load-bearing reason iOS YT-0162 made the same swap; YT-0163 mirrors it
 on Android for the latency win).
@@ -39,24 +39,39 @@ on Android for the latency win).
 ### Client constants (yt-dlp pin)
 
 Constants live in a single block in `InnerTubePlayerClient.kt`. Source of
-truth: `yt-dlp/yt_dlp/extractor/youtube/_base.py` (verified 2026-05-07
-against upstream master). Pin reason: yt-dlp comment "Using a
-clientVersion>1.65 may return SABR streams only" (Server-side Ads Based
-Routing — protected, not directly fetchable). When YouTube rotates the
-values, update this single block:
+truth: `yt-dlp/yt_dlp/extractor/youtube/_base.py`, `visionos` entry
+(verified 2026-09-03 against upstream master). VISIONOS is yt-dlp's default
+JS-less client (`_DEFAULT_JSLESS_CLIENTS`) and needs no PO token. When
+YouTube rotates the values, update this single block:
 
-- `clientName = "ANDROID_VR"`
-- `clientVersion = "1.65.10"`
-- `INNERTUBE_CONTEXT_CLIENT_NAME = 28` (sent as `X-YouTube-Client-Name`)
-- `androidSdkVersion = 32`
-- `osVersion = "12L"`
-- `deviceMake = "Oculus"`, `deviceModel = "Quest 3"`
-- `User-Agent: com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip`
+- `clientName = "VISIONOS"`
+- `clientVersion = "1.02"`
+- `INNERTUBE_CONTEXT_CLIENT_NAME = 101` (sent as `X-YouTube-Client-Name`)
+- `deviceMake = "Apple"`, `deviceModel = "RealityDevice17,1"`
+- `osName = "visionOS"`, `osVersion = "26.5.23O471"`
+- `User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15`
+
+Known VISIONOS quirks:
+
+- No progressive `formats` array; only `adaptiveFormats` + `hlsManifestUrl`.
+  The muxed fallback is dormant.
+- Un-ranged GETs on the `googlevideo.com` URL are throttled server-side;
+  ranged requests are served at full speed.
+- "Made for kids" videos are unavailable (same as ANDROID_VR).
+
+### Why not ANDROID_VR anymore (2026-09-03)
+
+The previous pin was `ANDROID_VR` 1.65.10. Since 2026-08-17 YouTube gates
+its `googlevideo.com` URLs behind a GVS Proof-of-Origin token: `HEAD`
+returns 403 and any URL returns 403 after ~1 MB cumulative. yt-dlp upstream
+note: "Since 2026.08.17, ALL formats (including live HLS and itag 18) are
+403'd with version 1.65.10"; its `GVS_PO_TOKEN_POLICY` for `android_vr` is
+now `required=True`. Reproduced with curl on 2026-09-03.
 
 ### Visitor data prerequisite
 
-ANDROID_VR returns `playabilityStatus.status = LOGIN_REQUIRED` ("Sign in to
-confirm you're not a bot") on most public videos when called without a
+The former ANDROID_VR client returned `playabilityStatus.status = LOGIN_REQUIRED`
+("Sign in to confirm you're not a bot") on most public videos when called without a
 session-scoped `visitorData` token. `VisitorIdCache` lazily fetches one from
 `https://www.youtube.com/youtubei/v1/visitor_id` on first resolve and caches
 it for the lifetime of the extractor singleton. The token is injected as both
@@ -110,7 +125,7 @@ typed exception and propagates it to the UI banner.
 `InnerTubeSearchClient` injects `YOUTUBE_DESKTOP_USER_AGENT` (desktop Chrome)
 so the UA matches the InnerTube `WEB` client and avoids the
 mobile-UA + WEB-client asymmetry that triggers fresh-IP bot detection on
-emulators. `LivePlayerExtractor` uses the ANDROID_VR-specific User-Agent
+emulators. `LivePlayerExtractor` uses the VISIONOS Safari User-Agent
 described above (see Client constants).
 
 ## Dependency injection
@@ -126,9 +141,13 @@ graph root reach both extraction paths.
 
 ## Rotation monitoring
 
-When YouTube rotates the `ANDROID_VR clientVersion`, the symptom is
+When YouTube rotates the `VISIONOS clientVersion`, the symptom is
 `/player` returning `playabilityStatus.status = ERROR` or empty
-`streamingData` for previously-resolvable videos. Watch yt-dlp's
-`yt_dlp/extractor/youtube/_base.py` and `_android_vr.py` for the new pinned
-values; bump the constants block in `InnerTubePlayerClient.kt` accordingly.
+`streamingData` for previously-resolvable videos. A subtler failure mode
+(seen with ANDROID_VR in 2026-08) is `/player` still answering `OK` while
+the `googlevideo.com` URL returns 403 on `HEAD` or after ~1 MB — that means
+the client now needs a PO token and must be swapped. Watch yt-dlp's
+`yt_dlp/extractor/youtube/_base.py` (`_DEFAULT_JSLESS_CLIENTS`) for the
+current no-PO-token client; bump the constants block in
+`InnerTubePlayerClient.kt` accordingly.
 The MVP rotation-monitoring posture is shared with iOS YT-0162.

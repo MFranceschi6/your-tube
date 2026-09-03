@@ -1,5 +1,29 @@
 # Release Notes
 
+## v0.1.2 — YouTube extractor hotfix (2026-09-03)
+
+### What changed since v0.1.1
+
+Android-only hotfix. Playback had stopped working on every track: YouTube started gating the `googlevideo.com` URLs returned to the `ANDROID_VR` InnerTube client behind a Proof-of-Origin token (yt-dlp upstream: "Since 2026.08.17, ALL formats ... are 403'd with version 1.65.10"). Symptoms reproduced with curl on 2026-09-03: `HEAD` → 403, and any GET → 403 after ~1 MB cumulative per URL, i.e. roughly one minute of audio.
+
+- **InnerTube `/player` client swapped to `VISIONOS` 1.02** (`InnerTubePlayerClient.kt`), yt-dlp's current default JS-less client. No PO token, no signature solver, pre-signed URLs, `HEAD` 200 and full byte-range service verified. Same swap applied to iOS source (not part of this release).
+- **Docs**: `docs/android-extraction.md` records the new pin, the VISIONOS quirks (no progressive `formats` array, un-ranged GETs throttled) and a rotation-monitoring note for the "player OK but googlevideo 403" failure mode.
+- Perf-trace marks for the autoplay advance path in `DefaultPlayerController.kt` (already in the working tree; no behaviour change).
+
+### Distribution
+
+- Hosted APK: `https://mfranceschi6.github.io/your-tube/android/yourtube-0.1.2.apk`
+- Feed: `https://mfranceschi6.github.io/your-tube/android/update.json`
+- `versionCode` 3, `minimumSupportedVersionCode` stays 1.
+- Signing keystore: same lineage as v0.1.0 / v0.1.1 (cert SHA-256 `93a9d3ca29742fb78ea1755b54edf6bd3eb97528faf4629e376a1e207c4eb42d`). Upgrades install in-place.
+
+### Validation gating
+
+- `cd android && ./gradlew :core:network:testDebugUnitTest` — 87 tests, 0 failures.
+- `cd android && ./gradlew :app:assembleRelease` — BUILD SUCCESSFUL; V2 signer cert SHA-256 matches lineage; APK SHA-256 `792443473148df5da425295ffc142a8cc9d69658e53f29ef1fa8fb9cf23f98b8`.
+- Manual smoke on Pixel_8 API 35 emulator (debug build with the same extractor change): search → play → past the 1-minute mark → seek → skip. PASS (Matteo, 2026-09-03).
+- iOS: extractor suites (33 tests) pass on iPhone 16 / iOS 26.4; iOS build not released.
+
 ## v0.1.1 — first hosted update smoke release (2026-05-15)
 
 ### What changed since v0.1.0
